@@ -313,10 +313,6 @@ for CATEGORY_DIR in ${SOURCE_FLAGS_DIR_PATH}/*; do
     mkdir -p "${CATEGORY_OUTPUT_MAP_DIR_PATH}"
     mkdir -p "${CATEGORY_OUTPUT_SMALL_DIR_PATH}"
 
-    if [ "${CATEGORY_NAME}" != "ui_civbe" ]; then
-        continue;
-    fi
-
     for FILE in ${CATEGORY_DIR}/* ; do
         FILE_BASENAME=$(basename ${FILE})
         FILE_NAME="${FILE_BASENAME%.*}"
