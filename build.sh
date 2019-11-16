@@ -66,7 +66,7 @@ function png-to-bmp {
 
     echo -e "\e[36mConverting PNG to BMP for '$FILE_IN'...\e[0m"
 
-    convert "${FILE_IN}" -alpha off "${FILE_OUT}"
+    convert -background "#000" -flatten "${FILE_IN}" "${FILE_OUT}"
 }
 
 function png-to-dds {
@@ -313,8 +313,15 @@ for CATEGORY_DIR in ${SOURCE_FLAGS_DIR_PATH}/*; do
     mkdir -p "${CATEGORY_OUTPUT_MAP_DIR_PATH}"
     mkdir -p "${CATEGORY_OUTPUT_SMALL_DIR_PATH}"
 
+    if [ -f "${CATEGORY_DIR}/usage.txt" ]; then
+        cp "${CATEGORY_DIR}/usage.txt" "${CATEGORY_OUTPUT_DIR_PATH}/usage.txt"
+    fi
+
     for FILE in ${CATEGORY_DIR}/* ; do
         FILE_BASENAME=$(basename ${FILE})
+
+        [ "${FILE_BASENAME}" == "usage.txt" ] && continue
+
         FILE_NAME="${FILE_BASENAME%.*}"
         FILE_EXTENSION=$(echo "${FILE_BASENAME}" | cut -d'.' -f2)
 
