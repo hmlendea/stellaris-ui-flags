@@ -22,7 +22,7 @@ MOD_DESCRIPTOR_PRIMARY_FILE_PATH="${OUTPUT_DIR_PATH}/${MOD_ID}.mod"
 MOD_DESCRIPTOR_SECONDARY_FILE_PATH="${OUTPUT_MOD_DIR_PATH}/descriptor.mod"
 
 FLAG_NAMES_FILE_PATH="${SOURCE_DIR_PATH}/names.txt"
-LOGO_FILE_PATH="${SOURCE_DIR_PATH}/logo.jpg"
+THUMBNAIL_FILE_PATH="${SOURCE_DIR_PATH}/thumbnail.png"
 
 [ ! -d ${SOURCE_DIR_PATH} ] && echo "MISSING SOURCE DIRECTORY" && exit -1
 
@@ -277,7 +277,6 @@ function generate-mod-descriptor {
     echo "tags={" >> ${FILE_PATH}
     echo "  \"Graphics\"" >> ${FILE_PATH}
     echo "}" >> ${FILE_PATH}
-    echo "picture=\"logo.jpg\"" >> ${FILE_PATH}
     echo "supported_version=\"${STELLARIS_VERSION}\"" >> ${FILE_PATH}
 }
 
@@ -286,18 +285,18 @@ mkdir -p "${OUTPUT_LOCALISATIONS_DIR_PATH}"
 
 cp ${SOURCE_BACKGROUNDS_DIR_PATH}/* ${OUTPUT_BACKGROUNDS_DIR_PATH}
 cp ${SOURCE_LOCALISATION_FILE_PATH} ${OUTPUT_LOCALISATION_FILE_PATH}
-cp ${LOGO_FILE_PATH} ${OUTPUT_MOD_DIR_PATH}
+cp ${THUMBNAIL_FILE_PATH} ${OUTPUT_MOD_DIR_PATH}
 
 generate-mod-descriptor ${MOD_DESCRIPTOR_PRIMARY_FILE_PATH}
 generate-mod-descriptor ${MOD_DESCRIPTOR_SECONDARY_FILE_PATH}
 
 for CATEGORY_DIR in ${SOURCE_FLAGS_DIR_PATH}/*; do
     [ -z "${CATEGORY_DIR}" ] && continue
-    [ -z "$(ls -A ${CATEGORY_DIR})" ] && continue 
+    [ -z "$(ls -A ${CATEGORY_DIR})" ] && continue
     [ ! -d ${CATEGORY_DIR} ] && continue
 
     CATEGORY_NAME=$(basename ${CATEGORY_DIR})
-    
+
     CATEGORY_BUILD_DIR_PATH="${BUILD_DIR_PATH}/${CATEGORY_NAME}"
     CATEGORY_BUILD_MAP_DIR_PATH="${CATEGORY_BUILD_DIR_PATH}/map"
     CATEGORY_BUILD_SMALL_DIR_PATH="${CATEGORY_BUILD_DIR_PATH}/small"
