@@ -154,7 +154,7 @@ function svg-to-png {
     (gimp-image-merge-visible-layers image EXPAND-AS-NECESSARY)
     (set! drawable (car (gimp-image-get-active-drawable image)))
     
-    (set! bg-colour (car (gimp-image-pick-color image drawable 1 1 FALSE FALSE 0.0)))
+    (set! bg-colour (car (gimp-image-pick-color image drawable 3 0 FALSE FALSE 0.0)))
     (plug-in-colortoalpha RUN-NONINTERACTIVE image drawable bg-colour)
     
     (gimp-layer-set-lock-alpha drawable TRUE)
