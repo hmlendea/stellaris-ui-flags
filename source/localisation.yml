@@ -4,6 +4,7 @@
  FLAG_CATEGORY_liquid:0 "Liquid"
  FLAG_CATEGORY_mechanical:0 "Mechanical"
  FLAG_CATEGORY_ui_civbe:0 "CivBE"
+ FLAG_CATEGORY_ui_elderscrolls:0 "Elder Scrolls"
  FLAG_CATEGORY_ui_galciv:0 "GalCiv"
  FLAG_CATEGORY_ui_logos:0 "Logos"
  FLAG_CATEGORY_ui_marvel:0 "Marvel"
@@ -11,3 +12,4 @@
  FLAG_CATEGORY_ui_pax-nova:0 "Pax Nova"
  FLAG_CATEGORY_ui_starcraft:0 "StarCraft"
  FLAG_CATEGORY_ui_starwars:0 "Star Wars"
+ FLAG_CATEGORY_ui_total-war:0 "Total War"
