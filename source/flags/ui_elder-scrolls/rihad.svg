@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="256mm"
+   height="256mm"
+   viewBox="0 0 256.00001 256.00002"
+   version="1.1"
+   id="svg952"
+   inkscape:version="0.92.5 (2060ec1f9f, 2020-04-08)"
+   sodipodi:docname="rihad.svg">
+  <defs
+     id="defs946" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.6089957"
+     inkscape:cx="-269.53405"
+     inkscape:cy="604.89561"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     units="mm"
+     inkscape:window-width="3840"
+     inkscape:window-height="2056"
+     inkscape:window-x="0"
+     inkscape:window-y="50"
+     inkscape:window-maximized="1"
+     showguides="true"
+     inkscape:guide-bbox="true" />
+  <metadata
+     id="metadata949">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-40.999976)">
+    <rect
+       style="fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.83444387;stroke-opacity:1"
+       id="rect816"
+       width="256"
+       height="256"
+       x="0"
+       y="40.999977" />
+    <g
+       id="Rihad_Icon"
+       inkscape:label="Rihad Icon"
+       transform="matrix(13.385623,0,0,13.385623,4263.4399,-939.51105)"
+       style="fill:#ffffff">
+      <g
+         inkscape:label="Fish"
+         id="Fish"
+         style="fill:#ffffff">
+        <path
+           style="fill:#ffffff;stroke-width:0.26458332"
+           d="m -316.45329,90.374866 c -0.33719,-0.599955 -0.6976,-1.465567 -0.80089,-1.923581 l -0.18782,-0.832753 1.63383,0.01738 c 1.24975,0.01329 1.80268,0.150198 2.3521,0.582371 0.39505,0.310745 1.0709,0.642443 1.5019,0.737106 0.431,0.09466 0.72244,0.271129 0.64765,0.392146 -0.23541,0.380899 -2.11042,0.570583 -2.85224,0.288545 -0.59458,-0.226061 -0.75499,-0.187918 -0.98032,0.233102 -0.14817,0.276864 -0.2694,0.749343 -0.2694,1.049951 0,0.845632 -0.37278,0.651441 -1.04481,-0.544267 z"
+           id="Fish_Tail"
+           inkscape:label="Fish Tail"
+           inkscape:connector-curvature="0" />
+        <g
+           id="Fish_Body"
+           inkscape:label="Fish Body"
+           style="fill:#ffffff">
+          <path
+             inkscape:label="Fish Back"
+             id="Fish_Back"
+             d="m -316.53847,86.807924 c -0.41049,-0.410488 -0.16154,-3.52421 0.47035,-5.882818 0.36407,-1.358938 0.59487,-2.579329 0.51288,-2.71198 -0.082,-0.13265 -0.49922,-0.241183 -0.92719,-0.241183 -1.76966,0 -0.46526,-1.059031 2.12055,-1.721655 0.93943,-0.240734 2.03485,-0.606688 2.43425,-0.81323 0.81945,-0.423753 1.10992,-0.475244 0.91663,-0.162489 -0.0724,0.117173 -0.0325,0.652955 0.0888,1.190625 0.12126,0.537671 0.12336,0.977583 0.005,0.977583 -0.11871,0 -0.75316,0.537327 -1.4099,1.194061 -1.87453,1.874534 -2.66261,3.461823 -3.84893,7.752163 -0.0931,0.336517 -0.256,0.525032 -0.3621,0.418923 z"
+             style="fill:#ffffff;stroke-width:0.26458332"
+             inkscape:connector-curvature="0" />
+          <path
+             inkscape:label="Fish Belly"
+             id="Fish_Belly"
+             d="m -315.40848,86.751214 c 0,-0.539102 0.91073,-3.203772 1.46327,-4.281356 0.33579,-0.654844 1.26045,-1.827026 2.05482,-2.604848 l 1.44429,-1.414224 1.02454,0.670515 c 0.56349,0.368783 1.36203,0.752729 1.77453,0.853214 0.67206,0.163713 0.70808,0.224622 0.3466,0.586099 -0.36148,0.361477 -0.47282,0.357912 -1.07142,-0.0343 -0.36741,-0.240737 -1.05916,-0.429293 -1.53722,-0.419014 l -0.86921,0.01869 1.12448,0.499628 c 0.96011,0.426593 1.12448,0.615049 1.12448,1.289224 0,0.51601 -0.20375,0.932308 -0.58804,1.201475 -0.74292,0.520363 -1.09998,0.52629 -0.90378,0.015 0.16911,-0.440692 -0.23489,-0.549199 -0.49255,-0.13229 -0.27751,0.449013 -0.65476,0.291743 -0.476,-0.198438 0.27024,-0.741032 -0.81206,0.29759 -2.48137,2.38125 -1.30545,1.629477 -1.93742,2.141398 -1.93742,1.569377 z"
+             style="fill:#ffffff;stroke-width:0.26458332"
+             inkscape:connector-curvature="0" />
+        </g>
+        <g
+           id="Fish_Head"
+           inkscape:label="Fish Head"
+           style="fill:#ffffff">
+          <path
+             inkscape:label="Fish Jaw"
+             id="Fish_Jaw"
+             d="m -307.58142,79.330219 c -0.20663,-0.334336 0.66713,-1.030956 1.42451,-1.135717 0.63363,-0.08764 0.92106,-0.482977 1.58571,-2.18104 0.48322,-1.234533 0.91242,-0.483651 0.5317,0.93021 -0.50595,1.878961 -1.17509,2.615769 -2.37555,2.615769 -0.56359,0 -1.08845,-0.10315 -1.16637,-0.229222 z"
+             style="fill:#ffffff;stroke-width:0.26458332"
+             inkscape:connector-curvature="0" />
+          <path
+             inkscape:label="Fish Face"
+             id="Fish_Face"
+             d="m -308.95273,78.563202 c -0.16011,-0.106912 -0.42568,-0.450106 -0.59015,-0.762653 -0.25665,-0.487743 -0.20432,-0.630321 0.36933,-1.006189 0.37171,-0.243555 0.89343,-0.366486 1.17547,-0.276971 0.56407,0.17903 1.58543,-0.264997 1.58543,-0.689253 0,-0.150207 -0.22811,-0.200706 -0.5069,-0.11222 -0.61232,0.194341 -1.02362,-0.326753 -0.43591,-0.552276 0.68561,-0.263094 0.4651,-0.672352 -0.31396,-0.58271 -0.50496,0.0581 -0.75202,0.254796 -0.8074,0.642783 -0.0827,0.579371 -1.23004,1.281803 -1.65982,1.016183 -0.29975,-0.185256 -0.31418,-1.188531 -0.0237,-1.646226 0.37126,-0.584912 1.9621,-0.871701 3.83607,-0.691548 2.02329,0.194508 2.5168,0.656328 1.51161,1.414545 -0.39305,0.296478 -0.61487,0.762801 -0.64465,1.355207 -0.0389,0.774048 -0.14094,0.904847 -0.71363,0.914767 -0.36753,0.0064 -1.03714,0.274257 -1.48802,0.595312 -0.92027,0.655292 -0.89468,0.64775 -1.2938,0.381249 z"
+             style="fill:#ffffff;stroke-width:0.26458332"
+             inkscape:connector-curvature="0" />
+        </g>
+      </g>
+      <g
+         inkscape:label="Bubbles"
+         id="Bubbles"
+         style="fill:#ffffff">
+        <ellipse
+           style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:3.70720816;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+           id="Bubble-2"
+           cx="-309.85574"
+           cy="86.407768"
+           rx="1.2876635"
+           ry="1.3128296"
+           inkscape:label="Bubble" />
+        <ellipse
+           style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:3.70720816;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+           id="Bubble-1"
+           cx="-304.81805"
+           cy="82.443626"
+           rx="1.2876636"
+           ry="1.3128296"
+           inkscape:label="Bubble" />
+        <ellipse
+           style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:9.93692303;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+           id="Bubble"
+           cx="-303.90228"
+           cy="88.259445"
+           rx="3.4514961"
+           ry="3.5189519"
+           inkscape:label="Bubble" />
+      </g>
+    </g>
+  </g>
+</svg>
