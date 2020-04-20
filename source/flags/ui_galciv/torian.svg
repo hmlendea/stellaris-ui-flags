@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="256mm"
+   height="256mm"
+   viewBox="0 0 256 256"
+   version="1.1"
+   id="svg8"
+   inkscape:version="0.92.5 (2060ec1f9f, 2020-04-08)"
+   sodipodi:docname="torian.svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.98994949"
+     inkscape:cx="172.84628"
+     inkscape:cy="335.03632"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="3840"
+     inkscape:window-height="2056"
+     inkscape:window-x="0"
+     inkscape:window-y="50"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-41)">
+    <rect
+       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.32538173;stroke-opacity:1"
+       id="rect816"
+       width="256"
+       height="256"
+       x="0"
+       y="41" />
+    <g
+       id="g4886">
+      <path
+         id="path4868"
+         d="m 74.180436,265.66142 c 29.835704,-4.36617 46.901014,-6.42004 53.342794,-6.42004 6.44183,0 23.50714,2.05387 53.34285,6.42004 l 43.87076,6.42 H 127.52323 30.309676 Z"
+         style="fill:#ffffff;stroke-width:0.99706239" />
+      <g
+         id="g4876">
+        <path
+           style="fill:#ffffff;stroke-width:0.99706239"
+           d="M 8.1294789,263.88664 C 8.8125089,262.62 28.664533,229.42153 52.245038,190.11234 l 42.873698,-71.47127 8.680454,17.79062 8.68049,17.79058 -5.20333,39.53085 c -2.86181,21.74197 -5.43859,39.76616 -5.72616,40.05373 -0.28753,0.28753 -21.704341,7.69135 -47.592743,16.45286 -41.768998,14.13597 -46.9300381,15.67062 -45.8279681,13.62693 z"
+           id="path4866" />
+        <path
+           style="fill:#ffffff;stroke-width:0.99706239"
+           d="m 200.3537,250.05445 -47.31559,-16.13086 -5.23562,-39.85068 -5.23567,-39.85064 8.6805,-17.79058 8.68045,-17.79062 42.87371,71.47127 c 41.99171,70.00105 45.72038,76.2895 45.1489,76.14438 -0.15451,-0.0392 -21.57311,-7.33027 -47.59668,-16.20227 z"
+           id="path4864" />
+      </g>
+      <g
+         id="g4872">
+        <path
+           style="fill:#ffffff;stroke-width:0.99706239"
+           d="m 54.7377,259.26655 c 1.370953,-0.60826 14.158312,-5.03096 28.416287,-9.8282 20.985563,-7.06079 25.978803,-9.08432 26.213423,-10.62293 0.15941,-1.04536 2.64363,-19.84483 5.52052,-41.77657 4.51898,-34.45037 5.46441,-39.92092 6.94868,-40.20676 1.60934,-0.30976 1.70163,2.65222 1.45894,46.83689 l -0.25889,47.16772 -29.911873,4.17387 c -38.092886,5.31547 -41.668104,5.71187 -38.386899,4.25598 z"
+           id="path4862" />
+        <path
+           style="fill:#ffffff;stroke-width:0.99706239"
+           d="m 194.82497,259.66815 c -1.09676,-0.22346 -15.6788,-2.30281 -32.40454,-4.62114 l -30.4104,-4.21517 -0.25889,-47.16531 c -0.24268,-44.18237 -0.15036,-47.14435 1.45895,-46.83444 1.48427,0.28603 2.42969,5.75639 6.94867,40.20676 2.87689,21.93174 5.36112,40.73121 5.52052,41.77657 0.23477,1.53861 5.22786,3.56214 26.21343,10.62293 14.25798,4.79724 27.04534,9.18546 28.4163,9.75163 2.49149,1.02889 2.49126,1.0293 -0.49853,0.95676 -1.64518,-0.0399 -3.88856,-0.25512 -4.98532,-0.47859 z"
+           id="path4860" />
+      </g>
+      <path
+         id="path4856"
+         d="m 110.2031,129.21187 -9.48697,-19.46282 13.15248,-21.91524 c 7.23383,-12.05338 13.37844,-21.91523 13.65462,-21.91523 0.27623,0 6.42084,9.86185 13.65467,21.91523 l 13.15248,21.91524 -9.48697,19.46282 -9.48698,19.46286 h -7.8332 -7.83316 z"
+         style="fill:#ffffff;stroke-width:0.99706239" />
+    </g>
+  </g>
+</svg>
