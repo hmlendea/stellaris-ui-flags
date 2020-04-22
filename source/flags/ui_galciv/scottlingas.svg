@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="256mm"
+   height="256mm"
+   viewBox="0 0 256 256"
+   version="1.1"
+   id="svg8"
+   inkscape:version="0.92.5 (2060ec1f9f, 2020-04-08)"
+   sodipodi:docname="scottlingas.svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.70710678"
+     inkscape:cx="572.59629"
+     inkscape:cy="659.92743"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="3840"
+     inkscape:window-height="2056"
+     inkscape:window-x="0"
+     inkscape:window-y="50"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-41)">
+    <rect
+       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.32538173;stroke-opacity:1"
+       id="rect816"
+       width="256"
+       height="256"
+       x="0"
+       y="41" />
+    <g
+       id="g5189"
+       transform="matrix(0.46249488,0,0,0.46249488,586.92841,132.19044)">
+      <path
+         id="path5142"
+         transform="matrix(0.26458333,0,0,0.26458333,0,41)"
+         d="m -3786.1445,-797.34375 a 944.88189,944.88189 0 0 0 -944.8828,944.88086 944.88189,944.88189 0 0 0 877.3593,941.50389 V -209.73242 l 431.6504,-514.41992 a 944.88189,944.88189 0 0 0 -364.1269,-73.19141 z"
+         style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.50015008;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+         inkscape:connector-curvature="0" />
+      <g
+         id="g5182">
+        <rect
+           style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.42000002;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+           id="rect5156"
+           width="248.26666"
+           height="52.010651"
+           x="-981.09296"
+           y="10.754357" />
+        <rect
+           style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.42000002;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+           id="rect5156-5"
+           width="248.26666"
+           height="52.010651"
+           x="-981.09296"
+           y="92.792732" />
+        <rect
+           style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.42000002;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+           id="rect5156-4"
+           width="248.26666"
+           height="52.010651"
+           x="-981.09296"
+           y="174.8311" />
+      </g>
+    </g>
+  </g>
+</svg>
