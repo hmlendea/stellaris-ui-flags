@@ -2,7 +2,7 @@
 
 MOD_ID="ui-flags"
 MOD_NAME="Universum Infinitum - Flags"
-STELLARIS_VERSION="2.6.*"
+STELLARIS_VERSION="2.8.*"
 
 SOURCE_DIR_PATH="$(pwd)/source"
 SOURCE_FLAGS_DIR_PATH="${SOURCE_DIR_PATH}/flags"
@@ -26,7 +26,7 @@ MOD_DESCRIPTOR_SECONDARY_FILE_PATH="${OUTPUT_MOD_DIR_PATH}/descriptor.mod"
 FLAG_NAMES_FILE_PATH="${SOURCE_DIR_PATH}/names.txt"
 THUMBNAIL_FILE_PATH="${SOURCE_DIR_PATH}/thumbnail.png"
 
-[ ! -d ${SOURCE_DIR_PATH} ] && echo "MISSING SOURCE DIRECTORY" && exit -1
+[ ! -d "${SOURCE_DIR_PATH}" ] && echo "MISSING SOURCE DIRECTORY" && exit -1
 
 function execute-scriptfu {
     GIMP_SCRIPTFU="$1"
@@ -35,15 +35,15 @@ function execute-scriptfu {
 }
 
 function xcf-to-png {
-    FILE_IN="$1"
-    FILE_OUT="$2"
-    SIZE=$3
+    FILE_IN="${1}"
+    FILE_OUT="${2}"
+    SIZE="${3}"
 
     echo -e "\e[36mConverting XCF to PNG for '$FILE_IN'...\e[0m"
     GIMP_SCRIPTFU="
 (let* (
-      (imageInPath \""$FILE_IN"\")
-      (imageOutPath \""$FILE_OUT"\")
+      (imageInPath \""${FILE_IN}"\")
+      (imageOutPath \""${FILE_OUT}"\")
       (image (car (gimp-file-load RUN-NONINTERACTIVE imageInPath imageInPath)))
       (drawable (car (gimp-image-merge-visible-layers image CLIP-TO-IMAGE)))
       )
@@ -61,8 +61,8 @@ function xcf-to-png {
 }
 
 function png-to-bmp {
-    FILE_IN="$1"
-    FILE_OUT="$2"
+    FILE_IN="${1}"
+    FILE_OUT="${2}"
 
     echo -e "\e[36mConverting PNG to BMP for '$FILE_IN'...\e[0m"
 
@@ -70,14 +70,14 @@ function png-to-bmp {
 }
 
 function png-to-dds {
-    FILE_IN="$1"
-    FILE_OUT="$2"
+    FILE_IN="${1}"
+    FILE_OUT="${2}"
 
     echo -e "\e[36mConverting PNG to DDS for '$FILE_IN'...\e[0m"
     GIMP_SCRIPTFU="
 (let* (
-      (imageInPath \""$FILE_IN"\")
-      (imageOutPath \""$FILE_OUT"\")
+      (imageInPath \""${FILE_IN}"\")
+      (imageOutPath \""${FILE_OUT}"\")
       (image (car (file-png-load RUN-NONINTERACTIVE imageInPath imageInPath)))
       (drawable (car (gimp-image-get-active-drawable image)))
       )
@@ -98,33 +98,33 @@ function png-to-dds {
 }
 
 function bmp-to-svg {
-    FILE_IN="$1"
-    FILE_OUT="$2"
+    FILE_IN="${1}"
+    FILE_OUT="${2}"
 
     echo -e "\e[36mConverting BMP to SVG for '$FILE_IN'...\e[0m"
-    
+
     potrace --opaque -s "${FILE_IN}" -o "${FILE_OUT}"
 }
 
 function ai-to-svg {
-    FILE_IN="$1"
-    FILE_OUT="$2"
+    FILE_IN="${1}"
+    FILE_OUT="${2}"
 
     echo -e "\e[36mConverting AI to SVG for '$FILE_IN'...\e[0m"
-    
+
     inkscape -f "${FILE_IN}" -l "${FILE_OUT}"
 }
 
 function svg-to-png {
-    FILE_IN="$1"
-    FILE_OUT="$2"
-    SIZE=$3
+    FILE_IN="${1}"
+    FILE_OUT="${2}"
+    SIZE="${3}"
 
     echo -e "\e[36mConverting SVG to PNG for '$FILE_IN'...\e[0m"
     GIMP_SCRIPTFU="
 (let* (
-      (imageInPath \""$FILE_IN"\")
-      (imageOutPath \""$FILE_OUT"\")
+      (imageInPath \""${FILE_IN}"\")
+      (imageOutPath \""${FILE_OUT}"\")
       (image (car (file-svg-load RUN-NONINTERACTIVE imageInPath imageInPath 96.0 "$SIZE" "$SIZE" 0)))
       (width (car (gimp-image-width image)))
       (height (car (gimp-image-height image)))
@@ -136,12 +136,12 @@ function svg-to-png {
 
     (gimp-context-push)
     (gimp-context-set-defaults)
-    
+
     (script-fu-util-image-add-layers image background-layer)
-    
+
     (gimp-context-set-background '(255 255 255))
     (gimp-edit-fill background-layer BACKGROUND-FILL)
-    
+
     (if (= has-black FALSE)
         (begin
             (gimp-layer-set-lock-alpha drawable TRUE)
@@ -152,13 +152,13 @@ function svg-to-png {
             (gimp-layer-set-lock-alpha drawable FALSE)
         )
     )
-    
+
     (gimp-image-merge-visible-layers image EXPAND-AS-NECESSARY)
     (set! drawable (car (gimp-image-get-active-drawable image)))
-    
+
     (set! bg-colour (car (gimp-image-pick-color image drawable 3 0 FALSE FALSE 0.0)))
     (plug-in-colortoalpha RUN-NONINTERACTIVE image drawable bg-colour)
-    
+
     (gimp-layer-set-lock-alpha drawable TRUE)
     (gimp-selection-all image)
     (gimp-context-set-background '(255 255 255))
@@ -176,18 +176,18 @@ function svg-to-png {
 )
 "
 
-    gimp -i -b ''"$GIMP_SCRIPTFU"'' -b '(gimp-quit 0)'
+    gimp -i -b ''"${GIMP_SCRIPTFU}"'' -b '(gimp-quit 0)'
 }
 
 function apply-gradient-bevel {
-    FILE="$1"
+    FILE="${1}"
 
     echo -e "\e[36mApplying gradient bevel on '$FILE'...\e[0m"
     GIMP_SCRIPTFU="
 ; Script based on gradient-bevel-logo.scm included with GIMP <2.10, by Brian McFee
 (let* (
-      (imageInPath \""$FILE"\")
-      (imageOutPath \""$FILE"\")
+      (imageInPath \""${FILE}"\")
+      (imageOutPath \""${FILE}"\")
       (image (car (file-png-load RUN-NONINTERACTIVE imageInPath imageInPath)))
       (logo-layer (car (gimp-image-get-active-drawable image)))
       (width (car (gimp-image-width image)))
@@ -263,7 +263,7 @@ function get-flag-file-name {
     SOURCE_FILE_NAME="$1"
     FILE_PREFIX="ui_"
     FLAG_FILE_NAME=$(grep "^${SOURCE_FILE_NAME}=" "${FLAG_NAMES_FILE_PATH}" | awk -F= '{print $2}')
-    
+
     if [ -z "${FLAG_FILE_NAME}" ]; then
         echo "${FILE_PREFIX}${SOURCE_FILE_NAME}"
     else
@@ -272,33 +272,33 @@ function get-flag-file-name {
 }
 
 function generate-mod-descriptor {
-    FILE_PATH=$1
+    FILE_PATH="${1}"
 
-    echo "name=\"${MOD_NAME}\"" > ${FILE_PATH}
-    echo "path=\"mod/${MOD_ID}\"" >> ${FILE_PATH}
-    echo "tags={" >> ${FILE_PATH}
-    echo "  \"Graphics\"" >> ${FILE_PATH}
-    echo "}" >> ${FILE_PATH}
-    echo "supported_version=\"${STELLARIS_VERSION}\"" >> ${FILE_PATH}
+    echo "name=\"${MOD_NAME}\"" > "${FILE_PATH}"
+    echo "path=\"mod/${MOD_ID}\"" >> "${FILE_PATH}"
+    echo "tags={" >> "${FILE_PATH}"
+    echo "  \"Graphics\"" >> "${FILE_PATH}"
+    echo "}" >> "${FILE_PATH}"
+    echo "supported_version=\"${STELLARIS_VERSION}\"" >> "${FILE_PATH}"
 }
 
 mkdir -p "${OUTPUT_BACKGROUNDS_DIR_PATH}"
 mkdir -p "${OUTPUT_LOCALISATIONS_DIR_PATH}"
 
-cp ${SOURCE_BACKGROUNDS_DIR_PATH}/* ${OUTPUT_BACKGROUNDS_DIR_PATH}
-cp ${SOURCE_COLOURS_FILE_PATH} ${OUTPUT_COLOURS_FILE_PATH}
-cp ${SOURCE_LOCALISATION_FILE_PATH} ${OUTPUT_LOCALISATION_FILE_PATH}
-cp ${THUMBNAIL_FILE_PATH} ${OUTPUT_MOD_DIR_PATH}
+cp "${SOURCE_BACKGROUNDS_DIR_PATH}"/* "${OUTPUT_BACKGROUNDS_DIR_PATH}"
+cp "${SOURCE_COLOURS_FILE_PATH}" "${OUTPUT_COLOURS_FILE_PATH}"
+cp "${SOURCE_LOCALISATION_FILE_PATH}" "${OUTPUT_LOCALISATION_FILE_PATH}"
+cp "${THUMBNAIL_FILE_PATH}" "${OUTPUT_MOD_DIR_PATH}"
 
-generate-mod-descriptor ${MOD_DESCRIPTOR_PRIMARY_FILE_PATH}
-generate-mod-descriptor ${MOD_DESCRIPTOR_SECONDARY_FILE_PATH}
+generate-mod-descriptor "${MOD_DESCRIPTOR_PRIMARY_FILE_PATH}"
+generate-mod-descriptor "${MOD_DESCRIPTOR_SECONDARY_FILE_PATH}"
 
-for CATEGORY_DIR in ${SOURCE_FLAGS_DIR_PATH}/*; do
+for CATEGORY_DIR in "${SOURCE_FLAGS_DIR_PATH}"/*; do
     [ -z "${CATEGORY_DIR}" ] && continue
-    [ -z "$(ls -A ${CATEGORY_DIR})" ] && continue
-    [ ! -d ${CATEGORY_DIR} ] && continue
+    [ $(ls -A "${CATEGORY_DIR}" | wc -l) -eq 0 ] && continue
+    [ ! -d "${CATEGORY_DIR}" ] && continue
 
-    CATEGORY_NAME=$(basename ${CATEGORY_DIR})
+    CATEGORY_NAME=$(basename "${CATEGORY_DIR}")
 
     CATEGORY_BUILD_DIR_PATH="${BUILD_DIR_PATH}/${CATEGORY_NAME}"
     CATEGORY_BUILD_MAP_DIR_PATH="${CATEGORY_BUILD_DIR_PATH}/map"
@@ -309,7 +309,7 @@ for CATEGORY_DIR in ${SOURCE_FLAGS_DIR_PATH}/*; do
 
     mkdir -p "${CATEGORY_BUILD_MAP_DIR_PATH}"
     mkdir -p "${CATEGORY_BUILD_SMALL_DIR_PATH}"
-    
+
     mkdir -p "${CATEGORY_OUTPUT_MAP_DIR_PATH}"
     mkdir -p "${CATEGORY_OUTPUT_SMALL_DIR_PATH}"
 
@@ -317,15 +317,15 @@ for CATEGORY_DIR in ${SOURCE_FLAGS_DIR_PATH}/*; do
         cp "${CATEGORY_DIR}/usage.txt" "${CATEGORY_OUTPUT_DIR_PATH}/usage.txt"
     fi
 
-    for FILE in ${CATEGORY_DIR}/* ; do
-        FILE_BASENAME=$(basename ${FILE})
+    for FILE in "${CATEGORY_DIR}"/* ; do
+        FILE_BASENAME=$(basename "${FILE}")
 
         [ "${FILE_BASENAME}" == "usage.txt" ] && continue
 
         FILE_NAME="${FILE_BASENAME%.*}"
         FILE_EXTENSION=$(echo "${FILE_BASENAME}" | cut -d'.' -f2)
 
-        FLAG_FILE_NAME=$(get-flag-file-name ${FILE_NAME})
+        FLAG_FILE_NAME=$(get-flag-file-name "${FILE_NAME}")
 
         FLAG_BMP_BUILD_FILE_PATH="${CATEGORY_BUILD_DIR_PATH}/${FLAG_FILE_NAME}.bmp"
         FLAG_PNG_BUILD_FILE_PATH="${CATEGORY_BUILD_DIR_PATH}/${FLAG_FILE_NAME}.png"
@@ -342,9 +342,9 @@ for CATEGORY_DIR in ${SOURCE_FLAGS_DIR_PATH}/*; do
         if [ -f "${FLAG_OUTPUT_MAIN_FILE_PATH}" ] && [ -f "${FLAG_OUTPUT_MAP_FILE_PATH}" ] && [ -f "${FLAG_OUTPUT_SMALL_FILE_PATH}" ]; then
             continue
         fi
-        
+
         echo "Processing ${FILE_NAME} (${FILE})..."
-        
+
         if [ "${FILE_EXTENSION}" == "bmp" ]; then
             bmp-to-svg "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
         elif [ "${FILE_EXTENSION}" == "xcf" ]; then
@@ -360,15 +360,15 @@ for CATEGORY_DIR in ${SOURCE_FLAGS_DIR_PATH}/*; do
             cp "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
         fi
 
-        svg-to-png ${FLAG_SVG_BUILD_FILE_PATH} ${FLAG_BUILD_MAIN_FILE_PATH} 128
-        apply-gradient-bevel ${FLAG_BUILD_MAIN_FILE_PATH}
-        png-to-dds ${FLAG_BUILD_MAIN_FILE_PATH} ${FLAG_OUTPUT_MAIN_FILE_PATH}
+        svg-to-png "${FLAG_SVG_BUILD_FILE_PATH}" "${FLAG_BUILD_MAIN_FILE_PATH}" 128
+        apply-gradient-bevel "${FLAG_BUILD_MAIN_FILE_PATH}"
+        png-to-dds "${FLAG_BUILD_MAIN_FILE_PATH}" "${FLAG_OUTPUT_MAIN_FILE_PATH}"
 
-        svg-to-png ${FLAG_SVG_BUILD_FILE_PATH} ${FLAG_BUILD_MAP_FILE_PATH} 256
-        png-to-dds ${FLAG_BUILD_MAP_FILE_PATH} ${FLAG_OUTPUT_MAP_FILE_PATH}
+        svg-to-png "${FLAG_SVG_BUILD_FILE_PATH}" "${FLAG_BUILD_MAP_FILE_PATH}" 256
+        png-to-dds "${FLAG_BUILD_MAP_FILE_PATH}" "${FLAG_OUTPUT_MAP_FILE_PATH}"
 
-        svg-to-png ${FLAG_SVG_BUILD_FILE_PATH} ${FLAG_BUILD_SMALL_FILE_PATH} 24
-        apply-gradient-bevel ${FLAG_BUILD_SMALL_FILE_PATH}
-        png-to-dds ${FLAG_BUILD_SMALL_FILE_PATH} ${FLAG_OUTPUT_SMALL_FILE_PATH}
+        svg-to-png "${FLAG_SVG_BUILD_FILE_PATH}" "${FLAG_BUILD_SMALL_FILE_PATH}" 24
+        apply-gradient-bevel "${FLAG_BUILD_SMALL_FILE_PATH}"
+        png-to-dds "${FLAG_BUILD_SMALL_FILE_PATH}" "${FLAG_OUTPUT_SMALL_FILE_PATH}"
     done
 done
