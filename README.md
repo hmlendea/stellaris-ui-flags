@@ -4,6 +4,10 @@
 
 Mod for Stellaris that add hundreds of new flags in the game, made to match as closely as possible the vanilla flag style.
 
+# Installation
+
+[![Get it from the Workshop](https://raw.githubusercontent.com/hmlendea/readme-assets/master/badges/stores/steam-workshop.png)](https://steamcommunity.com/sharedfiles/filedetails/?id=1914541325)
+
 # Sources
 
  - game-icons.net
