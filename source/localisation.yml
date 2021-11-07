@@ -5,6 +5,7 @@
  FLAG_CATEGORY_mechanical:0 "Mechanical"
  FLAG_CATEGORY_ui_civ:0 "Civ"
  FLAG_CATEGORY_ui_civbe:0 "CivBE"
+ FLAG_CATEGORY_ui_dune:0 "Dune"
  FLAG_CATEGORY_ui_elder-scrolls:0 "Elder Scrolls"
  FLAG_CATEGORY_ui_galciv:0 "GalCiv"
  FLAG_CATEGORY_ui_logos:0 "Logos"
