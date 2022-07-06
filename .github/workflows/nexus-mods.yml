@@ -1,0 +1,32 @@
+name: Nexus Mods
+
+on:
+  push:
+    tags:
+    - 'v*.*.*'
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Download the release asset
+      run: wget "https://github.com/hmlendea/stellaris-ui-flags/releases/download/${{github.ref_name}}/ui-flags_${GITHUB_REF:11}.zip" -O "release.zip"
+
+    - name: Upload
+      uses: greatness7/nexusmods_file_updater@v2
+      with:
+        username: ${{secrets.NEXUS_UPLOADER_USERNAME}}
+        password: ${{secrets.NEXUS_UPLOADER_PASSWORD}}
+        game_domain_name: "stellaris"
+        mod_id: "75"
+        file_name: "ui-flags"
+        file_version: ${{github.ref_name}}
+        update_version: true
+        new_existing_version: true
+        original_file: "ui-flags.*"
+        file_description: "Changelog: https://github.com/hmlendea/stellaris-ui-flags/releases/${{github.ref_name}}"
+        file_path: "release.zip"
