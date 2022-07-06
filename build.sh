@@ -29,9 +29,17 @@ THUMBNAIL_FILE_PATH="${SOURCE_DIR_PATH}/thumbnail.png"
 [ ! -d "${SOURCE_DIR_PATH}" ] && echo "MISSING SOURCE DIRECTORY" && exit -1
 
 function execute-scriptfu {
-    GIMP_SCRIPTFU="$1"
+    local GIMP_SCRIPTFU="${1}"
+    local GIMP_BINARY="/usr/bin/gimp"
 
-    gimp -i -b ''"$GIMP_SCRIPTFU"'' -b '(gimp-quit 0)'
+    [ ! -f "${GIMP_BINARY}" ] && GIMP_BINARY="/var/lib/flatpak/exports/bin/org.gimp.GIMP"
+    [ ! -f "${GIMP_BINARY}" ] && GIMP_BINARY="${HOME}/.local/share/flatpak/exports/bin/org.gimp.GIMP"
+    if [ ! -f "${GIMP_BINARY}" ]; then
+        echo "[ERROR] GIMP is not installed on this system"
+        exit 1
+    fi
+
+    "${GIMP_BINARY}" -i -b ''"$GIMP_SCRIPTFU"'' -b '(gimp-quit 0)'
 }
 
 function xcf-to-png {
@@ -57,7 +65,7 @@ function xcf-to-png {
 )
 "
 
-    gimp -i -b ''"$GIMP_SCRIPTFU"'' -b '(gimp-quit 0)'
+    execute-scriptfu "${GIMP_SCRIPTFU}"
 }
 
 function png-to-bmp {
@@ -94,7 +102,7 @@ function png-to-dds {
 )
 "
 
-    gimp -i -b ''"$GIMP_SCRIPTFU"'' -b '(gimp-quit 0)'
+    execute-scriptfu "${GIMP_SCRIPTFU}"
 }
 
 function bmp-to-svg {
@@ -176,7 +184,7 @@ function svg-to-png {
 )
 "
 
-    gimp -i -b ''"${GIMP_SCRIPTFU}"'' -b '(gimp-quit 0)'
+    execute-scriptfu "${GIMP_SCRIPTFU}"
 }
 
 function apply-gradient-bevel {
@@ -256,7 +264,7 @@ function apply-gradient-bevel {
                    FALSE 0 FALSE FALSE FALSE FALSE FALSE)
 )"
 
-    gimp -i -b ''"$GIMP_SCRIPTFU"'' -b '(gimp-quit 0)'
+    execute-scriptfu "${GIMP_SCRIPTFU}"
 }
 
 function get-flag-file-name {
