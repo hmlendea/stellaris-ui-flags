@@ -5,6 +5,7 @@ MOD_NAME="Universum Infinitum - Flags"
 STELLARIS_VERSION="3.4.*"
 
 SOURCE_DIR_PATH="$(pwd)/source"
+SOURCE_SCRIPTS_DIR_PATH="${SOURCE_DIR_PATH}/scripts"
 SOURCE_FLAGS_DIR_PATH="${SOURCE_DIR_PATH}/flags"
 SOURCE_BACKGROUNDS_DIR_PATH="${SOURCE_DIR_PATH}/backgrounds"
 SOURCE_COLOURS_FILE_PATH="${SOURCE_DIR_PATH}/colours.txt"
@@ -28,8 +29,7 @@ THUMBNAIL_FILE_PATH="${SOURCE_DIR_PATH}/thumbnail.png"
 
 [ ! -d "${SOURCE_DIR_PATH}" ] && echo "MISSING SOURCE DIRECTORY" && exit -1
 
-function execute-scriptfu {
-    local GIMP_SCRIPTFU="${1}"
+function call-gimp {
     local GIMP_BINARY="/usr/bin/gimp"
 
     [ ! -f "${GIMP_BINARY}" ] && GIMP_BINARY="/var/lib/flatpak/exports/bin/org.gimp.GIMP"
@@ -39,88 +39,95 @@ function execute-scriptfu {
         exit 1
     fi
 
-    "${GIMP_BINARY}" -i -b ''"$GIMP_SCRIPTFU"'' -b '(gimp-quit 0)'
+    "${GIMP_BINARY}" $@
+}
+
+function execute-scriptfu {
+    local GIMP_SCRIPTFU="${1}"
+    call-gimp -i -b ''"$GIMP_SCRIPTFU"'' -b '(gimp-quit 0)'
+}
+
+function execute-scriptfu-file {
+    local GIMP_SCRIPTFU_LABEL="${1}" && shift
+    local GIMP_SCRIPTFU_PATH="${SOURCE_SCRIPTS_DIR_PATH}/${GIMP_SCRIPTFU_LABEL}.lisp"
+    local GIMP_SCRIPTFU=""
+
+    if [ ! -f "${GIMP_SCRIPTFU_PATH}" ]; then
+        echo "[ERROR] The specified GIMP Script-fu file cannot be found!"
+        exit 1
+    fi
+
+    GIMP_SCRIPTFU=$(cat "${GIMP_SCRIPTFU_PATH}")
+
+    if [ "$(( $# % 2))" -ne 0 ]; then
+        echo "[ERROR] Invalid arguments (count: $#) for execute-scriptfu: ${*}" >&2
+        exit 2
+    fi
+
+    local PAIRS_COUNT=$(($# / 2))
+    local VARIABLE_NAME=""
+    local VARIABLE_VALUE=""
+    local VARIABLE_VALUE_ESCAPED=""
+
+    for I in $(seq 1 ${PAIRS_COUNT}); do
+        VARIABLE_NAME="${1}" && shift
+        VARIABLE_VALUE="${1}" && shift
+        VARIABLE_VALUE_ESCAPED=$(echo "${VAL}" | sed -e 's/[]\/$*.^|[]/\\&/g')
+
+        echo "var ${VARIABLE_NAME} = ${VARIABLE_VALUE}"
+        GIMP_SCRIPTFU=$(echo "${GIMP_SCRIPTFU}" | sed 's|'"${VARIABLE_NAME}"'|'"\"${VARIABLE_VALUE}\""'|g')
+    done
+
+    execute-scriptfu "${GIMP_SCRIPTFU}"
 }
 
 function xcf-to-png {
-    FILE_IN="${1}"
-    FILE_OUT="${2}"
-    SIZE="${3}"
+    INPUT_FILE_PATH="${1}"
+    OUTPUT_FILE_PATH="${2}"
 
-    echo -e "\e[36mConverting XCF to PNG for '$FILE_IN'...\e[0m"
-    GIMP_SCRIPTFU="
-(let* (
-      (imageInPath \""${FILE_IN}"\")
-      (imageOutPath \""${FILE_OUT}"\")
-      (image (car (gimp-file-load RUN-NONINTERACTIVE imageInPath imageInPath)))
-      (drawable (car (gimp-image-merge-visible-layers image CLIP-TO-IMAGE)))
-      )
+    echo -e "\e[36mConverting XCF to PNG for '${INPUT_FILE_PATH}'...\e[0m"
 
-    ; Save
-    (file-png-save RUN-NONINTERACTIVE image (car (gimp-image-get-active-drawable image))
-                   imageOutPath imageOutPath
-                   FALSE 0 FALSE FALSE FALSE FALSE FALSE)
-
-    (gimp-context-pop)
-)
-"
-
-    execute-scriptfu "${GIMP_SCRIPTFU}"
+    execute-scriptfu-file "xcf-to-png" \
+        INPUT_FILE_PATH "${INPUT_FILE_PATH}" \
+        OUTPUT_FILE_PATH "${OUTPUT_FILE_PATH}"
 }
 
 function png-to-bmp {
-    FILE_IN="${1}"
-    FILE_OUT="${2}"
+    INPUT_FILE_PATH="${1}"
+    OUTPUT_FILE_PATH="${2}"
 
-    echo -e "\e[36mConverting PNG to BMP for '$FILE_IN'...\e[0m"
+    echo -e "\e[36mConverting PNG to BMP for '${INPUT_FILE_PATH}'...\e[0m"
 
-    convert -background "#000" -flatten "${FILE_IN}" "${FILE_OUT}"
+    convert -background "#000" -flatten "${INPUT_FILE_PATH}" "${OUTPUT_FILE_PATH}"
 }
 
 function png-to-dds {
-    FILE_IN="${1}"
-    FILE_OUT="${2}"
+    INPUT_FILE_PATH="${1}"
+    OUTPUT_FILE_PATH="${2}"
 
-    echo -e "\e[36mConverting PNG to DDS for '$FILE_IN'...\e[0m"
-    GIMP_SCRIPTFU="
-(let* (
-      (imageInPath \""${FILE_IN}"\")
-      (imageOutPath \""${FILE_OUT}"\")
-      (image (car (file-png-load RUN-NONINTERACTIVE imageInPath imageInPath)))
-      (drawable (car (gimp-image-get-active-drawable image)))
-      )
+    echo -e "\e[36mConverting PNG to DDS for '${INPUT_FILE_PATH}'...\e[0m"
 
-    (gimp-context-push)
-    (gimp-context-set-defaults)
-
-    ; Save
-    (file-dds-save RUN-NONINTERACTIVE image drawable
-                   imageOutPath imageOutPath
-                   0 1 0 0 0 0 0 0 0 1.0 0 0 0.5)
-
-    (gimp-context-pop)
-)
-"
-
-    execute-scriptfu "${GIMP_SCRIPTFU}"
+    execute-scriptfu-file "png-to-dds" \
+        INPUT_FILE_PATH "${INPUT_FILE_PATH}" \
+        OUTPUT_FILE_PATH "${OUTPUT_FILE_PATH}"
 }
 
 function bmp-to-svg {
-    FILE_IN="${1}"
-    FILE_OUT="${2}"
+    INPUT_FILE_PATH="${1}"
+    OUTPUT_FILE_PATH="${2}"
 
-    echo -e "\e[36mConverting BMP to SVG for '$FILE_IN'...\e[0m"
+    echo -e "\e[36mConverting BMP to SVG for '${INPUT_FILE_PATH}'...\e[0m"
 
-    potrace --opaque -s "${FILE_IN}" -o "${FILE_OUT}"
+    potrace --opaque -s "${INPUT_FILE_PATH}" -o "${OUTPUT_FILE_PATH}"
 }
 
 function ai-to-svg {
-    FILE_IN="${1}"
-    FILE_OUT="${2}"
+    INPUT_FILE_PATH="${1}"
+    OUTPUT_FILE_PATH="${2}"
 
-    echo -e "\e[36mConverting AI to SVG for '$FILE_IN'...\e[0m"
+    echo -e "\e[36mConverting AI to SVG for '${INPUT_FILE_PATH}'...\e[0m"
 
-    inkscape -f "${FILE_IN}" -l "${FILE_OUT}"
+    inkscape -f "${INPUT_FILE_PATH}" -l "${OUTPUT_FILE_PATH}"
 }
 
 function svg-to-png {
