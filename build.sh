@@ -2,7 +2,7 @@
 
 MOD_ID="ui-flags"
 MOD_NAME="Universum Infinitum - Flags"
-STELLARIS_VERSION="3.4.*"
+STELLARIS_VERSION="3.6.*"
 
 SOURCE_DIR_PATH="$(pwd)/source"
 SOURCE_SCRIPTS_DIR_PATH="${SOURCE_DIR_PATH}/scripts"
