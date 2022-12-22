@@ -29,20 +29,7 @@ THUMBNAIL_FILE_PATH="${SOURCE_DIR_PATH}/thumbnail.png"
 
 [ ! -d "${SOURCE_DIR_PATH}" ] && echo "MISSING SOURCE DIRECTORY" && exit -1
 
-function call-gimp {
-    local GIMP_BINARY="/usr/bin/gimp"
-
-    [ ! -f "${GIMP_BINARY}" ] && GIMP_BINARY="/var/lib/flatpak/exports/bin/org.gimp.GIMP"
-    [ ! -f "${GIMP_BINARY}" ] && GIMP_BINARY="${HOME}/.local/share/flatpak/exports/bin/org.gimp.GIMP"
-    if [ ! -f "${GIMP_BINARY}" ]; then
-        echo "[ERROR] GIMP is not installed on this system"
-        exit 1
-    fi
-
-    "${GIMP_BINARY}" $@
-}
-
-function call-inkscape {
+function execute-inkscape {
     local INKSCAPE_BINARY="/usr/bin/inkscape"
 
     [ ! -f "${INKSCAPE_BINARY}" ] && INKSCAPE_BINARY="/var/lib/flatpak/exports/bin/org.inkscape.Inkscape"
@@ -52,12 +39,21 @@ function call-inkscape {
         exit 1
     fi
 
-    "${INKSCAPE_BINARY}" $@
+    "${INKSCAPE_BINARY}" ${*}
 }
 
 function execute-scriptfu {
     local GIMP_SCRIPTFU="${1}"
-    call-gimp -i -b ''"$GIMP_SCRIPTFU"'' -b '(gimp-quit 0)'
+    local GIMP_BINARY="/usr/bin/gimp"
+
+    [ ! -f "${GIMP_BINARY}" ] && GIMP_BINARY="/var/lib/flatpak/exports/bin/org.gimp.GIMP"
+    [ ! -f "${GIMP_BINARY}" ] && GIMP_BINARY="${HOME}/.local/share/flatpak/exports/bin/org.gimp.GIMP"
+    if [ ! -f "${GIMP_BINARY}" ]; then
+        echo "[ERROR] GIMP is not installed on this system"
+        exit 1
+    fi
+
+    "${GIMP_BINARY}" -i -b ''"${GIMP_SCRIPTFU}"'' -b '(gimp-quit 0)' &>/dev/null
 }
 
 function execute-scriptfu-file {
@@ -102,6 +98,11 @@ function xcf-to-png {
     execute-scriptfu-file "xcf-to-png" \
         INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
         OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
+
+    if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
+        echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
+        exit 3
+    fi
 }
 
 function png-to-bmp {
@@ -111,6 +112,11 @@ function png-to-bmp {
     echo -e "\e[36mConverting PNG to BMP for '${INPUT_IMAGE_PATH}'...\e[0m"
 
     convert -background "#000" -flatten "${INPUT_IMAGE_PATH}" "${OUTPUT_IMAGE_PATH}"
+
+    if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
+        echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
+        exit 3
+    fi
 }
 
 function png-to-dds {
@@ -122,6 +128,11 @@ function png-to-dds {
     execute-scriptfu-file "png-to-dds" \
         INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
         OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
+
+    if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
+        echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
+        exit 3
+    fi
 }
 
 function bmp-to-svg {
@@ -131,6 +142,11 @@ function bmp-to-svg {
     echo -e "\e[36mConverting BMP to SVG for '${INPUT_IMAGE_PATH}'...\e[0m"
 
     potrace --opaque -s "${INPUT_IMAGE_PATH}" -o "${OUTPUT_IMAGE_PATH}"
+
+    if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
+        echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
+        exit 3
+    fi
 }
 
 function ai-to-svg {
@@ -139,7 +155,12 @@ function ai-to-svg {
 
     echo -e "\e[36mConverting AI to SVG for '${INPUT_IMAGE_PATH}'...\e[0m"
 
-    call-inkscape -f "${INPUT_IMAGE_PATH}" -l "${OUTPUT_IMAGE_PATH}"
+    execute-inkscape -f "${INPUT_IMAGE_PATH}" -l "${OUTPUT_IMAGE_PATH}"
+
+    if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
+        echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
+        exit 3
+    fi
 }
 
 function svg-to-png {
@@ -153,6 +174,11 @@ function svg-to-png {
         INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
         OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}" \
         OUTPUT_IMAGE_SIZE "${OUTPUT_IMAGE_SIZE}"
+
+    if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
+        echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
+        exit 3
+    fi
 }
 
 function apply-gradient-bevel {
@@ -235,7 +261,7 @@ for CATEGORY_DIR in "${SOURCE_FLAGS_DIR_PATH}"/*; do
         FLAG_PNG_BUILD_FILE_PATH="${CATEGORY_BUILD_DIR_PATH}/${FLAG_FILE_NAME}.png"
         FLAG_SVG_BUILD_FILE_PATH="${CATEGORY_BUILD_DIR_PATH}/${FLAG_FILE_NAME}.svg"
 
-        FLAG_BUILD_MAIN_FILE_PATH="${FLAG_BMP_BUILD_FILE_PATH}"
+        FLAG_BUILD_MAIN_FILE_PATH="${FLAG_PNG_BUILD_FILE_PATH}"
         FLAG_BUILD_MAP_FILE_PATH="${CATEGORY_BUILD_MAP_DIR_PATH}/${FLAG_FILE_NAME}.png"
         FLAG_BUILD_SMALL_FILE_PATH="${CATEGORY_BUILD_SMALL_DIR_PATH}/${FLAG_FILE_NAME}.png"
 
