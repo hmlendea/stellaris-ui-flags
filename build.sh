@@ -42,6 +42,19 @@ function call-gimp {
     "${GIMP_BINARY}" $@
 }
 
+function call-inkscape {
+    local INKSCAPE_BINARY="/usr/bin/inkscape"
+
+    [ ! -f "${INKSCAPE_BINARY}" ] && INKSCAPE_BINARY="/var/lib/flatpak/exports/bin/org.inkscape.Inkscape"
+    [ ! -f "${INKSCAPE_BINARY}" ] && INKSCAPE_BINARY="${HOME}/.local/share/flatpak/exports/bin/org.inkscape.Inkscape"
+    if [ ! -f "${INKSCAPE_BINARY}" ]; then
+        echo "[ERROR] Inkscape is not installed on this system"
+        exit 1
+    fi
+
+    "${INKSCAPE_BINARY}" $@
+}
+
 function execute-scriptfu {
     local GIMP_SCRIPTFU="${1}"
     call-gimp -i -b ''"$GIMP_SCRIPTFU"'' -b '(gimp-quit 0)'
@@ -82,8 +95,8 @@ function execute-scriptfu-file {
 }
 
 function xcf-to-png {
-    INPUT_FILE_PATH="${1}"
-    OUTPUT_FILE_PATH="${2}"
+    local INPUT_FILE_PATH="${1}"
+    local OUTPUT_FILE_PATH="${2}"
 
     echo -e "\e[36mConverting XCF to PNG for '${INPUT_FILE_PATH}'...\e[0m"
 
@@ -93,8 +106,8 @@ function xcf-to-png {
 }
 
 function png-to-bmp {
-    INPUT_FILE_PATH="${1}"
-    OUTPUT_FILE_PATH="${2}"
+    local INPUT_FILE_PATH="${1}"
+    local OUTPUT_FILE_PATH="${2}"
 
     echo -e "\e[36mConverting PNG to BMP for '${INPUT_FILE_PATH}'...\e[0m"
 
@@ -102,8 +115,8 @@ function png-to-bmp {
 }
 
 function png-to-dds {
-    INPUT_FILE_PATH="${1}"
-    OUTPUT_FILE_PATH="${2}"
+    local INPUT_FILE_PATH="${1}"
+    local OUTPUT_FILE_PATH="${2}"
 
     echo -e "\e[36mConverting PNG to DDS for '${INPUT_FILE_PATH}'...\e[0m"
 
@@ -113,8 +126,8 @@ function png-to-dds {
 }
 
 function bmp-to-svg {
-    INPUT_FILE_PATH="${1}"
-    OUTPUT_FILE_PATH="${2}"
+    local INPUT_FILE_PATH="${1}"
+    local OUTPUT_FILE_PATH="${2}"
 
     echo -e "\e[36mConverting BMP to SVG for '${INPUT_FILE_PATH}'...\e[0m"
 
@@ -122,12 +135,12 @@ function bmp-to-svg {
 }
 
 function ai-to-svg {
-    INPUT_FILE_PATH="${1}"
-    OUTPUT_FILE_PATH="${2}"
+    local INPUT_FILE_PATH="${1}"
+    local OUTPUT_FILE_PATH="${2}"
 
     echo -e "\e[36mConverting AI to SVG for '${INPUT_FILE_PATH}'...\e[0m"
 
-    inkscape -f "${INPUT_FILE_PATH}" -l "${OUTPUT_FILE_PATH}"
+    call-inkscape -f "${INPUT_FILE_PATH}" -l "${OUTPUT_FILE_PATH}"
 }
 
 function svg-to-png {
