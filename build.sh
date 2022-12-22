@@ -87,210 +87,86 @@ function execute-scriptfu-file {
         VARIABLE_VALUE="${1}" && shift
         VARIABLE_VALUE_ESCAPED=$(echo "${VAL}" | sed -e 's/[]\/$*.^|[]/\\&/g')
 
-        echo "var ${VARIABLE_NAME} = ${VARIABLE_VALUE}"
-        GIMP_SCRIPTFU=$(echo "${GIMP_SCRIPTFU}" | sed 's|'"${VARIABLE_NAME}"'|'"\"${VARIABLE_VALUE}\""'|g')
+        GIMP_SCRIPTFU=$(echo "${GIMP_SCRIPTFU}" | sed 's|'"${VARIABLE_NAME}"'|'"${VARIABLE_VALUE}"'|g')
     done
 
     execute-scriptfu "${GIMP_SCRIPTFU}"
 }
 
 function xcf-to-png {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
+    local INPUT_IMAGE_PATH="${1}"
+    local OUTPUT_IMAGE_PATH="${2}"
 
-    echo -e "\e[36mConverting XCF to PNG for '${INPUT_FILE_PATH}'...\e[0m"
+    echo -e "\e[36mConverting XCF to PNG for '${INPUT_IMAGE_PATH}'...\e[0m"
 
     execute-scriptfu-file "xcf-to-png" \
-        INPUT_FILE_PATH "${INPUT_FILE_PATH}" \
-        OUTPUT_FILE_PATH "${OUTPUT_FILE_PATH}"
+        INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
+        OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
 }
 
 function png-to-bmp {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
+    local INPUT_IMAGE_PATH="${1}"
+    local OUTPUT_IMAGE_PATH="${2}"
 
-    echo -e "\e[36mConverting PNG to BMP for '${INPUT_FILE_PATH}'...\e[0m"
+    echo -e "\e[36mConverting PNG to BMP for '${INPUT_IMAGE_PATH}'...\e[0m"
 
-    convert -background "#000" -flatten "${INPUT_FILE_PATH}" "${OUTPUT_FILE_PATH}"
+    convert -background "#000" -flatten "${INPUT_IMAGE_PATH}" "${OUTPUT_IMAGE_PATH}"
 }
 
 function png-to-dds {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
+    local INPUT_IMAGE_PATH="${1}"
+    local OUTPUT_IMAGE_PATH="${2}"
 
-    echo -e "\e[36mConverting PNG to DDS for '${INPUT_FILE_PATH}'...\e[0m"
+    echo -e "\e[36mConverting PNG to DDS for '${INPUT_IMAGE_PATH}'...\e[0m"
 
     execute-scriptfu-file "png-to-dds" \
-        INPUT_FILE_PATH "${INPUT_FILE_PATH}" \
-        OUTPUT_FILE_PATH "${OUTPUT_FILE_PATH}"
+        INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
+        OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
 }
 
 function bmp-to-svg {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
+    local INPUT_IMAGE_PATH="${1}"
+    local OUTPUT_IMAGE_PATH="${2}"
 
-    echo -e "\e[36mConverting BMP to SVG for '${INPUT_FILE_PATH}'...\e[0m"
+    echo -e "\e[36mConverting BMP to SVG for '${INPUT_IMAGE_PATH}'...\e[0m"
 
-    potrace --opaque -s "${INPUT_FILE_PATH}" -o "${OUTPUT_FILE_PATH}"
+    potrace --opaque -s "${INPUT_IMAGE_PATH}" -o "${OUTPUT_IMAGE_PATH}"
 }
 
 function ai-to-svg {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
+    local INPUT_IMAGE_PATH="${1}"
+    local OUTPUT_IMAGE_PATH="${2}"
 
-    echo -e "\e[36mConverting AI to SVG for '${INPUT_FILE_PATH}'...\e[0m"
+    echo -e "\e[36mConverting AI to SVG for '${INPUT_IMAGE_PATH}'...\e[0m"
 
-    call-inkscape -f "${INPUT_FILE_PATH}" -l "${OUTPUT_FILE_PATH}"
+    call-inkscape -f "${INPUT_IMAGE_PATH}" -l "${OUTPUT_IMAGE_PATH}"
 }
 
 function svg-to-png {
-    FILE_IN="${1}"
-    FILE_OUT="${2}"
-    SIZE="${3}"
+    local INPUT_IMAGE_PATH="${1}"
+    local OUTPUT_IMAGE_PATH="${2}"
+    local OUTPUT_IMAGE_SIZE="${3}"
 
-    echo -e "\e[36mConverting SVG to PNG for '$FILE_IN'...\e[0m"
-    GIMP_SCRIPTFU="
-(let* (
-      (imageInPath \""${FILE_IN}"\")
-      (imageOutPath \""${FILE_OUT}"\")
-      (image (car (file-svg-load RUN-NONINTERACTIVE imageInPath imageInPath 96.0 "$SIZE" "$SIZE" 0)))
-      (width (car (gimp-image-width image)))
-      (height (car (gimp-image-height image)))
-      (drawable (car (gimp-image-get-active-drawable image)))
-      (background-layer (car (gimp-layer-new image width height RGBA-IMAGE \"BG-Colour\" 100 NORMAL-MODE)))
-      (has-black TRUE)
-      (bg-colour '(255 255 255))
-      )
+    echo -e "\e[36mConverting SVG to PNG for '${INPUT_IMAGE_PATH}'...\e[0m"
 
-    (gimp-context-push)
-    (gimp-context-set-defaults)
-
-    (script-fu-util-image-add-layers image background-layer)
-
-    (gimp-context-set-background '(255 255 255))
-    (gimp-edit-fill background-layer BACKGROUND-FILL)
-
-    (if (= has-black FALSE)
-        (begin
-            (gimp-layer-set-lock-alpha drawable TRUE)
-            (gimp-selection-all image)
-            (gimp-context-set-background '(0 0 0))
-            (gimp-edit-fill drawable BACKGROUND-FILL)
-            (gimp-selection-none image)
-            (gimp-layer-set-lock-alpha drawable FALSE)
-        )
-    )
-
-    (gimp-image-merge-visible-layers image EXPAND-AS-NECESSARY)
-    (set! drawable (car (gimp-image-get-active-drawable image)))
-
-    (set! bg-colour (car (gimp-image-pick-color image drawable 3 0 FALSE FALSE 0.0)))
-    (plug-in-colortoalpha RUN-NONINTERACTIVE image drawable bg-colour)
-
-    (gimp-layer-set-lock-alpha drawable TRUE)
-    (gimp-selection-all image)
-    (gimp-context-set-background '(255 255 255))
-    (gimp-edit-fill drawable BACKGROUND-FILL)
-    (gimp-selection-none image)
-    (gimp-layer-set-lock-alpha drawable FALSE)
-
-    ; Save
-    (gimp-image-merge-visible-layers image EXPAND-AS-NECESSARY)
-    (file-png-save RUN-NONINTERACTIVE image (car (gimp-image-get-active-drawable image))
-                   imageOutPath imageOutPath
-                   FALSE 0 FALSE FALSE FALSE FALSE FALSE)
-
-    (gimp-context-pop)
-)
-"
-
-    execute-scriptfu "${GIMP_SCRIPTFU}"
+    execute-scriptfu-file "svg-to-png" \
+        INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
+        OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}" \
+        OUTPUT_IMAGE_SIZE "${OUTPUT_IMAGE_SIZE}"
 }
 
 function apply-gradient-bevel {
-    FILE="${1}"
+    local IMAGE_PATH="${1}"
 
-    echo -e "\e[36mApplying gradient bevel on '$FILE'...\e[0m"
-    GIMP_SCRIPTFU="
-; Script based on gradient-bevel-logo.scm included with GIMP <2.10, by Brian McFee
-(let* (
-      (imageInPath \""${FILE}"\")
-      (imageOutPath \""${FILE}"\")
-      (image (car (file-png-load RUN-NONINTERACTIVE imageInPath imageInPath)))
-      (logo-layer (car (gimp-image-get-active-drawable image)))
-      (width (car (gimp-image-width image)))
-      (height (car (gimp-image-height image)))
-      (bevel-size 22)
-      (bevel-width 2.5)
-      (bevel-height 40)
-      (indentX (+ bevel-size 12))
-      (indentY (+ bevel-size (/ height 8)))
-      (blur-layer (car (gimp-layer-new image width height RGBA-IMAGE \"Blur\" 100 NORMAL-MODE)))
-      (colour-layer (car (gimp-layer-new image width height RGBA-IMAGE \"Colour\" 100 LAYER-MODE-GRAIN-MERGE-LEGACY)))
-      )
+    echo -e "\e[36mApplying gradient bevel on '${IMAGE_PATH}'...\e[0m"
 
-    (gimp-context-push)
-    (gimp-context-set-defaults)
-
-    (script-fu-util-image-add-layers image blur-layer)
-
-    (gimp-layer-set-lock-alpha blur-layer TRUE)
-    (gimp-context-set-background '(255 255 255))
-    (gimp-selection-all image)
-    (gimp-edit-fill blur-layer BACKGROUND-FILL)
-    (gimp-edit-clear blur-layer)
-    (gimp-selection-none image)
-    (gimp-layer-set-lock-alpha blur-layer FALSE)
-    (gimp-image-select-item image CHANNEL-OP-REPLACE logo-layer)
-    (gimp-edit-fill blur-layer BACKGROUND-FILL)
-    (plug-in-gauss-rle RUN-NONINTERACTIVE image blur-layer bevel-width 1 1)
-    (gimp-selection-none image)
-    (gimp-context-set-background '(127 127 127))
-    (gimp-context-set-foreground '(255 255 255))
-    (gimp-layer-set-lock-alpha logo-layer TRUE)
-    (gimp-selection-all image)
-
-    (gimp-edit-blend logo-layer FG-BG-RGB-MODE NORMAL-MODE
-                     GRADIENT-RADIAL 95 0 REPEAT-NONE FALSE
-                     FALSE 0 0 TRUE
-                     indentX indentY indentX (- height indentY))
-
-    (gimp-selection-none image)
-    (gimp-layer-set-lock-alpha logo-layer FALSE)
-    (plug-in-bump-map RUN-NONINTERACTIVE image logo-layer blur-layer 115 bevel-height 5 0 0 0 0.15 TRUE FALSE 0)
-    (gimp-layer-set-offsets blur-layer 5 5)
-    (gimp-invert blur-layer)
-    (gimp-layer-set-opacity blur-layer 50.0)
-    (gimp-image-set-active-layer image logo-layer)
-
-    (gimp-context-pop)
-
-    (gimp-image-remove-layer image blur-layer)
-
-    ; Colour layer
-    (script-fu-util-image-add-layers image colour-layer)
-    (gimp-image-raise-item image colour-layer)
-    (gimp-context-set-foreground '(178 164 136))
-    (gimp-context-set-background '(113 82 9))
-    (gimp-edit-blend colour-layer FG-BG-RGB-MODE NORMAL-MODE
-                     GRADIENT-RADIAL 100 0 REPEAT-NONE FALSE
-                     FALSE 0 0 TRUE
-                     (/ width 3) 0 width height)
-
-    ; Save
-    (gimp-image-merge-visible-layers image EXPAND-AS-NECESSARY)
-    (file-png-save RUN-NONINTERACTIVE image (car (gimp-image-get-active-drawable image))
-                   imageOutPath imageOutPath
-                   FALSE 0 FALSE FALSE FALSE FALSE FALSE)
-)"
-
-    execute-scriptfu "${GIMP_SCRIPTFU}"
+    execute-scriptfu-file "gradient-bevel" IMAGE_PATH "${IMAGE_PATH}"
 }
 
 function get-flag-file-name {
-    SOURCE_FILE_NAME="$1"
-    FILE_PREFIX="ui_"
-    FLAG_FILE_NAME=$(grep "^${SOURCE_FILE_NAME}=" "${FLAG_NAMES_FILE_PATH}" | awk -F= '{print $2}')
+    local SOURCE_FILE_NAME="$1"
+    local FILE_PREFIX="ui_"
+    local FLAG_FILE_NAME=$(grep "^${SOURCE_FILE_NAME}=" "${FLAG_NAMES_FILE_PATH}" | awk -F= '{print $2}')
 
     if [ -z "${FLAG_FILE_NAME}" ]; then
         echo "${FILE_PREFIX}${SOURCE_FILE_NAME}"
@@ -300,7 +176,7 @@ function get-flag-file-name {
 }
 
 function generate-mod-descriptor {
-    FILE_PATH="${1}"
+    local FILE_PATH="${1}"
 
     echo "name=\"${MOD_NAME}\"" > "${FILE_PATH}"
     echo "path=\"mod/${MOD_ID}\"" >> "${FILE_PATH}"

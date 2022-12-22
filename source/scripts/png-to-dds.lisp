@@ -1,6 +1,6 @@
 (let* (
-      (imageInPath INPUT_FILE_PATH)
-      (imageOutPath OUTPUT_FILE_PATH)
+      (imageInPath "INPUT_IMAGE_PATH")
+      (imageOutPath "OUTPUT_IMAGE_PATH")
       (image (car (file-png-load RUN-NONINTERACTIVE imageInPath imageInPath)))
       (drawable (car (gimp-image-get-active-drawable image)))
       )
