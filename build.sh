@@ -105,6 +105,15 @@ function xcf-to-png {
     fi
 }
 
+function xcf-to-svg {
+    local INPUT_IMAGE_PATH="${1}"
+    local OUTPUT_IMAGE_PATH="${2}"
+    local OUTPUT_IMAGE_PATH_WITHOUT_EXTENSION="${OUTPUT_IMAGE_PATH%.*}"
+
+    xcf-to-png "${INPUT_IMAGE_PATH}" "${OUTPUT_IMAGE_PATH_WITHOUT_EXTENSION}.png"
+    png-to-svg "${OUTPUT_IMAGE_PATH_WITHOUT_EXTENSION}.png" "${OUTPUT_IMAGE_PATH}"
+}
+
 function png-to-bmp {
     local INPUT_IMAGE_PATH="${1}"
     local OUTPUT_IMAGE_PATH="${2}"
@@ -118,6 +127,16 @@ function png-to-bmp {
         exit 3
     fi
 }
+
+function png-to-svg {
+    local INPUT_IMAGE_PATH="${1}"
+    local OUTPUT_IMAGE_PATH="${2}"
+    local OUTPUT_IMAGE_PATH_WITHOUT_EXTENSION="${OUTPUT_IMAGE_PATH%.*}"
+
+    png-to-bmp "${INPUT_IMAGE_PATH}" "${OUTPUT_IMAGE_PATH_WITHOUT_EXTENSION}.bmp"
+    bmp-to-svg "${OUTPUT_IMAGE_PATH_WITHOUT_EXTENSION}.bmp" "${OUTPUT_IMAGE_PATH}"
+}
+
 
 function png-to-dds {
     local INPUT_IMAGE_PATH="${1}"
@@ -278,12 +297,9 @@ for CATEGORY_DIR in "${SOURCE_FLAGS_DIR_PATH}"/*; do
         if [ "${FILE_EXTENSION}" == "bmp" ]; then
             bmp-to-svg "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
         elif [ "${FILE_EXTENSION}" == "xcf" ]; then
-            xcf-to-png "${FILE}" "${FLAG_PNG_BUILD_FILE_PATH}"
-            png-to-bmp "${FLAG_PNG_BUILD_FILE_PATH}" "${FLAG_BMP_BUILD_FILE_PATH}"
-            bmp-to-svg "${FLAG_BMP_BUILD_FILE_PATH}" "${FLAG_SVG_BUILD_FILE_PATH}"
+            xcf-to-svg "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
         elif [ "${FILE_EXTENSION}" == "png" ]; then
-            png-to-bmp "${FILE}" "${FLAG_BMP_BUILD_FILE_PATH}"
-            bmp-to-svg "${FLAG_BMP_BUILD_FILE_PATH}" "${FLAG_SVG_BUILD_FILE_PATH}"
+            png-to-svg "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
         elif [ "${FILE_EXTENSION}" == "ai" ]; then
             ai-to-svg "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
         elif [ "${FILE_EXTENSION}" == "svg" ]; then
