@@ -11,8 +11,8 @@
       (bevel-height 40)
       (indentX (+ bevel-size 12))
       (indentY (+ bevel-size (/ height 8)))
-      (blur-layer (car (gimp-layer-new image width height RGBA-IMAGE \"Blur\" 100 NORMAL-MODE)))
-      (colour-layer (car (gimp-layer-new image width height RGBA-IMAGE \"Colour\" 100 LAYER-MODE-GRAIN-MERGE-LEGACY)))
+      (blur-layer (car (gimp-layer-new image width height RGBA-IMAGE "Blur" 100 NORMAL-MODE)))
+      (colour-layer (car (gimp-layer-new image width height RGBA-IMAGE "Colour" 100 LAYER-MODE-GRAIN-MERGE-LEGACY)))
       )
 
     (gimp-context-push)

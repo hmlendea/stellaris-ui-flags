@@ -5,7 +5,7 @@
       (width (car (gimp-image-width image)))
       (height (car (gimp-image-height image)))
       (drawable (car (gimp-image-get-active-drawable image)))
-      (background-layer (car (gimp-layer-new image width height RGBA-IMAGE \"BG-Colour\" 100 NORMAL-MODE)))
+      (background-layer (car (gimp-layer-new image width height RGBA-IMAGE "BG-Colour" 100 NORMAL-MODE)))
       (has-black TRUE)
       (bg-colour '(255 255 255))
       )
