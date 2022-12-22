@@ -28,6 +28,8 @@ FLAG_NAMES_FILE_PATH="${SOURCE_DIR_PATH}/names.txt"
 THUMBNAIL_FILE_PATH="${SOURCE_DIR_PATH}/thumbnail.png"
 
 [ ! -d "${SOURCE_DIR_PATH}" ] && echo "MISSING SOURCE DIRECTORY" && exit -1
+[ ! -f "/usr/bin/convert" ] && echo "[ERROR] ImageMagick is not installed on this system" && exit 1
+[ ! -f "/usr/bin/potrace" ] && echo "[ERROR] potrace is not installed on this system" && exit 1
 
 function execute-inkscape {
     local INKSCAPE_BINARY="/usr/bin/inkscape"
