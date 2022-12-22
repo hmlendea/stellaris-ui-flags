@@ -13,7 +13,7 @@ Mod for Stellaris that add hundreds of new flags in the game, made to match as c
  - Download the [latest release](https://github.com/hmlendea/more-cultural-names/releases)
  - Extract the contents into your game's mod directory
 
-# Universul Unfinitum Collection
+# Universum Infinitum Collection
 
  - [Character Traits](https://github.com/hmlendea/stellaris-ui-character-traits)
  - [Deposit Blockers](https://github.com/hmlendea/stellaris-ui-deposit-blockers)
