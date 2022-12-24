@@ -1,7 +1,5 @@
 ﻿l_english:
  FLAG_CATEGORY_fire:0 "Fire"
- FLAG_CATEGORY_flora:0 "Flora"
- FLAG_CATEGORY_liquid:0 "Liquid"
  FLAG_CATEGORY_mechanical:0 "Mechanical"
  FLAG_CATEGORY_ui_civ:0 "Civ"
  FLAG_CATEGORY_ui_civbe:0 "CivBE"
