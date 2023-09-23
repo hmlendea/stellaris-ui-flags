@@ -1,8 +1,14 @@
 #!/bin/bash
 
 MOD_ID="ui-flags"
-MOD_NAME="Universum Infinitum - Flags"
+MOD_NAME="Universum Infinitum: Flags"
+MOD_VERSION="${1}"
 STELLARIS_VERSION="3.9.*"
+
+if [ -z "${MOD_VERSION}" ]; then
+    echo "Please specify a version!"
+    exit 1
+fi
 
 SOURCE_DIR_PATH="$(pwd)/source"
 SOURCE_SCRIPTS_DIR_PATH="${SOURCE_DIR_PATH}/scripts"
@@ -225,12 +231,14 @@ function get-flag-file-name {
 function generate-mod-descriptor {
     local FILE_PATH="${1}"
 
-    echo "name=\"${MOD_NAME}\"" > "${FILE_PATH}"
+    echo "version=\"${MOD_VERSION}\"" > "${FILE_PATH}"
+    echo "name=\"${MOD_NAME}\"" >> "${FILE_PATH}"
     echo "path=\"mod/${MOD_ID}\"" >> "${FILE_PATH}"
     echo "tags={" >> "${FILE_PATH}"
-    echo "  \"Graphics\"" >> "${FILE_PATH}"
+    echo "	\"Graphics\"" >> "${FILE_PATH}"
     echo "}" >> "${FILE_PATH}"
     echo "supported_version=\"${STELLARIS_VERSION}\"" >> "${FILE_PATH}"
+    echo "" >> "${FILE_PATH}"
 }
 
 mkdir -p "${OUTPUT_BACKGROUNDS_DIR_PATH}"
