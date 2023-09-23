@@ -11,7 +11,7 @@
     ; Save
     (file-dds-save RUN-NONINTERACTIVE image drawable
                    imageOutPath imageOutPath
-                   0 1 0 0 0 0 0 0 0 1.0 0 0 0.5)
+                   0 0 0 0 0 0 0 0 0 1.0 0 0 0.5)
 
     (gimp-context-pop)
 )
