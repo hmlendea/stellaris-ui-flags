@@ -3,7 +3,7 @@
 MOD_ID="ui-flags"
 MOD_NAME="Universum Infinitum: Flags"
 MOD_VERSION="${1}"
-STELLARIS_VERSION="3.9.*"
+STELLARIS_VERSION="4.0.*"
 
 if [ -z "${MOD_VERSION}" ]; then
     echo "Please specify a version!"
