@@ -19,7 +19,7 @@ jobs:
         unzip "release.zip" -d "release/"
 
     - name: Upload
-      uses: hmlendea/steam-workshop-update@v1.0.0
+      uses: hmlendea/steam-workshop-update@latest
       with:
         appid: 281990
         itemid: 1914541325
