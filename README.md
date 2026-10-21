@@ -26,6 +26,18 @@ Mod for Stellaris that add hundreds of new flags in the game, made to match as c
  - [Species Traits](https://github.com/hmlendea/stellaris-ui-species-traits)
  - [Star Names](https://github.com/hmlendea/stellaris-ui-star-names)
 
+## 🤝 Contributing
+
+You are welcome to submit any suggestion, feedback, or modification to this
+project.
+
+When doing so, please:
+- Submit focused pull requests that conform to the existing code style
+- Maintain your branch synchronised with `master`
+- Raise a new [issue](https://github.com/hmlendea/stellaris-ui-flags/issues) for problems or suggestions
+
+See the [contributing guidelines](./CONTRIBUTING.md) for details on how to report issues, suggest enhancements, and submit changes.
+
 ## 🛡️ Privacy and Data
 
 Universum Infinitum: Flags does not collect personal data; it consists of local game assets.
