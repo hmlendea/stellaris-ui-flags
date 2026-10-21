@@ -26,6 +26,14 @@ Mod for Stellaris that add hundreds of new flags in the game, made to match as c
  - [Species Traits](https://github.com/hmlendea/stellaris-ui-species-traits)
  - [Star Names](https://github.com/hmlendea/stellaris-ui-star-names)
 
+## 🛡️ Privacy and Data
+
+Universum Infinitum: Flags does not collect personal data; it consists of local game assets.
+
+For the detailed description of how the application handles privacy and personal data, see [PRIVACY.md](./PRIVACY.md).
+
+The mod does not transmit, persist, or process personal data. Distribution platforms and Stellaris operate independently of the mod's data handling.
+
 # Sources
 
  - game-icons.net
