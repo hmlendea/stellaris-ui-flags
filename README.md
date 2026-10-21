@@ -56,6 +56,12 @@ Stellaris UI Flags follows a coordinated disclosure policy for security vulnerab
 
 For information on reporting security vulnerabilities, see [SECURITY.md](./SECURITY.md).
 
+## 🏗️ Architecture
+
+Stellaris UI Flags follows a pipeline-oriented asset processing architecture. Source flag designs in editable formats are converted through a multi-stage build pipeline (SVG → PNG → DDS) to produce a Stellaris-compatible mod package.
+
+See the [ARCHITECTURE.md](./ARCHITECTURE.md) for the system context, principal components, runtime flows, ownership boundaries, dependencies, constraints, and extension points.
+
 # Sources
 
  - game-icons.net
