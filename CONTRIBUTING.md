@@ -15,6 +15,7 @@ This document covers the guidelines and processes for contributing to this proje
     - [Pull Request Guidelines](#pull-request-guidelines)
   - [Documentation](#documentation)
 - [License](#-license)
+- [Code of Conduct](#-code-of-conduct)
 - [Getting Assistance](#-getting-assistance)
 
 ## 🤝 How to Contribute
@@ -75,6 +76,10 @@ cd stellaris-ui-flags
 ## 📄 License
 
 By contributing, you agree that your contributions will be licensed under the GNU General Public License v3.0 or later.
+
+## 📋 Code of Conduct
+
+This project follows the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
 ## ❓ Getting Assistance
 
