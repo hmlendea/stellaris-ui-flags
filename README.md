@@ -50,6 +50,12 @@ For the detailed description of how the application handles privacy and personal
 
 The mod does not transmit, persist, or process personal data. Distribution platforms and Stellaris operate independently of the mod's data handling.
 
+## 🔒 Security
+
+Stellaris UI Flags follows a coordinated disclosure policy for security vulnerabilities.
+
+For information on reporting security vulnerabilities, see [SECURITY.md](./SECURITY.md).
+
 # Sources
 
  - game-icons.net
