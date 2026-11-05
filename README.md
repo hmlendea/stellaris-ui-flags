@@ -15,6 +15,8 @@ Mod for Stellaris that adds hundreds of new flag designs matching the vanilla fl
 - [Privacy and Data](#-privacy-and-data)
 - [Security](#-security)
 - [Project Engagement](#-project-engagement)
+- [GitHub Actions](#-github-actions)
+- [Documentation](#-documentation)
 - [License](#-license)
 
 ## ✨ Capabilities
@@ -65,6 +67,8 @@ Required tools:
 
 See the [architecture documentation](./ARCHITECTURE.md) for the system context, principal components, runtime flows, ownership boundaries, dependencies, constraints, and extension points.
 
+For implementation-level detail, see [docs/architecture.md](./docs/architecture.md).
+
 ## 🤝 Contributing
 
 You are welcome to submit any suggestion, feedback, or modification to this project.
@@ -99,6 +103,46 @@ For information on reporting security vulnerabilities, see [SECURITY.md](./SECUR
 - Report issues or suggest features via [GitHub Issues](https://github.com/hmlendea/stellaris-ui-flags/issues)
 - Support the project: [![Donate](https://img.shields.io/badge/-%E2%99%A5%20Donate-%23ff69b4)](https://hmlendea.go.ro/fund.html)
 - Star the repository if you find it useful
+
+## ⚙️ GitHub Actions
+
+| Workflow | Purpose | What it does |
+|----------|---------|--------------|
+| [Steam Workshop](https://github.com/hmlendea/stellaris-ui-flags/blob/master/.github/workflows/steam-workshop.yml) | Steam Workshop release | Downloads GitHub Release asset and uploads to Steam Workshop via hmlendea/steam-workshop-update |
+| [Nexus Mods](https://github.com/hmlendea/stellaris-ui-flags/blob/master/.github/workflows/nexus-mods.yml) | Nexus Mods release | Downloads GitHub Release asset and uploads to Nexus Mods via hmlendea/nexusmods-update |
+
+## 📚 Documentation
+
+Comprehensive documentation is available in the [docs/](./docs/) directory:
+
+| Resource | Description |
+|----------|-------------|
+| [Quick Start](./docs/quick-start.md) | Getting started guide for newcomers |
+| [Architecture](./docs/architecture.md) | Detailed architecture complementing root ARCHITECTURE.md |
+| [Repository Overview](./docs/repository-overview.md) | Repository purpose, scope, and entry points |
+| [Repository Structure](./docs/repository-structure.md) | Source tree layout and module organisation |
+| [Build and Deployment](./docs/build-and-deployment.md) | Build pipeline, deployment, and environments |
+| [Configuration](./docs/configuration.md) | Configuration schema, sources, and precedence |
+| [Components](./docs/components/) | Per-component deep dives (source assets, build pipeline, output package, GIMP scripts) |
+| [Flows](./docs/flows/) | End-to-end execution flows (build execution, asset conversion, mod packaging) |
+| [Behaviour](./docs/behaviour/INDEX.md) | Observable build, in-game, content, platform, and edge-case behaviour |
+| [API Reference](./docs/api-reference/INDEX.md) | Build function signatures and usage |
+| [API Usage Examples](./docs/api-usage-examples.md) | Concrete command examples for all operations |
+| [Testing](./docs/testing.md) | Test strategy and verification procedures |
+| [Troubleshooting](./docs/troubleshooting.md) | Common issues and solutions |
+| [FAQ](./docs/faq.md) | Frequently asked questions |
+| [Change Guide](./docs/change-guide.md) | How to modify common areas safely |
+| [Design Decisions](./docs/design-decisions.md) | Key architectural choices with rationale |
+| [Invariants](./docs/invariants.md) | System-wide invariants and contracts |
+| [Error Handling](./docs/error-handling.md) | Error taxonomy and recovery patterns |
+| [State and Persistence](./docs/state-and-persistence.md) | Build state, intermediates, incremental builds |
+| [Concurrency and Scheduling](./docs/concurrency-and-scheduling.md) | Parallelism and scheduling |
+| [Logging](./docs/logging.md) | Build logging and diagnostics |
+| [Security](./docs/security.md) | Security model and mitigations |
+| [Integrations](./docs/integrations.md) | External platform integrations |
+| [Dependencies](./docs/dependencies.md) | External and internal dependencies |
+| [Data Model](./docs/data-model.md) | Domain entities and relationships |
+| [Ambiguities and Open Questions](./docs/ambiguities-and-open-questions.md) | Unresolved items and known gaps |
 
 ## 📄 License
 

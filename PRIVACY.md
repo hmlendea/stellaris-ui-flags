@@ -63,3 +63,11 @@ Update this document when application data flows, storage, integrations, or depl
 For data-handling questions, use the project's [GitHub issue tracker](https://github.com/hmlendea/stellaris-ui-flags/issues).
 
 For questions about application data handling, contact the project maintainers. For a self-hosted instance, contact the instance operator, unless the project explicitly handles the request. Include the mod version or relevant distribution channel; do not send passwords, access tokens, or other secrets.
+
+## 📚 Related Documentation
+
+- [Security Deep Dive](./docs/security.md) — threat model, CI secrets handling, build input/output security
+- [Data Model](./docs/data-model.md) — domain entities, relationships, and data handling details
+- [Dependencies](./docs/dependencies.md) — external dependencies and supply chain
+- [Integrations](./docs/integrations.md) — distribution platform data handling
+- [Error Handling](./docs/error-handling.md) — error taxonomy and failure modes

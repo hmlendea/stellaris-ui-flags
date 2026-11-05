@@ -359,3 +359,29 @@ Execute the principal automated verification with:
 - [PRIVACY.md](./PRIVACY.md) — data handling statement.
 - [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) — community conduct standards.
 - [LICENSE](./LICENSE) — GNU GPL v3.0 license text.
+- [docs/architecture.md](./docs/architecture.md) — implementation-level architecture detail
+- [docs/repository-overview.md](./docs/repository-overview.md) — purpose, scope, entry points
+- [docs/repository-structure.md](./docs/repository-structure.md) — source tree layout
+- [docs/build-and-deployment.md](./docs/build-and-deployment.md) — build pipeline, deployment, environments
+- [docs/configuration.md](./docs/configuration.md) — configuration schema, sources, precedence
+- [docs/data-model.md](./docs/data-model.md) — domain entities, relationships, persistence
+- [docs/dependencies.md](./docs/dependencies.md) — external and internal dependencies
+- [docs/design-decisions.md](./docs/design-decisions.md) — key architectural choices with rationale
+- [docs/invariants.md](./docs/invariants.md) — system-wide invariants and contracts
+- [docs/error-handling.md](./docs/error-handling.md) — error taxonomy, handling patterns, recovery
+- [docs/state-and-persistence.md](./docs/state-and-persistence.md) — build state, intermediate artefacts, incremental builds
+- [docs/concurrency-and-scheduling.md](./docs/concurrency-and-scheduling.md) — parallelism, incremental builds, scheduling
+- [docs/logging.md](./docs/logging.md) — build logging, output formatting, diagnostics
+- [docs/security.md](./docs/security.md) — security model, threats, mitigations
+- [docs/integrations.md](./docs/integrations.md) — external system integrations (distribution platforms)
+- [docs/testing.md](./docs/testing.md) — test strategy, organisation, coverage
+- [docs/change-guide.md](./docs/change-guide.md) — how to modify common areas safely
+- [docs/ambiguities-and-open-questions.md](./docs/ambiguities-and-open-questions.md) — unresolved items, TODOs, known gaps
+- [docs/components/](./docs/components/) — per-component deep dives
+- [docs/flows/](./docs/flows/) — end-to-end execution flows
+- [docs/behaviour/INDEX.md](./docs/behaviour/INDEX.md) — observable build, in-game, content, platform, and edge-case behaviour
+- [docs/api-reference/INDEX.md](./docs/api-reference/INDEX.md) — API reference index
+- [docs/api-usage-examples.md](./docs/api-usage-examples.md) — build command examples and usage patterns
+- [docs/quick-start.md](./docs/quick-start.md) — getting started guide for newcomers
+- [docs/troubleshooting.md](./docs/troubleshooting.md) — common issues and solutions
+- [docs/faq.md](./docs/faq.md) — frequently asked questions
