@@ -1,4 +1,4 @@
-[![Donate](https://img.shields.io/badge/-%E2%99%A5%20Donate-%23ff69b4)](https://hmlendea.go.ro/fund.html) [![Latest Release](https://img.shields.io/github/v/release/hmlendea/stellaris-ui-flags)](https://github.com/hmlendea/stellaris-ui-flags/releases/latest) [![License](https://img.shields.io/github/license/hmlendea/stellaris-ui-flags)](https://github.com/hmlendea/stellaris-ui-flags/blob/master/LICENSE)
+[![Donate](https://img.shields.io/badge/-%E2%99%A5%20Donate-%23ff69b4)](https://hmlendea.go.ro/funding) [![Latest Release](https://img.shields.io/github/v/release/hmlendea/stellaris-ui-flags)](https://github.com/hmlendea/stellaris-ui-flags/releases/latest) [![License](https://img.shields.io/github/license/hmlendea/stellaris-ui-flags)](https://github.com/hmlendea/stellaris-ui-flags/blob/master/LICENSE)
 
 # Stellaris UI Flags
 
@@ -101,7 +101,7 @@ For information on reporting security vulnerabilities, see [SECURITY.md](./SECUR
 ## 💝 Project Engagement
 
 - Report issues or suggest features via [GitHub Issues](https://github.com/hmlendea/stellaris-ui-flags/issues)
-- Support the project: [![Donate](https://img.shields.io/badge/-%E2%99%A5%20Donate-%23ff69b4)](https://hmlendea.go.ro/fund.html)
+- Support the project: [![Donate](https://img.shields.io/badge/-%E2%99%A5%20Donate-%23ff69b4)](https://hmlendea.go.ro/funding)
 - Star the repository if you find it useful
 
 ## ⚙️ GitHub Actions
