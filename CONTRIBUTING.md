@@ -72,6 +72,17 @@ cd stellaris-ui-flags
 - Revise relevant docs for changes.
 - Follow the documentation style guide.
 - Preview changes locally if possible.
+- Key documentation files:
+  - [Change Guide](./docs/change-guide.md) — how to modify common areas safely
+  - [Testing](./docs/testing.md) — test strategy and verification procedures
+  - [Components](./docs/components/) — per-component deep dives
+  - [Build Pipeline](./docs/components/build-pipeline.md) — build script internals
+  - [Source Assets](./docs/components/source-assets.md) — asset formats and categories
+  - [GIMP Scripts](./docs/components/gimp-scripts.md) — Script-fu internals
+  - [Output Package](./docs/components/output-package.md) — mod package structure
+  - [Flows](./docs/flows/) — end-to-end execution flows
+  - [API Reference](./docs/api-reference/INDEX.md) — build function signatures
+  - [API Usage Examples](./docs/api-usage-examples.md) — concrete command examples
 
 ## 📄 License
 

@@ -49,3 +49,11 @@ This project follows coordinated disclosure:
 2. A remediation plan is prepared and validated.
 3. Public disclosure is published after a fix, mitigation, or agreed risk decision is available.
 4. Credit is attributed in accordance with reporter preference and project policy.
+
+## 📚 Related Documentation
+
+- [Security Deep Dive](./docs/security.md) — threat model, CI secrets handling, build input/output security, contributor practices
+- [Dependencies](./docs/dependencies.md) — supply chain dependencies and known issues
+- [Integrations](./docs/integrations.md) — distribution platform security considerations
+- [Data Model](./docs/data-model.md) — data handling and persistence details
+- [Error Handling](./docs/error-handling.md) — error taxonomy and failure modes
