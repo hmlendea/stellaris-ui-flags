@@ -17,7 +17,7 @@ The repository owns:
 - Colour palette definition (`source/colours.txt`)
 - English localisation (`source/localisation.yml`)
 - Filename mapping (`source/names.txt`)
-- GIMP Script-fu conversion scripts (`source/scripts/`)
+- GIMP Python-Fu conversion scripts (`source/scripts/`)
 - Build orchestration script (`build.sh`)
 - GitHub Actions workflows for automated releases
 

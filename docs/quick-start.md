@@ -10,7 +10,7 @@
 | ImageMagick | 6.0+ | PNG/BMP conversion | `sudo apt install imagemagick` |
 | potrace | 1.0+ | Raster → vector tracing | `sudo apt install potrace` |
 | Inkscape | 1.0+ | SVG rendering, AI import | `sudo apt install inkscape` |
-| GIMP | 2.10+ | Script-fu, XCF, DDS export | `sudo apt install gimp gimp-dds` |
+| GIMP | 3.0+ | Python-Fu batch, XCF, DDS export | `sudo apt install gimp` |
 
 **Flatpak alternative** (auto-detected by build script):
 ```bash
@@ -18,7 +18,7 @@ flatpak install flathub org.inkscape.Inkscape
 flatpak install flathub org.gimp.GIMP
 ```
 
-**Note:** GIMP requires the DDS plug-in (`gimp-dds` package on Debian/Ubuntu).
+**Note:** GIMP 3 bundles the DDS export plug-in and the GEGL operations used by the build; no extra plug-in package is required.
 
 ### Verify Installation
 

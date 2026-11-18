@@ -33,6 +33,10 @@ MOD_DESCRIPTOR_SECONDARY_FILE_PATH="${OUTPUT_MOD_DIR_PATH}/descriptor.mod"
 FLAG_NAMES_FILE_PATH="${SOURCE_DIR_PATH}/names.txt"
 THUMBNAIL_FILE_PATH="${SOURCE_DIR_PATH}/thumbnail.png"
 
+# Each variant is rendered in a separate GIMP process when the shared session is killed, so several
+# attempts cover machines whose memory is nearly exhausted by other applications.
+readonly VARIANT_ATTEMPT_COUNT=5
+
 [ ! -d "${SOURCE_DIR_PATH}" ] && echo "MISSING SOURCE DIRECTORY" && exit -1
 [ ! -f "/usr/bin/convert" ] && echo "[ERROR] ImageMagick is not installed on this system" && exit 1
 [ ! -f "/usr/bin/potrace" ] && echo "[ERROR] potrace is not installed on this system" && exit 1
@@ -50,51 +54,40 @@ function execute-inkscape {
     "${INKSCAPE_BINARY}" ${*}
 }
 
-function execute-scriptfu {
-    local GIMP_SCRIPTFU="${1}"
+function execute-gimp-script-file {
+    local GIMP_SCRIPT_LABEL="${1}" && shift
+    local GIMP_SCRIPT_PATH="${SOURCE_SCRIPTS_DIR_PATH}/${GIMP_SCRIPT_LABEL}.py"
     local GIMP_BINARY="/usr/bin/gimp"
 
     [ ! -f "${GIMP_BINARY}" ] && GIMP_BINARY="/var/lib/flatpak/exports/bin/org.gimp.GIMP"
     [ ! -f "${GIMP_BINARY}" ] && GIMP_BINARY="${HOME}/.local/share/flatpak/exports/bin/org.gimp.GIMP"
     if [ ! -f "${GIMP_BINARY}" ]; then
-        echo "[ERROR] GIMP is not installed on this system"
+        echo "[ERROR] GIMP is not installed on this system" >&2
         exit 1
     fi
 
-    "${GIMP_BINARY}" -i -b ''"${GIMP_SCRIPTFU}"'' -b '(gimp-quit 0)' &>/dev/null
-}
-
-function execute-scriptfu-file {
-    local GIMP_SCRIPTFU_LABEL="${1}" && shift
-    local GIMP_SCRIPTFU_PATH="${SOURCE_SCRIPTS_DIR_PATH}/${GIMP_SCRIPTFU_LABEL}.lisp"
-    local GIMP_SCRIPTFU=""
-
-    if [ ! -f "${GIMP_SCRIPTFU_PATH}" ]; then
-        echo "[ERROR] The specified GIMP Script-fu file cannot be found!"
+    if [ ! -f "${GIMP_SCRIPT_PATH}" ]; then
+        echo "[ERROR] The specified GIMP script cannot be found!" >&2
         exit 1
     fi
-
-    GIMP_SCRIPTFU=$(cat "${GIMP_SCRIPTFU_PATH}")
 
     if [ "$(( $# % 2))" -ne 0 ]; then
-        echo "[ERROR] Invalid arguments (count: $#) for execute-scriptfu: ${*}" >&2
+        echo "[ERROR] Invalid arguments (count: $#) for execute-gimp-script-file: ${*}" >&2
         exit 2
     fi
 
-    local PAIRS_COUNT=$(($# / 2))
-    local VARIABLE_NAME=""
-    local VARIABLE_VALUE=""
-    local VARIABLE_VALUE_ESCAPED=""
-
-    for I in $(seq 1 ${PAIRS_COUNT}); do
-        VARIABLE_NAME="${1}" && shift
-        VARIABLE_VALUE="${1}" && shift
-        VARIABLE_VALUE_ESCAPED=$(echo "${VAL}" | sed -e 's/[]\/$*.^|[]/\\&/g')
-
-        GIMP_SCRIPTFU=$(echo "${GIMP_SCRIPTFU}" | sed 's|'"${VARIABLE_NAME}"'|'"${VARIABLE_VALUE}"'|g')
+    local -a GIMP_SCRIPT_ARGUMENTS=()
+    while [ "$#" -gt 0 ]; do
+        GIMP_SCRIPT_ARGUMENTS+=("GIMP_SCRIPT_${1}=${2}")
+        shift 2
     done
 
-    execute-scriptfu "${GIMP_SCRIPTFU}"
+    local GIMP_BATCH_COMMAND="import sys; sys.path.insert(0, '${SOURCE_SCRIPTS_DIR_PATH}'); exec(open('${GIMP_SCRIPT_PATH}').read())"
+
+    # A new instance is required so that consecutive invocations do not attach
+    # to an instance that is still shutting down and discard the batch command.
+    env "${GIMP_SCRIPT_ARGUMENTS[@]}" "${GIMP_BINARY}" --new-instance -i \
+        --batch-interpreter=python-fu-eval -b "${GIMP_BATCH_COMMAND}" --quit
 }
 
 function xcf-to-png {
@@ -103,7 +96,7 @@ function xcf-to-png {
 
     echo -e "\e[36mConverting XCF to PNG for '${INPUT_IMAGE_PATH}'...\e[0m"
 
-    execute-scriptfu-file "xcf-to-png" \
+    execute-gimp-script-file "xcf_to_png" \
         INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
         OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
 
@@ -152,7 +145,7 @@ function png-to-dds {
 
     echo -e "\e[36mConverting PNG to DDS for '${INPUT_IMAGE_PATH}'...\e[0m"
 
-    execute-scriptfu-file "png-to-dds" \
+    execute-gimp-script-file "png_to_dds" \
         INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
         OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
 
@@ -197,7 +190,7 @@ function svg-to-png {
 
     echo -e "\e[36mConverting SVG to PNG for '${INPUT_IMAGE_PATH}'...\e[0m"
 
-    execute-scriptfu-file "svg-to-png" \
+    execute-gimp-script-file "svg_to_png" \
         INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
         OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}" \
         OUTPUT_IMAGE_SIZE "${OUTPUT_IMAGE_SIZE}"
@@ -213,7 +206,113 @@ function apply-gradient-bevel {
 
     echo -e "\e[36mApplying gradient bevel on '${IMAGE_PATH}'...\e[0m"
 
-    execute-scriptfu-file "gradient-bevel" IMAGE_PATH "${IMAGE_PATH}"
+    execute-gimp-script-file "gradient_bevel" IMAGE_PATH "${IMAGE_PATH}"
+}
+
+function render-flag {
+    local SOURCE_PATH="${1}"
+    local MAIN_PNG_PATH="${2}"
+    local MAIN_DDS_PATH="${3}"
+    local MAP_PNG_PATH="${4}"
+    local MAP_DDS_PATH="${5}"
+    local SMALL_PNG_PATH="${6}"
+    local SMALL_DDS_PATH="${7}"
+
+    echo -e "\e[36mRendering the flag variants for '${SOURCE_PATH}'...\e[0m"
+
+    # All variants are rendered in a single GIMP session because each process costs about four seconds to start.
+    execute-gimp-script-file "render_flag_variants" \
+        SOURCE_PATH "${SOURCE_PATH}" \
+        MAIN_PNG_PATH "${MAIN_PNG_PATH}" \
+        MAIN_DDS_PATH "${MAIN_DDS_PATH}" \
+        MAP_PNG_PATH "${MAP_PNG_PATH}" \
+        MAP_DDS_PATH "${MAP_DDS_PATH}" \
+        SMALL_PNG_PATH "${SMALL_PNG_PATH}" \
+        SMALL_DDS_PATH "${SMALL_DDS_PATH}" \
+        MAIN_SIZE "128" \
+        MAP_SIZE "256" \
+        SMALL_SIZE "24"
+
+    # A memory-limited machine can terminate the shared session partway, so any variant that is still
+    # absent is rendered again through individual invocations, which each release their memory on exit.
+    ensure-beveled-variant "${SOURCE_PATH}" "${MAIN_PNG_PATH}" "${MAIN_DDS_PATH}" "128"
+    ensure-flat-variant "${SOURCE_PATH}" "${MAP_PNG_PATH}" "${MAP_DDS_PATH}" "256"
+    ensure-beveled-variant "${SOURCE_PATH}" "${SMALL_PNG_PATH}" "${SMALL_DDS_PATH}" "24"
+
+    local MISSING_OUTPUT_PATH=""
+    for OUTPUT_PATH in "${MAIN_DDS_PATH}" "${MAP_DDS_PATH}" "${SMALL_DDS_PATH}"; do
+        [ -f "${OUTPUT_PATH}" ] || MISSING_OUTPUT_PATH="${OUTPUT_PATH}"
+    done
+
+    if [ -n "${MISSING_OUTPUT_PATH}" ]; then
+        echo "[ERROR] Failure while rendering the flag variants for '${SOURCE_PATH}'!"
+        exit 3
+    fi
+}
+
+function ensure-beveled-variant {
+    local SOURCE_PATH="${1}"
+    local PNG_PATH="${2}"
+    local DDS_PATH="${3}"
+    local IMAGE_SIZE="${4}"
+    local ATTEMPT_NUMBER=1
+
+    while [ ! -f "${DDS_PATH}" ] && [ "${ATTEMPT_NUMBER}" -le "${VARIANT_ATTEMPT_COUNT}" ]; do
+        echo -e "\e[33mRendering the ${IMAGE_SIZE}px variant of '${SOURCE_PATH}' on attempt ${ATTEMPT_NUMBER}...\e[0m"
+        render-beveled-variant "${SOURCE_PATH}" "${PNG_PATH}" "${DDS_PATH}" "${IMAGE_SIZE}"
+        ATTEMPT_NUMBER=$((ATTEMPT_NUMBER + 1))
+    done
+}
+
+function ensure-flat-variant {
+    local SOURCE_PATH="${1}"
+    local PNG_PATH="${2}"
+    local DDS_PATH="${3}"
+    local IMAGE_SIZE="${4}"
+    local ATTEMPT_NUMBER=1
+
+    while [ ! -f "${DDS_PATH}" ] && [ "${ATTEMPT_NUMBER}" -le "${VARIANT_ATTEMPT_COUNT}" ]; do
+        echo -e "\e[33mRendering the ${IMAGE_SIZE}px variant of '${SOURCE_PATH}' on attempt ${ATTEMPT_NUMBER}...\e[0m"
+        render-flat-variant "${SOURCE_PATH}" "${PNG_PATH}" "${DDS_PATH}" "${IMAGE_SIZE}"
+        ATTEMPT_NUMBER=$((ATTEMPT_NUMBER + 1))
+    done
+}
+
+function render-beveled-variant {
+    local SOURCE_PATH="${1}"
+    local PNG_PATH="${2}"
+    local DDS_PATH="${3}"
+    local IMAGE_SIZE="${4}"
+
+    execute-gimp-script-file "svg_to_png" \
+        INPUT_IMAGE_PATH "${SOURCE_PATH}" \
+        OUTPUT_IMAGE_PATH "${PNG_PATH}" \
+        OUTPUT_IMAGE_SIZE "${IMAGE_SIZE}"
+
+    if [ -f "${PNG_PATH}" ]; then
+        execute-gimp-script-file "gradient_bevel" IMAGE_PATH "${PNG_PATH}"
+        execute-gimp-script-file "png_to_dds" \
+            INPUT_IMAGE_PATH "${PNG_PATH}" \
+            OUTPUT_IMAGE_PATH "${DDS_PATH}"
+    fi
+}
+
+function render-flat-variant {
+    local SOURCE_PATH="${1}"
+    local PNG_PATH="${2}"
+    local DDS_PATH="${3}"
+    local IMAGE_SIZE="${4}"
+
+    execute-gimp-script-file "svg_to_png" \
+        INPUT_IMAGE_PATH "${SOURCE_PATH}" \
+        OUTPUT_IMAGE_PATH "${PNG_PATH}" \
+        OUTPUT_IMAGE_SIZE "${IMAGE_SIZE}"
+
+    if [ -f "${PNG_PATH}" ]; then
+        execute-gimp-script-file "png_to_dds" \
+            INPUT_IMAGE_PATH "${PNG_PATH}" \
+            OUTPUT_IMAGE_PATH "${DDS_PATH}"
+    fi
 }
 
 function get-flag-file-name {
@@ -316,15 +415,13 @@ for CATEGORY_DIR in "${SOURCE_FLAGS_DIR_PATH}"/*; do
             cp "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
         fi
 
-        svg-to-png "${FLAG_SVG_BUILD_FILE_PATH}" "${FLAG_BUILD_MAIN_FILE_PATH}" 128
-        apply-gradient-bevel "${FLAG_BUILD_MAIN_FILE_PATH}"
-        png-to-dds "${FLAG_BUILD_MAIN_FILE_PATH}" "${FLAG_OUTPUT_MAIN_FILE_PATH}"
-
-        svg-to-png "${FLAG_SVG_BUILD_FILE_PATH}" "${FLAG_BUILD_MAP_FILE_PATH}" 256
-        png-to-dds "${FLAG_BUILD_MAP_FILE_PATH}" "${FLAG_OUTPUT_MAP_FILE_PATH}"
-
-        svg-to-png "${FLAG_SVG_BUILD_FILE_PATH}" "${FLAG_BUILD_SMALL_FILE_PATH}" 24
-        apply-gradient-bevel "${FLAG_BUILD_SMALL_FILE_PATH}"
-        png-to-dds "${FLAG_BUILD_SMALL_FILE_PATH}" "${FLAG_OUTPUT_SMALL_FILE_PATH}"
+        render-flag \
+            "${FLAG_SVG_BUILD_FILE_PATH}" \
+            "${FLAG_BUILD_MAIN_FILE_PATH}" \
+            "${FLAG_OUTPUT_MAIN_FILE_PATH}" \
+            "${FLAG_BUILD_MAP_FILE_PATH}" \
+            "${FLAG_OUTPUT_MAP_FILE_PATH}" \
+            "${FLAG_BUILD_SMALL_FILE_PATH}" \
+            "${FLAG_OUTPUT_SMALL_FILE_PATH}"
     done
 done

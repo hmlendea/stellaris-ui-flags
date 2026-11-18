@@ -37,7 +37,7 @@ START
 │    │   ├── CHECK Flatpak system export                                      │
 │    │   ├── CHECK Flatpak user export                                        │
 │    │   ├── IF not found: PRINT "X is not installed", EXIT 1                │
-│    │   └── STORE path in TOOL_TOOL_PATH                                     │
+│    │   └── USE the resolved path in the tool call                           │
 │    └── ALL tools found: CONTINUE                                            │
 └─────────────────────────────────────────────────────────────────────────────┘
   │
@@ -113,11 +113,11 @@ START
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ 8. SVG → 128px PNG (MAIN) + BEVEL                                           │
 │    ├── svg-to-png(build SVG, build MAIN PNG, 128)                          │
-│    │   └── GIMP: load SVG, scale to 128x128, remove background, save PNG   │
-│    ├── apply-gradient-bevel(build MAIN PNG, build MAIN BEVEL PNG)          │
-│    │   └── GIMP: load PNG, create layers, bump-map, gradient, merge, save  │
-│    ├── png-to-dds(build MAIN BEVEL PNG, out MAIN DDS)                      │
-│    │   └── GIMP: load PNG, save as DDS (DXT1/5, mipmaps)                  │
+│    │   └── GIMP: load SVG at 128x128, remove background, repaint white     │
+│    ├── apply-gradient-bevel(build MAIN PNG)                                │
+│    │   └── GIMP: load PNG, blur silhouette, emboss relief, gradient tint   │
+│    ├── png-to-dds(build MAIN PNG, out MAIN DDS)                            │
+│    │   └── GIMP: load PNG, save as DDS (uncompressed BGRA8)                │
 │    └── OUTPUT: out/ui-flags/flags/<cat>/<name>.dds (128px, beveled)        │
 └─────────────────────────────────────────────────────────────────────────────┘
   │
@@ -125,9 +125,9 @@ START
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ 9. SVG → 256px PNG (MAP) — NO BEVEL                                         │
 │    ├── svg-to-png(build SVG, build MAP PNG, 256)                           │
-│    │   └── GIMP: load SVG, scale to 256x256, remove background, save PNG   │
+│    │   └── GIMP: load SVG at 256x256, remove background, repaint white     │
 │    ├── png-to-dds(build MAP PNG, out MAP DDS)                              │
-│    │   └── GIMP: load PNG, save as DDS (DXT1/5, mipmaps)                  │
+│    │   └── GIMP: load PNG, save as DDS (uncompressed BGRA8)                │
 │    └── OUTPUT: out/ui-flags/flags/<cat>/map/<name>.dds (256px, no bevel)   │
 └─────────────────────────────────────────────────────────────────────────────┘
   │
@@ -135,11 +135,11 @@ START
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ 10. SVG → 24px PNG (SMALL) + BEVEL                                          │
 │    ├── svg-to-png(build SVG, build SMALL PNG, 24)                          │
-│    │   └── GIMP: load SVG, scale to 24x24, remove background, save PNG     │
-│    ├── apply-gradient-bevel(build SMALL PNG, build SMALL BEVEL PNG)        │
-│    │   └── GIMP: load PNG, create layers, bump-map, gradient, merge, save  │
-│    ├── png-to-dds(build SMALL BEVEL PNG, out SMALL DDS)                    │
-│    │   └── GIMP: load PNG, save as DDS (DXT1/5, mipmaps)                  │
+│    │   └── GIMP: load SVG at 24x24, remove background, repaint white       │
+│    ├── apply-gradient-bevel(build SMALL PNG)                               │
+│    │   └── GIMP: load PNG, blur silhouette, emboss relief, gradient tint   │
+│    ├── png-to-dds(build SMALL PNG, out SMALL DDS)                          │
+│    │   └── GIMP: load PNG, save as DDS (uncompressed BGRA8)                │
 │    └── OUTPUT: out/ui-flags/flags/<cat>/small/<name>.dds (24px, beveled)   │
 └─────────────────────────────────────────────────────────────────────────────┘
   │
@@ -296,11 +296,10 @@ fi
 **Pipeline:**
 ```
 SVG (build)
-  → svg-to-png (128px)
+  → svg_to_png (128px)
   → PNG (build)
-  → apply-gradient-bevel
-  → PNG Bevel (build)
-  → png-to-dds
+  → gradient_bevel (rewrites the PNG in place)
+  → png_to_dds
   → DDS (out/main)
 ```
 
@@ -311,9 +310,9 @@ SVG (build)
 **Pipeline:**
 ```
 SVG (build)
-  → svg-to-png (256px)
+  → svg_to_png (256px)
   → PNG (build)
-  → png-to-dds
+  → png_to_dds
   → DDS (out/map)
 ```
 
@@ -326,11 +325,10 @@ SVG (build)
 **Pipeline:**
 ```
 SVG (build)
-  → svg-to-png (24px)
+  → svg_to_png (24px)
   → PNG (build)
-  → apply-gradient-bevel
-  → PNG Bevel (build)
-  → png-to-dds
+  → gradient_bevel (rewrites the PNG in place)
+  → png_to_dds
   → DDS (out/small)
 ```
 

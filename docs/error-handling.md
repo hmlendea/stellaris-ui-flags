@@ -69,7 +69,7 @@ Individual asset failures do not abort the build.
 | SVG → PNG | GIMP can't load SVG | GIMP error; no PNG |
 | SVG → PNG | Invalid SVG structure | GIMP error or blank PNG |
 | Bevel | GIMP script error | GIMP error; no beveled PNG |
-| PNG → DDS | DDS plug-in missing | GIMP error: `file-dds-save` undefined |
+| PNG → DDS | DDS export missing | GIMP error: `file-dds-export` not found |
 | PNG → DDS | Invalid PNG input | GIMP error; no DDS |
 
 ### Partial Output States
@@ -118,12 +118,12 @@ Mismatched counts indicate skipped or collided assets.
 GIMP batch errors print to stderr:
 
 ```
-batch command: experienced an execution error
+batch command experienced an execution error
 ```
 
-- **Cause:** Script-fu error (bad arguments, missing function, file error)
+- **Cause:** Python-Fu error (missing parameter, missing procedure, file error)
 - **Action:** Check the specific script and input file
-- **Debugging:** Run the failing GIMP command manually with the same arguments
+- **Debugging:** Run the failing GIMP command manually with the same environment variables
 
 ### Inkscape
 

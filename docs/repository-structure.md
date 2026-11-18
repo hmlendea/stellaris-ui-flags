@@ -64,10 +64,14 @@ stellaris-ui-flags/
 │   ├── localisation.yml
 │   ├── names.txt
 │   ├── scripts/
-│   │   ├── gradient-bevel.lisp
-│   │   ├── png-to-dds.lisp
-│   │   ├── svg-to-png.lisp
-│   │   └── xcf-to-png.lisp
+│   │   ├── gimp_image_operations.py
+│   │   ├── gimp_procedures.py
+│   │   ├── gimp_script_arguments.py
+│   │   ├── gimp_script_errors.py
+│   │   ├── gradient_bevel.py
+│   │   ├── png_to_dds.py
+│   │   ├── svg_to_png.py
+│   │   └── xcf_to_png.py
 │   └── thumbnail.png
 ├── .github/
 │   ├── FUNDING.yml
@@ -103,7 +107,7 @@ stellaris-ui-flags/
 | `source/localisation.yml` | English category name localisation | YAML |
 | `source/names.txt` | Source filename to output filename mapping | Key=value pairs |
 | `source/thumbnail.png` | Mod thumbnail image | PNG |
-| `source/scripts/*.lisp` | GIMP Script-fu conversion scripts | Scheme/Lisp |
+| `source/scripts/*.py` | GIMP Python-Fu conversion scripts | Python |
 
 ### Build Pipeline (`build.sh`)
 
@@ -147,7 +151,7 @@ out/ui-flags/
 - **Source flags**: Descriptive names with format extension (e.g., `mighty-spanner.svg`, `ui_mechanical_1.png`)
 - **Output flags**: `ui_<category>_<number>.dds` or mapped names from `names.txt`
 - **Categories**: Lowercase with hyphens (e.g., `ui_elder-scrolls`, `ui_starcraft`)
-- **Scripts**: Kebab-case with `.lisp` extension (e.g., `gradient-bevel.lisp`)
+- **Scripts**: Snake case with `.py` extension (e.g., `gradient_bevel.py`, `png_to_dds.py`)
 - **Build directories**: Match category names exactly
 
 ## Gitignore Patterns

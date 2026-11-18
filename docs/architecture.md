@@ -45,7 +45,7 @@ flowchart LR
 - `source/localisation.yml` — English localisation copied to `localisation/ui-flags_l_english.yml`
 - `source/names.txt` — Mapping from source filename (without extension) to output filename
 - `source/thumbnail.png` — Mod thumbnail copied to output root
-- `source/scripts/` — GIMP Script-fu scripts for DDS export, SVG→PNG, XCF→PNG, gradient bevel
+- `source/scripts/` — GIMP Python-Fu scripts for DDS export, SVG→PNG, XCF→PNG, gradient bevel
 
 **Responsibilities:**
 - Provide authoring formats and taxonomic organisation for flag designs
@@ -61,7 +61,7 @@ flowchart LR
 
 **Paths:**
 - `build.sh` — Top-level orchestration, tool detection, directory management, conversion loop
-- `source/scripts/*.lisp` — GIMP Script-fu implementations for format conversions and effects
+- `source/scripts/*.py` — GIMP Python-Fu implementations for format conversions and effects
 
 **Responsibilities:**
 - Detect and validate external tool dependencies
@@ -152,9 +152,9 @@ flowchart TD
 
 | Entity | Output Path | Format | Stellaris Requirement |
 |--------|-------------|--------|----------------------|
-| Main flag textures | `flags/<category>/*.dds` | DDS (BC1/BC3, mipmaps) | 128px, gradient bevel |
-| Map flag textures | `flags/<category>/map/*.dds` | DDS (BC1/BC3, mipmaps) | 256px, no bevel |
-| Small flag textures | `flags/<category>/small/*.dds` | DDS (BC1/BC3, mipmaps) | 24px, gradient bevel |
+| Main flag textures | `flags/<category>/*.dds` | DDS (uncompressed BGRA8) | 128px, gradient bevel |
+| Map flag textures | `flags/<category>/map/*.dds` | DDS (uncompressed BGRA8) | 256px, no bevel |
+| Small flag textures | `flags/<category>/small/*.dds` | DDS (uncompressed BGRA8) | 24px, gradient bevel |
 | Backgrounds | `flags/backgrounds/*.dds` | DDS | Copied from source |
 | Colours | `flags/colors.txt` | Stellaris colour format | Copied from source |
 | Localisation | `localisation/ui-flags_l_english.yml` | YAML | Copied from source |
@@ -170,7 +170,7 @@ flowchart TD
 |------|---------|------------|--------------|
 | `convert` (ImageMagick) | PNG → BMP flattening | `convert -background "#000" -flatten` | Exit code ≠ 0 |
 | `inkscape` | AI → SVG, SVG rendering | `inkscape -f input -l output` | Exit code ≠ 0 |
-| `gimp` | Script-fu execution | `gimp -i -b '(script)' -b '(gimp-quit 0)'` | Exit code ≠ 0 |
+| `gimp` | Python-Fu execution | `gimp -i --batch-interpreter=python-fu-eval -b "exec(...)" --quit` | Exit code ≠ 0 |
 | `potrace` | BMP → SVG vectorisation | `potrace --opaque -s input -o output` | Exit code ≠ 0 |
 
 ### Distribution Platform Interface
@@ -209,8 +209,7 @@ Source Assets → Build Pipeline → Output Package
 |------|----------------|---------|--------------|
 | ImageMagick | 6.x/7.x | PNG → BMP conversion | System package manager |
 | Inkscape | 1.x | AI → SVG, SVG processing | System package manager / Flatpak |
-| GIMP | 2.10+ | Script-fu execution, DDS export | System package manager / Flatpak |
-| GIMP DDS plug-in | Compatible with GIMP | DDS format support | Separate installation |
+| GIMP | 3.0+ | Python-Fu execution, DDS export | System package manager / Flatpak |
 | potrace | 1.x | BMP → SVG vectorisation | System package manager |
 
 ### Runtime Dependencies
@@ -345,8 +344,8 @@ The output package must conform to:
 
 ### Modifying Gradient Bevel
 
-1. Edit `source/scripts/gradient-bevel.lisp`
-2. Adjust bevel parameters (size, width, height, colours)
+1. Edit `source/scripts/gradient_bevel.py`
+2. Adjust the blur radius, emboss elevation, depth, and colours
 3. Run build — effect applied to main and small variants
 
 ## Source Map
@@ -355,7 +354,7 @@ The output package must conform to:
 |-----------|----------------|---------------|
 | Build orchestration | `build.sh` | [build-pipeline.md](./components/build-pipeline.md) |
 | Format conversions | `build.sh` functions | [build-pipeline.md](./components/build-pipeline.md) |
-| GIMP Script-fu scripts | `source/scripts/*.lisp` | [gimp-scripts.md](./components/gimp-scripts.md) |
+| GIMP Python-Fu scripts | `source/scripts/*.py` | [gimp-scripts.md](./components/gimp-scripts.md) |
 | Source asset taxonomy | `source/flags/` | [source-assets.md](./components/source-assets.md) |
 | Output packaging | `build.sh` main loop | [output-package.md](./components/output-package.md) |
 | CI/CD workflows | `.github/workflows/*.yml` | [build-and-deployment.md](./build-and-deployment.md) |

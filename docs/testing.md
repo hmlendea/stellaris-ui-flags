@@ -157,7 +157,11 @@ For debugging, exercise build functions in isolation. Source the script function
 ### Test SVG → PNG
 
 ```bash
-gimp -i -b "(svg-to-png \"/tmp/test.svg\" \"/tmp/test.png\")" -b "(gimp-quit 0)"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test.svg" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
 ```
 
 Verify `/tmp/test.png` exists and opens correctly.
@@ -165,15 +169,20 @@ Verify `/tmp/test.png` exists and opens correctly.
 ### Test Bevel
 
 ```bash
-gimp -i -b "(apply-gradient-bevel \"/tmp/test.png\" \"/tmp/test_beveled.png\")" -b "(gimp-quit 0)"
+env GIMP_SCRIPT_IMAGE_PATH="/tmp/test.png" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/gradient_bevel.py').read())" --quit
 ```
 
-Verify bevel effect visible.
+Verify the bevel effect is visible.
 
 ### Test DDS Export
 
 ```bash
-gimp -i -b "(png-to-dds \"/tmp/test.png\" \"/tmp/test.dds\")" -b "(gimp-quit 0)"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.dds" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/png_to_dds.py').read())" --quit
 ```
 
 Verify `/tmp/test.dds` opens in GIMP or a DDS viewer.

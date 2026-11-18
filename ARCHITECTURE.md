@@ -45,7 +45,7 @@ flowchart LR
 
 The principal external boundaries are:
 - **Source Assets:** Contributor-provided flag designs in various formats (BMP, XCF, PNG, AI, SVG) organised by category directories under `source/flags/`.
-- **Build Tools:** ImageMagick (`convert`), Inkscape, GIMP (with DDS plug-in), and potrace must be present on the build machine.
+- **Build Tools:** ImageMagick (`convert`), Inkscape, GIMP (3.0+, plug-ins bundled), and potrace must be present on the build machine.
 - **Distribution Platforms:** Steam Workshop, Paradox Mods, Nexus Mods consume the built mod package.
 - **Stellaris Game:** Loads the mod package at runtime; expects DDS flag textures and localisation/colour definitions.
 
@@ -148,7 +148,7 @@ Paths:
 - `source/localisation.yml` — English localisation copied to `localisation/ui-flags_l_english.yml`.
 - `source/names.txt` — mapping from source filename (without extension) to output filename.
 - `source/thumbnail.png` — mod thumbnail copied to output root.
-- `source/scripts/` — GIMP Script-fu scripts for DDS export, SVG→PNG, XCF→PNG, gradient bevel.
+- `source/scripts/` — GIMP Python-Fu scripts for DDS export, SVG→PNG, XCF→PNG, gradient bevel.
 
 Responsibilities:
 - Provide authoring formats and taxonomic organisation for flag designs.
@@ -164,7 +164,7 @@ Boundary rules:
 
 Paths:
 - `build.sh` — top-level orchestration, tool detection, directory management, conversion loop.
-- `source/scripts/*.lisp` — GIMP Script-fu implementations for format conversions and effects.
+- `source/scripts/*.py` — GIMP Python-Fu implementations for format conversions and effects.
 
 Responsibilities:
 - Detect and validate external tool dependencies.
@@ -225,7 +225,7 @@ flowchart LR
 | `source/localisation.yml` | Maintainer | YAML localisation keys/values | Copied verbatim to output |
 | `source/backgrounds/*.dds` | Contributor | DDS textures | Copied verbatim to output |
 | `build/*/` | Build Pipeline | Intermediate SVG, PNG, BMP | Ephemeral; recreated each build |
-| `out/ui-flags/flags/*/*.dds` | Build Pipeline | DDS (BC1/BC3, mipmaps via GIMP) | Final artefacts; shipped to platforms |
+| `out/ui-flags/flags/*/*.dds` | Build Pipeline | DDS (uncompressed BGRA8 via GIMP) | Final artefacts; shipped to platforms |
 | `out/ui-flags/*.mod` | Build Pipeline | Text descriptor | Regenerated each build with version |
 
 ## 🔌 Interfaces and Integrations
@@ -235,7 +235,7 @@ flowchart LR
 | `build.sh` CLI | Inbound | `build.sh <version>` | Build Pipeline | Exits non-zero with error message if version missing or tools absent |
 | ImageMagick `convert` | Outbound | BMP→PNG flattening | Build Pipeline | Build fails if binary missing or conversion fails |
 | Inkscape CLI | Outbound | AI→SVG, SVG→PNG (fallback) | Build Pipeline | Build fails if binary missing or conversion fails |
-| GIMP Script-fu | Outbound | XCF→PNG, SVG→PNG, PNG→DDS, gradient bevel | Build Pipeline | Build fails if GIMP or DDS plug-in missing |
+| GIMP Python-Fu | Outbound | XCF→PNG, SVG→PNG, PNG→DDS, gradient bevel | Build Pipeline | Build fails if GIMP is missing or a conversion fails |
 | potrace CLI | Outbound | BMP→SVG vectorisation | Build Pipeline | Build fails if binary missing or tracing fails |
 | Stellaris Mod Descriptor | Outbound | `.mod` file format (version, name, path, tags, supported_version) | Build Pipeline | Mod not recognised by launcher if malformed |
 | Steam Workshop / Paradox Mods / Nexus Mods | Outbound | Zip of `out/ui-flags/` + descriptor | Maintainer | Platform rejects upload if structure invalid |
@@ -244,7 +244,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Build[build.sh] --> Scripts[source/scripts/*.lisp]
+    Build[build.sh] --> Scripts[source/scripts/*.py]
     Build --> Tools[External Tools]
     Source[source/] --> Build
     Build --> Output[out/]
@@ -265,7 +265,7 @@ The principal dependency rules are:
 |------------|----------------|----------------------|---------------------------|
 | ImageMagick (`convert`) | Raster flattening (PNG→BMP) | CLI invoked by `build.sh` | Must be in PATH; version not pinned |
 | Inkscape | Vector conversion (AI→SVG, SVG→PNG fallback) | CLI invoked by `build.sh` | Flatpak and system paths probed; version not pinned |
-| GIMP + DDS plug-in | XCF→PNG, SVG→PNG, PNG→DDS, gradient bevel | Script-fu via `source/scripts/` | Requires GIMP 2.10+ with DDS plug-in; Flatpak and system paths probed |
+| GIMP | XCF→PNG, SVG→PNG, PNG→DDS, gradient bevel | Python-Fu via `source/scripts/` | Requires GIMP 3.0+; Flatpak and system paths probed; a new instance per invocation avoids launch contention |
 | potrace | BMP→SVG vectorisation | CLI invoked by `build.sh` | Must be in PATH; version not pinned |
 | Stellaris v4.0.* | Target game version | `supported_version` in descriptor | Mod compatibility bound to game version range |
 
@@ -285,7 +285,7 @@ The principal dependency rules are:
 | Contract | Owner | Invariant | Verification | Change Policy |
 |----------|-------|-----------|--------------|---------------|
 | Stellaris mod descriptor format | Build Pipeline | `version`, `name`, `path`, `tags`, `supported_version` fields present | Launcher loads mod without error | Update `STELLARIS_VERSION` in `build.sh` when game updates |
-| DDS texture format (BC1/BC3, mipmaps) | GIMP DDS plug-in | Stellaris reads flag textures without error | Visual verification in-game | Regenerate if GIMP plug-in changes output format |
+| DDS texture format (uncompressed BGRA8) | GIMP DDS export | Stellaris reads flag textures without error | Visual verification in-game | Regenerate if the GIMP DDS exporter changes its output format |
 | Flag filename mapping (`names.txt`) | Maintainer | Each source file maps to unique output filename | Build logs show no collisions | Add entries for new flags; never remove existing |
 | Category directory structure | Maintainer | Output categories mirror source categories | `out/ui-flags/flags/` matches `source/flags/` | New categories added as directories under `source/flags/` |
 | Localisation key format | Maintainer | Keys follow `flag_<category>_<name>` pattern | In-game text displays correctly | Follow existing key pattern for new flags |
@@ -306,7 +306,7 @@ Execute the principal automated verification with:
 
 ## ⚠️ Design Constraints
 
-- **Tool availability:** Build requires four external CLI/GUI tools (ImageMagick, Inkscape, GIMP, potrace) with specific capabilities (DDS plug-in for GIMP). Absence of any tool halts the build.
+- **Tool availability:** Build requires four external CLI/GUI tools (ImageMagick, Inkscape, GIMP, potrace) with specific capabilities. Absence of any tool halts the build.
 - **Single-threaded execution:** Category and file loops run sequentially; no parallelism exploited.
 - **Intermediate retention:** `build/` directory grows with each build; no automatic cleanup.
 - **Version coupling:** `STELLARIS_VERSION` in `build.sh` must be updated manually when Stellaris releases a new major version.
@@ -341,7 +341,7 @@ Execute the principal automated verification with:
 | Area | Path |
 |------|------|
 | Build orchestration | `build.sh` |
-| GIMP Script-fu scripts | `source/scripts/` |
+| GIMP Python-Fu scripts | `source/scripts/` |
 | Flag source assets | `source/flags/` |
 | Background textures | `source/backgrounds/` |
 | Colour palette | `source/colours.txt` |

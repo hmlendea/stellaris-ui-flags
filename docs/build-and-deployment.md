@@ -198,8 +198,8 @@ Release assets are uploaded manually or via CI to GitHub Releases with naming co
 
 **Requirements:**
 - Linux/macOS/WSL (build.sh is a bash script)
-- All build tools installed (ImageMagick, Inkscape, GIMP 2.10+, potrace)
-- GIMP DDS plug-in installed
+- All build tools installed (ImageMagick, Inkscape, GIMP 3.0+, potrace)
+- GIMP 3 (the DDS export plug-in is bundled)
 - Sufficient disk space for intermediate artefacts
 
 **Typical Workflow:**
@@ -241,10 +241,10 @@ cd stellaris-ui-flags
    ```bash
    # Ensure all changes committed
    git status
-   
+
    # Build final version
    ./build.sh 1.2.3
-   
+
    # Verify output
    ls -la out/ui-flags/
    ```
@@ -296,7 +296,7 @@ If a release has issues:
 | `ImageMagick is not installed` | `convert` not in PATH | Install ImageMagick |
 | `potrace is not installed` | `potrace` not in PATH | Install potrace |
 | `Inkscape is not installed` | Inkscape not found | Install Inkscape or ensure Flatpak export |
-| `GIMP is not installed` | GIMP not found | Install GIMP 2.10+ with DDS plug-in |
+| `GIMP is not installed` | GIMP not found | Install GIMP 3.0+ |
 | `Failure while converting` | Tool execution failed | Check tool versions, input file validity |
 
 ### Debugging Tips

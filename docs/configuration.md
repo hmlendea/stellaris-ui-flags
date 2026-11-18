@@ -14,7 +14,7 @@ The Stellaris UI Flags build pipeline uses multiple configuration sources with t
 | Source assets | `source/flags/<category>/` | Flag designs | Yes (contributor) |
 | Background textures | `source/backgrounds/` | Background images | Yes (contributor) |
 | Thumbnail | `source/thumbnail.png` | Mod thumbnail | Yes (contributor) |
-| GIMP scripts | `source/scripts/*.lisp` | Conversion behaviour | Yes (maintainer) |
+| GIMP scripts | `source/scripts/*.py` | Conversion behaviour | Yes (maintainer) |
 
 ## Build Script Constants
 
@@ -169,7 +169,7 @@ fi
 1. Replace `source/thumbnail.png`
 2. Run build — copied to `out/ui-flags/thumbnail.png`
 
-## GIMP Script-fu Configuration
+## GIMP Script Configuration
 
 **Directory:** `source/scripts/`
 
@@ -177,45 +177,39 @@ fi
 
 | Script | Purpose | Key Parameters |
 |--------|---------|----------------|
-| `gradient-bevel.lisp` | Applies gradient bevel effect | `bevel-size`, `bevel-width`, `bevel-height`, colours |
-| `png-to-dds.lisp` | Exports PNG to DDS | DDS compression settings |
-| `svg-to-png.lisp` | Renders SVG to PNG | `OUTPUT_IMAGE_SIZE`, background handling |
-| `xcf-to-png.lisp` | Exports XCF to PNG | Layer merging |
+| `gradient_bevel.py` | Applies gradient bevel effect | `BLUR_RADIUS`, `RELIEF_AZIMUTH`, `RELIEF_ELEVATION`, `RELIEF_DEPTH`, colours |
+| `png_to_dds.py` | Exports PNG to DDS | `DDS_COMPRESSION_FORMAT` in `gimp_image_operations.py` |
+| `svg_to_png.py` | Renders SVG to PNG | `OUTPUT_IMAGE_SIZE` argument, background handling |
+| `xcf_to_png.py` | Exports XCF to PNG | Layer merging |
 
 ### Modifying Gradient Bevel
 
-Edit `source/scripts/gradient-bevel.lisp`:
+Edit `source/scripts/gradient_bevel.py`:
 
-```lisp
-(bevel-size 22)      ; Bevel size in pixels
-(bevel-width 2.5)   ; Blur width
-(bevel-height 40)   ; Bump map height
-(indentX (+ bevel-size 12))
-(indentY (+ bevel-size (/ height 8)))
+```python
+BLUR_RADIUS = 2.5       # Blur radius used for the relief silhouette
+RELIEF_AZIMUTH = 115.0  # Emboss light direction
+RELIEF_ELEVATION = 40.0 # Emboss light elevation
+RELIEF_DEPTH = 5        # Emboss depth
 ```
 
 Colour stops:
-```lisp
-; Logo layer gradient (bevel)
-(gimp-context-set-foreground '(255 255 255))  ; White highlight
-(gimp-context-set-background '(127 127 127))  ; Grey shadow
-
-; Colour overlay layer
-(gimp-context-set-foreground '(178 164 136))  ; Gold highlight
-(gimp-context-set-background '(113 82 9))     ; Dark gold shadow
+```python
+BLACK_COLOUR = 'black'           # Relief shadow
+WHITE_COLOUR = 'white'           # Relief highlight
+COLOUR_GRADIENT_START = '#b2a488'  # Gold highlight
+COLOUR_GRADIENT_END = '#715209'    # Dark gold shadow
 ```
 
 ### Modifying DDS Export
 
-Edit `source/scripts/png-to-dds.lisp`:
+Edit `source/scripts/gimp_image_operations.py`:
 
-```lisp
-(file-dds-save RUN-NONINTERACTIVE image drawable
-               imageOutPath imageOutPath
-               0 0 0 0 0 0 0 0 0 1.0 0 0 0.5)
+```python
+DDS_COMPRESSION_FORMAT = 'none'
 ```
 
-Parameters (in order): compression, mipmaps, etc. — see GIMP DDS plug-in documentation.
+The `export_dds` function passes this value as the `compression-format` export property. See the GIMP DDS export documentation for the accepted formats.
 
 ## Stellaris Version Compatibility
 

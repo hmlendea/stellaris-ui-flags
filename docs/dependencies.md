@@ -5,7 +5,7 @@
 The project has three dependency categories:
 
 1. **Build-time tools** — required to run `build.sh`
-2. **GIMP plug-ins** — required by Script-fu scripts
+2. **GIMP plug-ins** — required by the Python-Fu scripts (all bundled with GIMP 3)
 3. **CI/CD actions** — required by GitHub Actions workflows
 
 There are no runtime dependencies — the output is a pure content mod consumed by Stellaris itself.
@@ -70,15 +70,15 @@ There are no runtime dependencies — the output is a pure content mod consumed 
 
 | Property | Value |
 |----------|-------|
-| Minimum version | 2.10 |
+| Minimum version | 3.0 |
 | Command used | `gimp` |
-| Purpose | Script-fu execution: SVG→PNG, XCF→PNG, bevel, DDS export |
-| Install (Debian/Ubuntu) | `sudo apt install gimp gimp-dds` |
+| Purpose | Python-Fu execution: SVG→PNG, XCF→PNG, bevel, DDS export |
+| Install (Debian/Ubuntu) | `sudo apt install gimp` |
 | Flatpak ID | `org.gimp.GIMP` |
 
 **Used by:** `svg-to-png`, `png-to-dds`, `apply-gradient-bevel`, `xcf-to-png`
 
-**Flags used:** `-i` (no interface), `-b` (batch command)
+**Flags used:** `-i` (no interface), `--batch-interpreter=python-fu-eval`, `-b` (batch command), `--quit`
 
 **Detection paths (in order):**
 1. System PATH (`which gimp`)
@@ -87,30 +87,19 @@ There are no runtime dependencies — the output is a pure content mod consumed 
 
 ## GIMP Plug-ins
 
-### DDS Plug-in
-
-| Property | Value |
-|----------|-------|
-| Required PDB function | `file-dds-save` |
-| Purpose | DDS texture export |
-| Package (Debian/Ubuntu) | `gimp-dds` |
-| Manual install | Copy plug-in binary to GIMP plug-ins directory |
-
-**Plug-in directories:**
-- System: `/usr/lib/gimp/2.0/plug-ins/`
-- User: `~/.config/GIMP/2.10/plug-ins/`
-- Flatpak: `~/.var/app/org.gimp.GIMP/config/GIMP/2.10/plug-ins/`
-
-**Note:** Flatpak GIMP may not bundle the DDS plug-in — install manually.
+GIMP 3 bundles every plug-in the build requires, including DDS export (`file-dds-export`) and the GEGL operations used by the bevel effect. No separate plug-in package is needed.
 
 ### Built-in Plug-ins (bundled with GIMP)
 
 | Plug-in | PDB Function | Purpose |
 |---------|--------------|---------|
-| SVG import | `gimp-file-load` (SVG) | Load SVG files |
-| Colour to Alpha | `plug-in-colortoalpha` | Remove solid backgrounds |
-| Bump Map | `plug-in-bump-map` | Bevel embossing |
-| Gaussian Blur | `plug-in-gauss` | Bump map smoothing |
+| SVG import | `file-svg-load` | Load SVG files at a target size |
+| PNG import | `file-png-load` | Load PNG files |
+| PNG export | `file-png-export` | Write PNG files |
+| DDS export | `file-dds-export` | Write DDS textures |
+| Colour to Alpha | `gegl:color-to-alpha` | Remove solid backgrounds |
+| Gaussian Blur | `gegl:gaussian-blur` | Bump map smoothing |
+| Emboss | `gegl:emboss` | Bevel embossing |
 
 ## CI/CD Dependencies
 
@@ -154,15 +143,17 @@ build.sh
 ├── Inkscape
 │   └── Used by: ai-to-svg
 └── GIMP
-    ├── DDS plug-in (file-dds-save)
+    ├── SVG import (file-svg-load)
+    │   └── Used by: svg-to-png
+    ├── PNG export (file-png-export)
+    │   └── Used by: svg-to-png, gradient-bevel, xcf-to-png
+    ├── DDS export (file-dds-export)
     │   └── Used by: png-to-dds
-    ├── SVG import (built-in)
+    ├── Colour to Alpha (gegl:color-to-alpha)
     │   └── Used by: svg-to-png
-    ├── Colour to Alpha (built-in)
-    │   └── Used by: svg-to-png
-    ├── Bump Map (built-in)
+    ├── Gaussian Blur (gegl:gaussian-blur)
     │   └── Used by: gradient-bevel
-    └── Gaussian Blur (built-in)
+    └── Emboss (gegl:emboss)
         └── Used by: gradient-bevel
 ```
 
@@ -170,11 +161,12 @@ build.sh
 
 | Tool | Tested Versions | Notes |
 |------|-----------------|-------|
-| GIMP | 2.10.x | Primary target |
-| GIMP | 2.99.x (dev) | Generally works; Script-fu API stable |
+| GIMP | 3.0.x, 3.2.x | Primary target |
 | Inkscape | 1.x | CLI flags stable since 1.0 |
 | ImageMagick | 6.x, 7.x | `convert` deprecated in 7.x but still works |
 | potrace | 1.x | Stable API |
+
+**GIMP 2 note:** GIMP 2.10 is end of life and unsupported. The scripts use the GIMP 3 Python-Fu API and the GEGL filter API; the previous GIMP 2.10 Script-fu scripts and the separate `gimp-dds` plug-in are no longer used.
 
 **ImageMagick 7 note:** `convert` is a legacy alias; `magick` is the new command. The build script uses `convert` — works with both via compatibility symlink.
 
@@ -183,14 +175,13 @@ build.sh
 ### Debian/Ubuntu
 
 ```bash
-sudo apt install imagemagick potrace inkscape gimp gimp-dds
+sudo apt install imagemagick potrace inkscape gimp
 ```
 
 ### Fedora
 
 ```bash
 sudo dnf install ImageMagick potrace inkscape gimp
-# DDS plug-in: install manually or from COPR
 ```
 
 ### Flatpak (tools only)
@@ -199,7 +190,6 @@ sudo dnf install ImageMagick potrace inkscape gimp
 flatpak install flathub org.inkscape.Inkscape
 flatpak install flathub org.gimp.GIMP
 # ImageMagick and potrace must be system packages
-# DDS plug-in: install into Flatpak GIMP manually
 ```
 
 ### Verification
@@ -209,17 +199,12 @@ convert --version
 potrace --version
 inkscape --version
 gimp --version
-
-# Verify DDS plug-in
-gimp -i -b "(png-to-dds \"/tmp/test.png\" \"/tmp/test.dds\")" -b "(gimp-quit 0)" 2>&1 | grep -i "error"
-# No output = plug-in working (assuming valid /tmp/test.png)
 ```
 
 ## Known Issues
 
 | Issue | Impact | Workaround |
 |-------|--------|------------|
-| Flatpak GIMP missing DDS plug-in | DDS export fails | Install plug-in into Flatpak config dir |
 | ImageMagick 7 `convert` deprecation | Warning messages | Ignore warnings; function unchanged |
 | Inkscape AI import limitations | Complex AI files convert poorly | Export SVG from Illustrator instead |
 | potrace single-colour tracing | Gradients lost in PNG/BMP sources | Use SVG sources |

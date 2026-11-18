@@ -24,7 +24,7 @@ Mod for Stellaris that adds hundreds of new flag designs matching the vanilla fl
 - Hundreds of new flag designs across multiple thematic categories (aquatic, blocky, corporate, domination, fire, human, mechanical, ornate, pirate, plantoid, pointy, spherical, toxoid, and media-inspired categories)
 - Flags authored in editable formats (SVG, AI, XCF, PNG, BMP) and converted through a reproducible build pipeline
 - Three resolution variants per flag (128px main, 256px map, 24px small) with gradient bevel effect on main and small variants
-- Stellaris-compatible DDS output (BC1/BC3 with mipmaps) generated via GIMP
+- Stellaris-compatible DDS output (uncompressed BGRA8) generated via GIMP
 - Localisation support for English flag names
 - Custom colour palette and background textures
 - Automated mod descriptor generation for Steam Workshop, Paradox Mods, and Nexus Mods
@@ -38,7 +38,7 @@ Build the mod package locally:
 ```
 
 The command requires a version argument (e.g., `1.0.0`). The build pipeline:
-1. Validates required tools (ImageMagick, Inkscape, GIMP with DDS plug-in, potrace)
+1. Validates required tools (ImageMagick, Inkscape, GIMP, potrace)
 2. Copies static assets (backgrounds, colours, localisation, thumbnail)
 3. Generates `.mod` descriptor files
 4. Processes each flag category: converts source formats to SVG, renders PNG at three sizes, applies gradient bevel, exports DDS
@@ -47,7 +47,7 @@ The command requires a version argument (e.g., `1.0.0`). The build pipeline:
 Required tools:
 - ImageMagick (`convert`)
 - Inkscape
-- GIMP 2.10+ with DDS plug-in
+- GIMP 3.0+
 - potrace
 
 ## 📦 Installation

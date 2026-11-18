@@ -79,25 +79,27 @@ This document records the key design decisions in the project, their rationale, 
 
 ---
 
-## D5: GIMP Script-fu for Image Processing
+## D5: GIMP Python-Fu for Image Processing
 
-**Decision:** Use GIMP batch mode with Script-fu (Scheme) scripts for SVG rendering, bevel, and DDS export.
+**Decision:** Use GIMP batch mode with Python-Fu scripts for SVG rendering, bevel, and DDS export.
 
 **Rationale:**
-- GIMP provides all needed operations in one tool: SVG import, bump map, gradients, DDS export
-- Script-fu enables headless batch operation
-- DDS plug-in is GIMP-native (no separate DDS tool)
-- Bump map + gradient blend produces the desired bevel effect
+- GIMP provides all needed operations in one tool: SVG import, GEGL filters, gradients, DDS export
+- Python-Fu enables headless batch operation with the full GIMP 3 API
+- The DDS exporter is bundled with GIMP 3 (no separate plug-in)
+- A blurred silhouette plus emboss reproduces the bevel effect
 
 **Consequences:**
 - ✅ Single tool for all advanced image operations
 - ✅ Reproducible effects via scripts
+- ✅ GIMP 3 bundles every required plug-in, including DDS export
 - ⚠️ GIMP startup overhead per invocation (~0.5–1s × 8 calls per asset)
-- ⚠️ GIMP 2.10+ and DDS plug-in required
+- ⚠️ GIMP 3.0+ required
 
 **Alternatives Considered:**
-- ImageMagick alone: rejected — no bump map, weaker SVG support, no DDS export
+- ImageMagick alone: rejected — no emboss relief, weaker SVG support, no DDS export
 - Inkscape for SVG→PNG: rejected — would still need GIMP for bevel/DDS
+- GIMP 2.10 Script-fu: rejected — GIMP 2.10 is end of life and its Script-fu API is not present in GIMP 3
 
 ---
 
@@ -274,7 +276,7 @@ This document records the key design decisions in the project, their rationale, 
 | D2 | SVG canonical intermediate | Uniform pipeline over raster fidelity |
 | D3 | Three fixed resolutions | Game compliance over flexibility |
 | D4 | Bevel main+small, not map | UI polish vs map clarity |
-| D5 | GIMP Script-fu | One tool over per-invocation speed |
+| D5 | GIMP Python-Fu | One tool over per-invocation speed |
 | D6 | potrace tracing | Convenience path with quality loss |
 | D7 | Existence-based incremental | Simplicity over change detection |
 | D8 | names.txt mapping | Explicitness over convention |

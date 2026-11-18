@@ -13,8 +13,8 @@ This guide covers the common modification scenarios: adding content, changing pr
 | Add a background | `source/backgrounds/` | Any build (static copy) |
 | Add a colour | `source/colours.txt` | Any build (static copy) |
 | Modify a flag | Source file + delete outputs | Full or per-asset |
-| Change bevel | `source/scripts/gradient-bevel.lisp` | Full rebuild |
-| Change DDS settings | `source/scripts/png-to-dds.lisp` | Full rebuild |
+| Change bevel | `source/scripts/gradient_bevel.py` | Full rebuild |
+| Change DDS settings | `source/scripts/gimp_image_operations.py` | Full rebuild |
 | Change version constant | `build.sh` | Rebuild |
 | Add distribution platform | `.github/workflows/` | None |
 
@@ -171,26 +171,27 @@ rm -rf build out
 
 ### Files
 
-- `source/scripts/gradient-bevel.lisp` — parameters and colours
+- `source/scripts/gradient_bevel.py` — parameters and colours
 
 ### Parameters
 
 | Parameter | Current | Effect |
 |-----------|---------|--------|
-| `bevel-size` | 22 | Emboss extent (px) |
-| `bevel-width` | 2.5 | Bump map blur width |
-| `bevel-height` | 40 | Emboss depth/intensity |
+| `BLUR_RADIUS` | 2.5 | Silhouette blur radius |
+| `RELIEF_AZIMUTH` | 115.0 | Emboss light direction |
+| `RELIEF_ELEVATION` | 40.0 | Emboss light elevation |
+| `RELIEF_DEPTH` | 5 | Emboss depth/intensity |
 
 ### Colour Stops
 
 | Layer | From | To |
 |-------|------|-----|
-| Logo gradient | white | grey |
+| Relief | black | white |
 | Colour Overlay | gold (178,164,136) | dark gold (113,82,9) |
 
 ### Procedure
 
-1. Edit parameters in `gradient-bevel.lisp`
+1. Edit parameters in `gradient_bevel.py`
 2. **Full rebuild required** (script changes not detected by incremental builds):
    ```bash
    rm -rf build out
@@ -209,21 +210,21 @@ rm -rf build out
 
 ### Files
 
-- `source/scripts/png-to-dds.lisp` — compression, mipmaps, linearity
+- `source/scripts/gimp_image_operations.py` — compression, mipmaps, linearity
 
 ### Current Settings
 
 | Setting | Value |
 |---------|-------|
-| Compression | DXT1 (opaque) / DXT5 (alpha) auto |
-| Mipmaps | Enabled |
+| Compression | Uncompressed BGRA8 |
+| Mipmaps | None |
 | Texture type | Linear |
 
 ### Procedure
 
-1. Edit `png-to-dds.lisp`
+1. Edit `DDS_COMPRESSION_FORMAT` in `png_to_dds.py`'s shared module
 2. Full rebuild (see above)
-3. Verify: flags load in game without texture errors; check file sizes (DXT1 < DXT5)
+3. Verify: flags load in game without texture errors; check the DDS header
 
 ---
 
