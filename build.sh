@@ -46,11 +46,35 @@ readonly FLAG_WORKER_COUNT="${FLAG_WORKER_COUNT:-4}"
 # this too far gets the bevels killed by the OOM killer, which silently leaves them unbeveled.
 readonly FLAG_GIMP_CONCURRENCY="${FLAG_GIMP_CONCURRENCY:-4}"
 
+# Estimate how many images a GIMP session can hold before the machine runs out of memory. Every
+# flag's working set inside a session is roughly 200 MiB, and FLAG_GIMP_CONCURRENCY sessions may run
+# at once, so the available memory is shared between them. The floor is deliberately above the point
+# where sessions would be started for almost every image, because the session start dominates the
+# per-image cost and a tiny batch multiplies both the starts and the number of kill-and-retry rounds.
+function bevel-batch-default {
+    local mem_kb="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)"
+    local budget=$((mem_kb / (200000 * FLAG_GIMP_CONCURRENCY)))
+
+    if [ "${budget}" -lt 4 ]; then
+        echo 4
+    elif [ "${budget}" -lt 8 ]; then
+        echo 6
+    else
+        echo 8
+    fi
+}
+
 # How many flags one GIMP session bevels before it is replaced. Starting GIMP costs a few seconds
-# while every further image in a running session costs a fraction of one, but the memory a session
-# holds grows with the number of images it has processed, so the batch stays bounded.
-readonly FLAG_BEVEL_BATCH_SIZE="${FLAG_BEVEL_BATCH_SIZE:-4}"
+# while every further image in a running session costs a fraction of one, so a larger batch is
+# faster; however the memory a session holds also grows with the number of images it has processed,
+# so an oversized batch exhausts memory and is killed partway.
+# When the variable is unset the build autodetects a safe default from available memory; supply the
+# variable yourself (e.g. FLAG_BEVEL_BATCH_SIZE=12) only when you know your machine can keep every
+# session alive. Too small wastes session starts; too large leaves most flags unbeveled.
+readonly FLAG_BEVEL_BATCH_SIZE="${FLAG_BEVEL_BATCH_SIZE:-$(bevel-batch-default)}"
 readonly GIMP_SLOT_DIRECTORY_PATH="${BUILD_DIR_PATH}/gimp-slots"
+
+echo "Using a bevel batch size of ${FLAG_BEVEL_BATCH_SIZE} and ${FLAG_GIMP_CONCURRENCY} concurrent GIMP sessions."
 
 [ ! -d "${SOURCE_DIR_PATH}" ] && echo "MISSING SOURCE DIRECTORY" && exit -1
 [ ! -f "/usr/bin/convert" ] && echo "[ERROR] ImageMagick is not installed on this system" && exit 1

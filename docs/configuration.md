@@ -244,9 +244,13 @@ FLAG_GIMP_CONCURRENCY=4 ./build.sh 2.3.1
 The `FLAG_BEVEL_BATCH_SIZE` environment variable sets how many flags one GIMP session bevels before
 it is replaced. Starting GIMP costs a few seconds while every further image in a running session
 costs a fraction of one, so a larger batch is faster; the memory a session holds also grows with the
-number of images it has processed, and a session that exhausts it is killed partway. The default is
-`4`, which completed every batch on a machine whose memory was already heavily used. Any bevel that
-a killed session leaves unmarked is retried over the remaining rounds.
+number of images it has processed, and a session that exhausts it is killed partway.
+
+When the variable is unset, the build derives a default from the available memory at start, because
+a batch that is too large leaves most flags unbeveled (the retry rounds then dominate the build),
+and a batch that is far too small pays the GIMP start for almost every image. The derived values are
+`4`, `6`, or `8`, and the chosen value is printed in the first line of the build output. Any bevel a
+killed session leaves unmarked is retried over the remaining rounds.
 
 ```bash
 FLAG_BEVEL_BATCH_SIZE=12 ./build.sh 2.3.1
