@@ -43,18 +43,19 @@ Derived paths constructed dynamically during execution.
 
 For each tool, the script checks in priority order:
 
-1. **System path** (e.g., `/usr/bin/inkscape`)
-2. **Flatpak system export** (e.g., `/var/lib/flatpak/exports/bin/org.inkscape.Inkscape`)
-3. **Flatpak user export** (e.g., `~/.local/share/flatpak/exports/bin/org.inkscape.Inkscape`)
+1. **System path** (e.g., `/usr/bin/gimp`)
+2. **Flatpak system export** (e.g., `/var/lib/flatpak/exports/bin/org.gimp.GIMP`)
+3. **Flatpak user export** (e.g., `~/.local/share/flatpak/exports/bin/org.gimp.GIMP`)
 
 ### Tools Detected
 
 | Variable | Tool | Purpose |
 |----------|------|---------|
-| `CONVERT_TOOL_PATH` | ImageMagick `convert` | PNG ↔ BMP, image manipulation |
-| `POTRACE_TOOL_PATH` | `potrace` | Raster → vector tracing |
-| `INKSCAPE_TOOL_PATH` | Inkscape | SVG rendering, AI → SVG |
-| `GIMP_TOOL_PATH` | GIMP | Python-Fu batch execution, XCF → PNG, DDS export |
+| `/usr/bin/convert` | ImageMagick | PNG ↔ BMP, pixel reads |
+| `/usr/bin/potrace` | `potrace` | Raster → vector tracing |
+| `RSVG_BINARY` | `rsvg-convert` | SVG → PNG rasterisation |
+| `PYTHON_BINARY` | Python 3 | DDS export |
+| `GIMP_BINARY` | GIMP | Python-Fu batch execution, gradient bevel |
 
 ### Detection Function Pattern
 
@@ -159,41 +160,6 @@ png-to-svg() {
 **Path:** PNG → BMP → SVG
 **Tools:** ImageMagick convert, potrace
 
-### `xcf-to-svg`
-
-Converts XCF (GIMP) to SVG via PNG → BMP intermediates.
-
-```bash
-xcf-to-svg() {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
-    local TEMP_PNG_FILE_PATH="${OUTPUT_FILE_PATH}.png"
-    local TEMP_BMP_FILE_PATH="${OUTPUT_FILE_PATH}.bmp"
-    xcf-to-png "${INPUT_FILE_PATH}" "${TEMP_PNG_FILE_PATH}"
-    "${CONVERT_TOOL_PATH}" "${TEMP_PNG_FILE_PATH}" "${TEMP_BMP_FILE_PATH}"
-    bmp-to-svg "${TEMP_BMP_FILE_PATH}" "${OUTPUT_FILE_PATH}"
-    rm -f "${TEMP_PNG_FILE_PATH}" "${TEMP_BMP_FILE_PATH}"
-}
-```
-
-**Path:** XCF → PNG → BMP → SVG
-**Tools:** GIMP (xcf_to_png), ImageMagick, potrace
-
-### `ai-to-svg`
-
-Converts Adobe Illustrator AI to SVG via Inkscape.
-
-```bash
-ai-to-svg() {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
-    "${INKSCAPE_TOOL_PATH}" "${INPUT_FILE_PATH}" --export-type=svg --export-filename="${OUTPUT_FILE_PATH}"
-}
-```
-
-**Path:** AI → SVG
-**Tool:** Inkscape CLI
-
 ### `svg-to-png`
 
 Renders SVG to PNG at specified size with `rsvg-convert` and ImageMagick.
@@ -247,23 +213,6 @@ execute-gimp-script-file "bevel_batch" IMAGE_PATHS "$(printf '%s\n' "$@")"
 
 **Path:** PNG → PNG (with bevel), rewritten in place
 **Tool:** GIMP with `bevel_batch.py` script
-
-### `xcf-to-png`
-
-Exports XCF to PNG using GIMP Python-Fu.
-
-```bash
-xcf-to-png <input_file_path> <output_file_path>
-```
-
-```bash
-execute-gimp-script-file "xcf_to_png" \
-    INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
-    OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
-```
-
-**Path:** XCF → PNG
-**Tool:** GIMP with `xcf_to_png.py` script
 
 ## Main Execution Loop
 
@@ -437,8 +386,6 @@ SOURCE FORMAT          CONVERSION PATH                              OUTPUTS
 ─────────────────────────────────────────────────────────────────────────────
 .svg                   copy → SVG                                   → 128, 256, 24 PNG
 .png                   PNG → BMP → SVG                              → 128, 256, 24 PNG
-.xcf                   XCF → PNG → BMP → SVG                        → 128, 256, 24 PNG
-.ai                    AI → SVG                                     → 128, 256, 24 PNG
 .bmp                   BMP → SVG                                    → 128, 256, 24 PNG
 
 ALL FORMATS THEN:

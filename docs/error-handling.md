@@ -64,13 +64,11 @@ Individual asset failures do not abort the build.
 |-------|---------------|-------------------|
 | Format → SVG | Unsupported extension | Asset skipped (no case matches) |
 | Format → SVG | Corrupt source file | Tool stderr; no SVG produced |
-| Format → SVG | Inkscape can't parse AI | Inkscape error; no SVG |
 | Format → SVG | potrace fails on BMP | potrace error; no SVG |
-| SVG → PNG | GIMP can't load SVG | GIMP error; no PNG |
-| SVG → PNG | Invalid SVG structure | GIMP error or blank PNG |
+| SVG → PNG | `rsvg-convert` can't parse SVG | `rsvg-convert` error; no PNG |
+| SVG → PNG | Invalid SVG structure | Blank PNG |
 | Bevel | GIMP script error | GIMP error; no beveled PNG |
-| PNG → DDS | DDS export missing | GIMP error: `file-dds-export` not found |
-| PNG → DDS | Invalid PNG input | GIMP error; no DDS |
+| PNG → DDS | Invalid PNG input | Python error; no DDS |
 
 ### Partial Output States
 
@@ -124,15 +122,6 @@ batch command experienced an execution error
 - **Cause:** Python-Fu error (missing parameter, missing procedure, file error)
 - **Action:** Check the specific script and input file
 - **Debugging:** Run the failing GIMP command manually with the same environment variables
-
-### Inkscape
-
-```
-** (inkscape:1234): WARNING **: Cannot open file
-```
-
-- **Cause:** Corrupt or unsupported AI file
-- **Action:** Re-export the source as SVG
 
 ### potrace
 

@@ -82,34 +82,6 @@ potrace --version
 
 ---
 
-### Inkscape Not Found
-
-**Symptom:**
-```
-Inkscape is not installed
-```
-
-**Cause:** Inkscape not in PATH, and Flatpak exports not detected.
-
-**Fix:**
-```bash
-# System install
-sudo apt install inkscape
-
-# Or Flatpak
-flatpak install flathub org.inkscape.Inkscape
-
-# Verify Flatpak export exists
-ls /var/lib/flatpak/exports/bin/org.inkscape.Inkscape 2>/dev/null
-ls ~/.local/share/flatpak/exports/bin/org.inkscape.Inkscape 2>/dev/null
-```
-
-**If Flatpak installed but not detected:** Ensure the export path matches exactly. The build script checks:
-- `/var/lib/flatpak/exports/bin/org.inkscape.Inkscape`
-- `~/.local/share/flatpak/exports/bin/org.inkscape.Inkscape`
-
----
-
 ### GIMP Not Found
 
 **Symptom:**
@@ -160,7 +132,7 @@ Unsupported format: source/flags/human/somefile.txt
 
 **Cause:** File in category directory with unsupported extension.
 
-**Supported Formats:** `.svg`, `.png`, `.xcf`, `.ai`, `.bmp`
+**Supported Formats:** `.svg`, `.png`, `.bmp`
 
 **Fix:** Remove or move the file out of the category directory. Note: `usage.txt` files are handled specially and copied, not converted.
 
@@ -188,8 +160,6 @@ magick identify /tmp/raw.png
 **Common Causes:**
 - Corrupt source file
 - SVG with unsupported features (external references, animations)
-- XCF with unsupported layer modes
-- AI version not supported by Inkscape
 - PNG with complex gradients (potrace produces poor/empty trace)
 
 ---
@@ -431,20 +401,23 @@ rm -rf build out
 **Expected:** 5–15 minutes full build; <30s incremental.
 
 **Causes of Slowness:**
-- Very complex SVGs (slow GIMP import)
-- XCF sources (longest conversion path)
+- A very small `FLAG_BEVEL_BATCH_SIZE`, which multiplies the GIMP session starts
+- Too few GIMP sessions (`FLAG_GIMP_CONCURRENCY`) on a machine with spare memory
+- Very complex SVGs (slow rasterisation)
 - Slow disk (intermediates on network storage)
 
 **Optimisations:**
 - Use SVG sources (fastest path)
+- Raise `FLAG_BEVEL_BATCH_SIZE` while memory allows
 - Keep incremental builds where possible
 - Ensure `build/` and `out/` on local disk
 
-### GIMP Startup Overhead
+### GIMP Session Startup
 
-**Cause:** 8 GIMP invocations per asset (~0.5–1s each).
+**Cause:** One GIMP start per bevel batch; the session's cost is dominated by its start-up.
 
-**Mitigation:** None currently — architecture invokes GIMP per operation. Batch processing would require script refactoring.
+**Mitigation:** Raise `FLAG_BEVEL_BATCH_SIZE` so fewer sessions are needed, up to the point where
+the session memory grows enough to risk being killed.
 
 ## Distribution Issues
 
@@ -508,22 +481,16 @@ The scripts read their parameters from `GIMP_SCRIPT_*` environment variables.
 rsvg-convert -w 128 -h 128 -b white -o /tmp/raw.png "input.svg"
 magick identify /tmp/raw.png
 
-# gradient_bevel
-env GIMP_SCRIPT_IMAGE_PATH="input.png" \
+# bevel_batch (batched, one session for the whole list)
+env GIMP_SCRIPT_IMAGE_PATHS="input_a.png
+input_b.png" \
     gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/gradient_bevel.py').read())" --quit
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/bevel_batch.py').read())" --quit
 
 # png_to_dds
 env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.dds" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/png_to_dds.py').read())" --quit
-
-# xcf_to_png
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.xcf" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/xcf_to_png.py').read())" --quit
+    python3 source/scripts/png_to_dds.py
 ```
 
 ### Interactive Debugging

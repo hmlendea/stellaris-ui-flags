@@ -31,25 +31,13 @@ GIMP; `png_to_dds.py` writes the uncompressed format directly, so no DDS plug-in
 
 ---
 
-### A3: Inkscape AI Import Fidelity
-
-**Question:** How well does Inkscape 1.x import modern Adobe Illustrator files?
-
-**Context:** AI format has evolved (CC versions use different internal structures). Inkscape's import filter has known limitations with complex AI features (gradients, meshes, effects).
-
-**Impact:** AI-sourced flags may convert with lost detail. Current AI sources in the repository convert acceptably (observed), but new AI files may behave differently.
-
-**Resolution Path:** Prefer SVG exports from source tools; document AI limitations for contributors.
-
----
-
 ### A4: potrace Tracing Quality Threshold
 
 **Question:** What source characteristics make potrace tracing unacceptable?
 
 **Context:** potrace traces single-colour bitmaps. Sources with gradients, soft edges, or fine detail produce poor SVGs. The boundary between "acceptable" and "unacceptable" is subjective.
 
-**Impact:** Raster-sourced flags may lose detail. PNG/XCF sources in the repository were accepted at some quality level, but the threshold is undocumented.
+**Impact:** Raster-sourced flags may lose detail. PNG sources in the repository were accepted at some quality level, but the threshold is undocumented.
 
 **Resolution Path:** Document source preparation guidelines; consider a quality checklist for raster sources.
 
@@ -135,7 +123,7 @@ GIMP; `png_to_dds.py` writes the uncompressed format directly, so no DDS plug-in
 
 **Question:** Should CI build the mod?
 
-**Context:** Workflows only download the Release asset (D13). Building in CI would require installing GIMP, Inkscape, potrace, ImageMagick on runners — feasible but adds workflow complexity.
+**Context:** Workflows only download the Release asset (D13). Building in CI would require installing GIMP, potrace, ImageMagick on runners — feasible but adds workflow complexity.
 
 **Impact:** Release artefact depends on maintainer's local environment; reproducibility not guaranteed.
 

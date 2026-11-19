@@ -16,13 +16,13 @@ Invariants are conditions that must always hold true for the system to function 
 
 ---
 
-### INV-2: All Four Tools Available
+### INV-2: All Required Tools Available
 
-**Invariant:** ImageMagick (`convert`), potrace, Inkscape, and GIMP are all detectable at build start.
+**Invariant:** ImageMagick, `rsvg-convert`, potrace, Python 3, and GIMP are all detectable at build start.
 
 **Enforced by:** Tool detection and validation (exit 1 per missing tool).
 
-**Violation Effect:** Build aborts — even if the missing tool isn't needed for the current sources (e.g., Inkscape for AI files when all sources are SVG).
+**Violation Effect:** Build aborts — even if a missing tool (such as GIMP) is only needed for the bevels, which a cached build would skip.
 
 ---
 

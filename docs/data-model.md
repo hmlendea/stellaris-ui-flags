@@ -238,7 +238,7 @@ Generated every build (overwritten) → read by Stellaris launcher
 | `<name>_small.png` | svg-to-png (24px) | bevel-pngs |
 | `<name>.png.beveled` | bevel-pngs | Incremental check |
 | `<name>_small.png.beveled` | bevel-pngs | Incremental check |
-| `<name>.bmp` | convert (PNG/XCF paths) | potrace |
+| `<name>.bmp` | convert (PNG path) | potrace |
 
 **Lifecycle:**
 ```

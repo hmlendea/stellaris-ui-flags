@@ -40,12 +40,6 @@ bmp-to-svg "source/flags/human/flag.bmp" "build/human/flag.svg"
 
 # PNG → SVG (via BMP + potrace)
 png-to-svg "source/flags/human/flag.png" "build/human/flag.svg"
-
-# XCF → SVG (via PNG → BMP → potrace)
-xcf-to-svg "source/flags/human/flag.xcf" "build/human/flag.svg"
-
-# AI → SVG (via Inkscape)
-ai-to-svg "source/flags/human/flag.ai" "build/human/flag.svg"
 ```
 
 ### SVG → PNG Rendering
@@ -90,13 +84,6 @@ png-to-dds "build/human/flag_map.png" "out/ui-flags/flags/human/map/ui_flag.dds"
 
 # Small flag
 png-to-dds "build/human/flag_small.png" "out/ui-flags/flags/human/small/ui_flag.dds"
-```
-
-### XCF → PNG (Direct)
-
-```bash
-# For XCF sources that skip SVG intermediate (not used in current pipeline)
-xcf-to-png "source/flags/human/flag.xcf" "build/human/flag.png"
 ```
 
 ---
@@ -160,8 +147,7 @@ env GIMP_SCRIPT_IMAGE_PATH="/path/to/input.png" \
 # Export PNG to DDS
 env GIMP_SCRIPT_INPUT_IMAGE_PATH="/path/to/input.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/path/to/output.dds" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, '${GIMP_DIRECTORY_PATH}'); exec(open('${GIMP_DIRECTORY_PATH}/png_to_dds.py').read())" --quit
+    python3 "${GIMP_DIRECTORY_PATH}/png_to_dds.py"
 
 # Parameters:
 #   GIMP_SCRIPT_INPUT_IMAGE_PATH  — Input PNG path
@@ -169,20 +155,6 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="/path/to/input.png" \
 # Parameters (hardcoded in script):
 #   Compression: none (uncompressed BGRA8)
 #   Mipmaps: none
-```
-
-### xcf_to_png.py
-
-```bash
-# Convert XCF to PNG (merge visible layers)
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="/path/to/input.xcf" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/path/to/output.png" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, '${GIMP_DIRECTORY_PATH}'); exec(open('${GIMP_DIRECTORY_PATH}/xcf_to_png.py').read())" --quit
-
-# Parameters:
-#   GIMP_SCRIPT_INPUT_IMAGE_PATH  — Input XCF path
-#   GIMP_SCRIPT_OUTPUT_IMAGE_PATH — Output PNG path
 ```
 
 ---
@@ -358,14 +330,11 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test.png" \
 ### Test Format Conversion
 
 ```bash
+# BMP → SVG
+bmp-to-svg "source/flags/human/flag.bmp" "/tmp/flag.svg"
+
 # PNG → SVG
 png-to-svg "source/flags/human/flag.png" "/tmp/flag.svg"
-
-# AI → SVG
-ai-to-svg "source/flags/human/flag.ai" "/tmp/flag.svg"
-
-# XCF → SVG
-xcf-to-svg "source/flags/human/flag.xcf" "/tmp/flag.svg"
 ```
 
 ---
@@ -446,11 +415,10 @@ cp out/ui-flags.mod "$MOD_DIR/"
 
 ```bash
 # Check all tools
-which convert potrace inkscape gimp rsvg-convert
+which magick rsvg-convert potrace gimp python3
 
 # Check Flatpak paths
 ls /var/lib/flatpak/exports/bin/org.gimp.GIMP
-ls /var/lib/flatpak/exports/bin/org.inkscape.Inkscape
 
 # Check the DDS export
 env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test.png" \

@@ -116,46 +116,6 @@ png-to-svg <input_file_path> <output_file_path>
 
 ---
 
-### `xcf-to-svg`
-
-Converts XCF (GIMP native) to SVG via PNG → BMP intermediates.
-
-```bash
-xcf-to-svg <input_file_path> <output_file_path>
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `input_file_path` | string | Path to input XCF file |
-| `output_file_path` | string | Path for output SVG file |
-
-**Pipeline:** XCF → PNG (GIMP) → BMP (ImageMagick) → SVG (potrace)
-
-**Side Effects:** Creates and removes temporary PNG and BMP files.
-
----
-
-### `ai-to-svg`
-
-Converts Adobe Illustrator AI to SVG via Inkscape.
-
-```bash
-ai-to-svg <input_file_path> <output_file_path>
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `input_file_path` | string | Path to input AI file |
-| `output_file_path` | string | Path for output SVG file |
-
-**Tool:** Inkscape CLI (`--export-type=svg`)
-
----
-
 ### `svg-to-png`
 
 Renders SVG to PNG at specified size with `rsvg-convert` and ImageMagick.
@@ -233,22 +193,6 @@ collect-unbeveled-pngs
 
 ---
 
-### `xcf-to-png`
-
-Exports XCF to PNG using GIMP Python-Fu.
-
-```bash
-xcf-to-png <input_file_path> <output_file_path>
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `input_file_path` | string | Path to input XCF file |
-| `output_file_path` | string | Path for output PNG file |
-
-**Tool:** GIMP batch mode with `xcf_to_png.py`
 ## GIMP Python-Fu Functions
 
 ### `apply_gradient_bevel` (gradient_bevel.py)
@@ -314,25 +258,6 @@ and then ImageMagick for the alpha channel.
 | `output_size` | integer | Target dimension (square) |
 
 **Behaviour:** Loads SVG at the target size, removes the flat background colour, repaints the opaque area white, and saves the PNG.
-
----
-
-### `convert_image` (xcf_to_png.py)
-
-Exports XCF to flat PNG.
-
-```python
-convert_image(source_path, output_path)
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `source_path` | string | Path to input XCF file |
-| `output_path` | string | Path for output PNG file |
-
-**Behaviour:** Loads XCF, merges visible layers, saves PNG.
 
 ## Content Interfaces (Stellaris Mod Formats)
 
@@ -453,22 +378,16 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.svg" \
     gimp -i --batch-interpreter=python-fu-eval \
     -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/gradient_bevel.py').read())" --quit
 
-# Apply bevel (in place)
-env GIMP_SCRIPT_IMAGE_PATH="input.png" \
+# Apply bevel (in place, batched)
+env GIMP_SCRIPT_IMAGE_PATHS="input_a.png
+input_b.png" \
     gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/gradient_bevel.py').read())" --quit
+    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/bevel_batch.py').read())" --quit
 
 # Export to DDS
 env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.dds" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/png_to_dds.py').read())" --quit
-
-# Export XCF to PNG
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.xcf" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/xcf_to_png.py').read())" --quit
+    python3 "${GIMP_SCRIPTS_DIRECTORY_PATH}/png_to_dds.py"
 ```
 
 ### Adding a New Flag
@@ -502,7 +421,6 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.xcf" \
 | `MISSING SOURCE DIRECTORY` | `source/` not found (wrong working directory?) |
 | `ImageMagick is not installed` | `convert` not in PATH or Flatpak |
 | `potrace is not installed` | `potrace` not in PATH |
-| `Inkscape is not installed` | Inkscape not found (system or Flatpak) |
 | `GIMP is not installed` | GIMP not found (system or Flatpak) |
 | `Unsupported format: <file>` | Source file has unsupported extension |
 

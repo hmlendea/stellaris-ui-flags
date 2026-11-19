@@ -32,7 +32,7 @@ START
   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ 3. TOOL DETECTION & VALIDATION                                              │
-│    ├── FOR each tool in [convert, potrace, inkscape, gimp]:                │
+│    ├── FOR each tool in [magick, rsvg-convert, potrace, gimp, python3]:    │
 │    │   ├── CHECK system PATH                                                │
 │    │   ├── CHECK Flatpak system export                                      │
 │    │   ├── CHECK Flatpak user export                                        │
@@ -101,9 +101,7 @@ START
 │ 7. SOURCE FORMAT → SVG CONVERSION                                           │
 │    ├── SWITCH on file extension:                                            │
 │    │   ├── .bmp  → bmp-to-svg()  (potrace)                                  │
-│    │   ├── .png  → png-to-svg()  (convert → potrace)                       │
-│    │   ├── .xcf  → xcf-to-svg()  (gimp → convert → potrace)                │
-│    │   ├── .ai   → ai-to-svg()   (inkscape)                                 │
+│    │   ├── .png  → png-to-svg()  (magick → potrace)                        │
 │    │   ├── .svg  → COPY to build SVG                                        │
 │    │   └── DEFAULT → PRINT "Unsupported format", CONTINUE                  │
 │    └── OUTPUT: build/<category>/<source_name>.svg                          │
@@ -195,10 +193,11 @@ fi
 **Tools Checked:**
 | Tool | Command | Flatpak ID |
 |------|---------|------------|
-| ImageMagick | `convert` | N/A |
+| ImageMagick | `magick` | N/A |
+| librsvg | `rsvg-convert` | N/A |
 | potrace | `potrace` | N/A |
-| Inkscape | `inkscape` | `org.inkscape.Inkscape` |
 | GIMP | `gimp` | `org.gimp.GIMP` |
+| Python | `python3` | N/A |
 
 **Failure Mode:** Any tool missing → print message, exit 1.
 
@@ -273,8 +272,7 @@ fi
 | Main PNG | `build/<cat>/<source>.png` |
 | Map PNG | `build/<cat>/map/<source>.png` |
 | Small PNG | `build/<cat>/small/<source>.png` |
-| Main Bevel PNG | `build/<cat>/<source>_bevel.png` |
-| Small Bevel PNG | `build/<cat>/small/<source>_bevel.png` |
+| Bevel markers | `build/<cat>/<source>.png.beveled` and the small variant |
 
 ### Step 7: Source Format → SVG Conversion
 
@@ -283,9 +281,7 @@ fi
 | Source Format | Function | Tools | Intermediate Steps |
 |---------------|----------|-------|-------------------|
 | `.bmp` | `bmp-to-svg` | potrace | Direct |
-| `.png` | `png-to-svg` | convert, potrace | PNG → BMP → SVG |
-| `.xcf` | `xcf-to-svg` | GIMP, convert, potrace | XCF → PNG → BMP → SVG |
-| `.ai` | `ai-to-svg` | Inkscape | Direct |
+| `.png` | `png-to-svg` | magick, potrace | PNG → BMP → SVG |
 | `.svg` | `cp` | shell | Direct copy |
 
 **Error Handling:** Unsupported format → warning, continue to next asset.
@@ -349,7 +345,7 @@ build.sh <version>
     │
     ├─► Validate version
     ├─► Validate source/
-    ├─► Detect tools (convert, potrace, inkscape, gimp)
+    ├─► Detect tools (magick, rsvg-convert, potrace, gimp, python3)
     ├─► Stage static assets (backgrounds, colours, localisation, thumbnail)
     ├─► Generate descriptors
     ├─► FOR each category in source/flags/:

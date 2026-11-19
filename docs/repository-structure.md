@@ -69,8 +69,7 @@ stellaris-ui-flags/
 │   │   ├── gimp_script_arguments.py
 │   │   ├── gimp_script_errors.py
 │   │   ├── gradient_bevel.py
-│   │   ├── png_to_dds.py
-│   │   └── xcf_to_png.py
+│   │   └── png_to_dds.py
 │   └── thumbnail.png
 ├── .github/
 │   ├── FUNDING.yml
@@ -100,13 +99,13 @@ stellaris-ui-flags/
 
 | Path | Purpose | Format |
 |------|---------|--------|
-| `source/flags/<category>/` | Flag source files per thematic category | SVG, AI, XCF, PNG, BMP |
+| `source/flags/<category>/` | Flag source files per thematic category | SVG, PNG, BMP |
 | `source/backgrounds/` | Background textures copied verbatim | DDS |
 | `source/colours.txt` | Colour palette for flag/map/ship contexts | Stellaris colour format |
 | `source/localisation.yml` | English category name localisation | YAML |
 | `source/names.txt` | Source filename to output filename mapping | Key=value pairs |
 | `source/thumbnail.png` | Mod thumbnail image | PNG |
-| `source/scripts/*.py` | GIMP Python-Fu conversion scripts | Python |
+| `source/scripts/*.py` | Build scripts for DDS export and the gradient bevel | Python |
 
 ### Build Pipeline (`build.sh`)
 
@@ -114,8 +113,8 @@ Single-file shell script containing:
 
 - Configuration constants (Mod ID, name, version, Stellaris version)
 - Path definitions (source, build, output directories)
-- Tool detection (Inkscape, GIMP binaries - system + Flatpak)
-- Conversion functions (`bmp-to-svg`, `png-to-svg`, `xcf-to-svg`, `ai-to-svg`, `svg-to-png`, `png-to-dds`, `bevel-pngs`)
+- Tool detection (GIMP binaries - system + Flatpak)
+- Conversion functions (`bmp-to-svg`, `png-to-svg`, `svg-to-png`, `png-to-dds`, `bevel-pngs`)
 - Utility functions (`get-flag-file-name`, `generate-mod-descriptor`)
 - Main execution loop (category iteration → file iteration → conversion pipeline)
 

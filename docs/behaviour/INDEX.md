@@ -15,7 +15,7 @@ This document describes the observable behaviour of the mod and its build pipeli
 1. **Silent start** — no output until validation completes
 2. **Tool validation** — errors printed if tools missing, exit 1
 3. **Asset staging** — no output, files copied silently
-4. **Asset processing** — GIMP/Inkscape/potrace may print their own output
+4. **Asset processing** — GIMP/potrace/ImageMagick may print their own output
 5. **Completion** — no explicit success message; script exits 0
 
 **Expected Duration:**
@@ -46,7 +46,6 @@ This document describes the observable behaviour of the mod and its build pipeli
 | Missing `source/` directory | Print "MISSING SOURCE DIRECTORY", exit 1 |
 | Missing ImageMagick | Print error, exit 1 |
 | Missing potrace | Print error, exit 1 |
-| Missing Inkscape | Print error, exit 1 |
 | Missing GIMP | Print error, exit 1 |
 
 **Asset Errors (continue):**

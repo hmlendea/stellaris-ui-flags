@@ -72,19 +72,6 @@ if [ ! -x "${RSVG_BINARY}" ]; then
     echo "[ERROR] rsvg-convert is not installed on this system" && exit 1
 fi
 
-function execute-inkscape {
-    local INKSCAPE_BINARY="/usr/bin/inkscape"
-
-    [ ! -f "${INKSCAPE_BINARY}" ] && INKSCAPE_BINARY="/var/lib/flatpak/exports/bin/org.inkscape.Inkscape"
-    [ ! -f "${INKSCAPE_BINARY}" ] && INKSCAPE_BINARY="${HOME}/.local/share/flatpak/exports/bin/org.inkscape.Inkscape"
-    if [ ! -f "${INKSCAPE_BINARY}" ]; then
-        echo "[ERROR] Inkscape is not installed on this system"
-        exit 1
-    fi
-
-    "${INKSCAPE_BINARY}" ${*}
-}
-
 function execute-gimp-script-file {
     local GIMP_SCRIPT_LABEL="${1}" && shift
     local GIMP_SCRIPT_PATH="${SOURCE_SCRIPTS_DIR_PATH}/${GIMP_SCRIPT_LABEL}.py"
@@ -148,31 +135,6 @@ function execute-gimp-script-file {
     return "${GIMP_EXIT_CODE}"
 }
 
-function xcf-to-png {
-    local INPUT_IMAGE_PATH="${1}"
-    local OUTPUT_IMAGE_PATH="${2}"
-
-    echo -e "\e[36mConverting XCF to PNG for '${INPUT_IMAGE_PATH}'...\e[0m"
-
-    execute-gimp-script-file "xcf_to_png" \
-        INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
-        OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
-
-    if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
-        echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
-        exit 3
-    fi
-}
-
-function xcf-to-svg {
-    local INPUT_IMAGE_PATH="${1}"
-    local OUTPUT_IMAGE_PATH="${2}"
-    local OUTPUT_IMAGE_PATH_WITHOUT_EXTENSION="${OUTPUT_IMAGE_PATH%.*}"
-
-    xcf-to-png "${INPUT_IMAGE_PATH}" "${OUTPUT_IMAGE_PATH_WITHOUT_EXTENSION}.png"
-    png-to-svg "${OUTPUT_IMAGE_PATH_WITHOUT_EXTENSION}.png" "${OUTPUT_IMAGE_PATH}"
-}
-
 function png-to-bmp {
     local INPUT_IMAGE_PATH="${1}"
     local OUTPUT_IMAGE_PATH="${2}"
@@ -221,20 +183,6 @@ function bmp-to-svg {
     echo -e "\e[36mConverting BMP to SVG for '${INPUT_IMAGE_PATH}'...\e[0m"
 
     potrace --opaque -s "${INPUT_IMAGE_PATH}" -o "${OUTPUT_IMAGE_PATH}"
-
-    if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
-        echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
-        exit 3
-    fi
-}
-
-function ai-to-svg {
-    local INPUT_IMAGE_PATH="${1}"
-    local OUTPUT_IMAGE_PATH="${2}"
-
-    echo -e "\e[36mConverting AI to SVG for '${INPUT_IMAGE_PATH}'...\e[0m"
-
-    execute-inkscape -f "${INPUT_IMAGE_PATH}" -l "${OUTPUT_IMAGE_PATH}"
 
     if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
         echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
@@ -299,9 +247,7 @@ function source-to-svg {
 
     case "${SOURCE_PATH##*.}" in
         bmp) bmp-to-svg "${SOURCE_PATH}" "${OUTPUT_PATH}" ;;
-        xcf) xcf-to-svg "${SOURCE_PATH}" "${OUTPUT_PATH}" ;;
         png) png-to-svg "${SOURCE_PATH}" "${OUTPUT_PATH}" ;;
-        ai) ai-to-svg "${SOURCE_PATH}" "${OUTPUT_PATH}" ;;
         svg) cp "${SOURCE_PATH}" "${OUTPUT_PATH}" ;;
         *) echo "[WARNING] Unsupported source format for '${SOURCE_PATH}'!" >&2 ;;
     esac
@@ -624,6 +570,6 @@ if [ "${MISSING_BEVEL_COUNT}" -gt 0 ]; then
 fi
 
 MISSING_OUTPUT_COUNT=$(find "${OUTPUT_FLAGS_DIR_PATH}" -name '*.dds' -not -path '*/backgrounds/*' | wc -l)
-EXPECTED_OUTPUT_COUNT=$(( $(find "${SOURCE_FLAGS_DIR_PATH}" -type f \( -name '*.svg' -o -name '*.png' -o -name '*.bmp' -o -name '*.xcf' -o -name '*.ai' \) | wc -l) * 3 ))
+EXPECTED_OUTPUT_COUNT=$(( $(find "${SOURCE_FLAGS_DIR_PATH}" -type f \( -name '*.svg' -o -name '*.png' -o -name '*.bmp' \) | wc -l) * 3 ))
 
 echo "Produced ${MISSING_OUTPUT_COUNT} of ${EXPECTED_OUTPUT_COUNT} flag DDS files."

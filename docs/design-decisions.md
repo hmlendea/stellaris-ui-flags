@@ -34,12 +34,12 @@ This document records the key design decisions in the project, their rationale, 
 - Single rendering path for all sources (SVG → PNG at 3 sizes)
 - Vector format scales cleanly to 128px, 256px, 24px
 - One set of rendering logic to maintain
-- GIMP SVG import handles the rasterisation
+- `rsvg-convert` SVG import handles the rasterisation
 
 **Consequences:**
 - ✅ Uniform pipeline regardless of source format
 - ✅ Best possible quality at all three resolutions
-- ⚠️ Raster sources (PNG/BMP/XCF) pass through lossy potrace tracing
+- ⚠️ Raster sources (PNG/BMP) pass through lossy potrace tracing
 - ⚠️ Extra conversion steps for raster sources
 
 **Alternatives Considered:**
@@ -79,33 +79,33 @@ This document records the key design decisions in the project, their rationale, 
 
 ---
 
-## D5: GIMP Python-Fu for Image Processing
+## D5: GIMP Python-Fu for the Gradient Bevel
 
-**Decision:** Use GIMP batch mode with Python-Fu scripts for SVG rendering, bevel, and DDS export.
+**Decision:** Use GIMP batch mode with a Python-Fu script for the gradient bevel, batching several
+images into one session.
 
 **Rationale:**
-- GIMP provides all needed operations in one tool: SVG import, GEGL filters, gradients, DDS export
+- GIMP provides the needed operations: GEGL bump map, Gaussian blur, gradients
 - Python-Fu enables headless batch operation with the full GIMP 3 API
-- The DDS exporter is bundled with GIMP 3 (no separate plug-in)
 - A blurred silhouette plus emboss reproduces the bevel effect
+- Batching several images per session amortises the start-up cost
 
 **Consequences:**
-- ✅ Single tool for all advanced image operations
 - ✅ Reproducible effects via scripts
-- ✅ GIMP 3 bundles every required plug-in, including DDS export
-- ⚠️ GIMP startup overhead per invocation (~0.5–1s × 8 calls per asset)
+- ✅ GIMP 3 bundles every required operation
+- ✅ One start covers a whole batch of bevels
 - ⚠️ GIMP 3.0+ required
 
 **Alternatives Considered:**
-- ImageMagick alone: rejected — no emboss relief, weaker SVG support, no DDS export
-- Inkscape for SVG→PNG: rejected — would still need GIMP for bevel/DDS
+- ImageMagick alone: rejected — no emboss relief
+- Inkscape for SVG→PNG: rejected — `rsvg-convert` is lighter and already used
 - GIMP 2.10 Script-fu: rejected — GIMP 2.10 is end of life and its Script-fu API is not present in GIMP 3
 
 ---
 
 ## D6: potrace for Raster → Vector Conversion
 
-**Decision:** Raster sources (PNG, BMP, XCF) are traced to SVG via potrace.
+**Decision:** Raster sources (PNG, BMP) are traced to SVG via potrace.
 
 **Rationale:**
 - potrace is the standard open-source bitmap tracer
@@ -197,7 +197,7 @@ This document records the key design decisions in the project, their rationale, 
 
 **Rationale:**
 - Covers the two common Linux installation methods
-- Flatpak increasingly default for GIMP/Inkscape on immutable distros
+- Flatpak increasingly default for GIMP on immutable distros
 - No configuration needed by user
 
 **Consequences:**

@@ -178,9 +178,9 @@ fi
 | Script | Purpose | Key Parameters |
 |--------|---------|----------------|
 | `gradient_bevel.py` | Applies gradient bevel effect | `BLUR_RADIUS`, `BUMP_AZIMUTH`, `BUMP_ELEVATION`, `BUMP_DEPTH`, colours |
+| `bevel_batch.py` | Bevels a batch in one GIMP session | `IMAGE_PATHS` |
 | `png_to_dds.py` | Exports PNG to DDS | Header fields in `build_header` |
 | `svg-to-png` (in `build.sh`) | Renders SVG to PNG | Background colour, output size |
-| `xcf_to_png.py` | Exports XCF to PNG | Layer merging |
 
 ### Modifying Gradient Bevel
 
@@ -278,7 +278,7 @@ The build script validates:
 
 1. **Version argument provided:** `if [ -z "${MOD_VERSION}" ]`
 2. **Source directory exists:** `[ ! -d "${SOURCE_DIR_PATH}" ]`
-3. **Required tools available:** Checks for `convert`, `potrace`, Inkscape, GIMP
+3. **Required tools available:** Checks for `magick`, `rsvg-convert`, `potrace`, `gimp`, and `python3`
 4. **Output file creation:** Verifies each conversion step produces output
 
 ### Manual Validation

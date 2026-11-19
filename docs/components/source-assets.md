@@ -45,15 +45,14 @@ source/
 │   ├── ui_starwars/
 │   ├── ui_total-war/
 │   └── zoological/
-└── scripts/                 # GIMP Python-Fu scripts
+└── scripts/                 # Build scripts and GIMP Python-Fu modules
     ├── bevel_batch.py
     ├── gimp_image_operations.py
     ├── gimp_procedures.py
     ├── gimp_script_arguments.py
     ├── gimp_script_errors.py
     ├── gradient_bevel.py
-    ├── png_to_dds.py
-    └── xcf_to_png.py
+    └── png_to_dds.py
 ```
 
 ## Asset Taxonomy
@@ -64,8 +63,6 @@ source/
 |--------|-----------|-----------------|-----------------|
 | SVG | `.svg` | `source/flags/*/` | Direct → PNG → DDS |
 | PNG | `.png` | `source/flags/*/` | PNG → BMP → SVG → PNG → DDS |
-| XCF | `.xcf` | `source/flags/*/` | XCF → PNG → BMP → SVG → PNG → DDS |
-| AI | `.ai` | `source/flags/*/` | AI → SVG → PNG → DDS |
 | BMP | `.bmp` | `source/flags/*/` | BMP → SVG → PNG → DDS |
 | DDS | `.dds` | `source/backgrounds/` | Copied verbatim |
 
@@ -85,8 +82,6 @@ Each category under `source/flags/` contains:
 source/flags/<category>/
 ├── flag-design-1.svg
 ├── flag-design-2.png
-├── flag-design-3.xcf
-├── flag-design-4.ai
 ├── usage.txt              # Optional: usage restrictions/notes
 └── ... (more assets)
 ```
@@ -98,7 +93,7 @@ source/flags/<category>/
 **Advantages:**
 - Vector format — scales cleanly to all three resolutions
 - Single source → three outputs without quality loss
-- Direct rendering by Inkscape (fastest path)
+- Direct rendering by `rsvg-convert` (fastest path)
 
 **Requirements:**
 - Valid SVG 1.1
@@ -115,7 +110,7 @@ source/flags/<category>/
 
 ### PNG (Raster Source)
 
-**Conversion:** PNG → BMP (ImageMagick) → SVG (potrace) → PNG (Inkscape) → DDS
+**Conversion:** PNG → BMP (ImageMagick) → SVG (potrace) → PNG (`rsvg-convert`) → DDS
 
 **Limitations:**
 - Raster-to-vector tracing (potrace) may lose detail
@@ -126,26 +121,6 @@ source/flags/<category>/
 - Use solid colours, no gradients
 - High contrast between foreground/background
 - Minimum 128x128px source resolution
-
-### XCF (GIMP Native)
-
-**Conversion:** XCF → PNG (GIMP) → BMP → SVG → PNG → DDS
-
-**Use Case:**
-- Layered designs with effects
-- Complex compositions requiring GIMP editing
-
-**Limitations:**
-- Longest conversion path
-- Layer merging flattens effects
-
-### AI (Adobe Illustrator)
-
-**Conversion:** AI → SVG (Inkscape) → PNG → DDS
-
-**Requirements:**
-- Inkscape must support the AI version
-- Complex AI features may not convert
 
 ### BMP (Bitmap)
 
@@ -312,7 +287,6 @@ imperial-eagle=ui_domination_1
 | `bevel_batch.py` | Bevels every image of a batch in one GIMP session | `bevel-pngs` function |
 | `gradient_bevel.py` | Applies 3D bevel effect with gradient shading | `bevel_batch.py` |
 | `png_to_dds.py` | Exports PNG to DDS with game-compatible settings | `png-to-dds` function |
-| `xcf_to_png.py` | Exports XCF (GIMP) to PNG | `xcf-to-png` function |
 
 See [GIMP Scripts Component](../components/gimp-scripts.md) for detailed documentation.
 

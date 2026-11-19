@@ -22,7 +22,7 @@ flowchart LR
     ModPackage -->|Installed by| Paradox[Paradox Mods]
     ModPackage -->|Installed by| Nexus[Nexus Mods]
     ModPackage -->|Loaded by| Stellaris[Stellaris Game]
-    Tools[ImageMagick, Inkscape, GIMP, potrace] -->|Required by| Build
+    Tools[ImageMagick, librsvg, GIMP, potrace] -->|Required by| Build
 ```
 
 ### External Boundaries
@@ -30,7 +30,7 @@ flowchart LR
 | Boundary | Description | Contract |
 |----------|-------------|----------|
 | **Source Assets** | Contributor-provided flag designs in various formats | Files placed in `source/flags/<category>/` |
-| **Build Tools** | ImageMagick (`convert`), Inkscape, GIMP (with DDS plug-in), potrace | Must be installed and discoverable via PATH or Flatpak |
+| **Build Tools** | ImageMagick (`convert`), librsvg, GIMP, potrace | Must be installed and discoverable via PATH or Flatpak |
 | **Distribution Platforms** | Steam Workshop, Paradox Mods, Nexus Mods | Consume built mod package from `out/` |
 | **Stellaris Game** | Loads mod package at runtime | Expects DDS textures + localisation/colour definitions |
 
@@ -45,7 +45,7 @@ flowchart LR
 - `source/localisation.yml` — English localisation copied to `localisation/ui-flags_l_english.yml`
 - `source/names.txt` — Mapping from source filename (without extension) to output filename
 - `source/thumbnail.png` — Mod thumbnail copied to output root
-- `source/scripts/` — GIMP Python-Fu scripts for DDS export, SVG→PNG, XCF→PNG, gradient bevel
+- `source/scripts/` — Python scripts for DDS export, SVG→PNG, the batched gradient bevel
 
 **Responsibilities:**
 - Provide authoring formats and taxonomic organisation for flag designs
@@ -129,7 +129,7 @@ flowchart TD
 
 ### Principal Runtime Sequence
 
-1. **Initialisation**: Validate required tools (ImageMagick, Inkscape, GIMP, potrace), verify source directory exists, parse version argument
+1. **Initialisation**: Validate required tools (ImageMagick, librsvg, GIMP, potrace), verify source directory exists, parse version argument
 2. **Static asset staging**: Copy backgrounds, colours.txt, localisation.yml, thumbnail.png to output layout; generate primary and secondary `.mod` descriptor files
 3. **Category iteration**: For each subdirectory under `source/flags/`, create build and output subdirectories (main, map, small)
 4. **Asset conversion**: For each asset file, resolve final filename via `names.txt`, convert source format to SVG, then render three PNG sizes (128px main, 256px map, 24px small), apply gradient bevel to main and small, export all three to DDS
@@ -141,7 +141,7 @@ flowchart TD
 
 | Entity | Source | Format | Transformation |
 |--------|--------|--------|----------------|
-| Flag designs | `source/flags/<category>/` | SVG, AI, XCF, PNG, BMP | Converted to SVG → PNG → DDS |
+| Flag designs | `source/flags/<category>/` | SVG, PNG, BMP | Converted to SVG → PNG → DDS |
 | Background textures | `source/backgrounds/` | DDS | Copied verbatim |
 | Colour palette | `source/colours.txt` | Stellaris colour format | Copied verbatim |
 | Localisation | `source/localisation.yml` | YAML | Copied verbatim |
@@ -168,8 +168,8 @@ flowchart TD
 
 | Tool | Purpose | Invocation | Failure Mode |
 |------|---------|------------|--------------|
-| `convert` (ImageMagick) | PNG → BMP flattening | `convert -background "#000" -flatten` | Exit code ≠ 0 |
-| `inkscape` | AI → SVG, SVG rendering | `inkscape -f input -l output` | Exit code ≠ 0 |
+| `magick` (ImageMagick) | PNG → BMP flattening, pixel data reads | `magick -background "#000" -flatten` | Exit code ≠ 0 |
+| `rsvg-convert` (librsvg) | SVG → PNG rasterisation | `rsvg-convert -w N -h N -b white -o out in` | Exit code ≠ 0 |
 | `gimp` | Python-Fu execution | `gimp -i --batch-interpreter=python-fu-eval -b "exec(...)" --quit` | Exit code ≠ 0 |
 | `potrace` | BMP → SVG vectorisation | `potrace --opaque -s input -o output` | Exit code ≠ 0 |
 
@@ -207,10 +207,11 @@ Source Assets → Build Pipeline → Output Package
 
 | Tool | Minimum Version | Purpose | Installation |
 |------|----------------|---------|--------------|
-| ImageMagick | 6.x/7.x | PNG → BMP conversion | System package manager |
-| Inkscape | 1.x | AI → SVG, SVG processing | System package manager / Flatpak |
-| GIMP | 3.0+ | Python-Fu execution, DDS export | System package manager / Flatpak |
+| ImageMagick | 6.x/7.x | PNG → BMP conversion, pixel reads | System package manager |
+| librsvg | 2.6x | SVG → PNG rasterisation | System package manager |
+| GIMP | 3.0+ | Python-Fu execution, gradient bevel | System package manager / Flatpak |
 | potrace | 1.x | BMP → SVG vectorisation | System package manager |
+| Python | 3.x | DDS export | System package manager |
 
 ### Runtime Dependencies
 
@@ -272,8 +273,6 @@ The output package must conform to:
 | Input Format | Supported Features | Limitations |
 |--------------|-------------------|-------------|
 | SVG | Full vector support | Must be valid SVG 1.1 |
-| AI | Adobe Illustrator | Requires Inkscape compatibility |
-| XCF | GIMP native | Layers merged on export |
 | PNG | Raster with transparency | Flattened to BMP for vectorisation |
 | BMP | Raster | Intermediate format for potrace |
 

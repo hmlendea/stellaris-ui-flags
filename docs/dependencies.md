@@ -24,7 +24,7 @@ There are no runtime dependencies — the output is a pure content mod consumed 
 | Install (Arch) | `sudo pacman -S imagemagick` |
 | Flatpak | N/A (system tool) |
 
-**Used by:** `png-to-svg`, `xcf-to-svg`
+**Used by:** `png-to-svg`
 
 ---
 
@@ -60,30 +60,9 @@ rectangle, so a transparent background would render black on black and the emble
 | Install (Fedora) | `sudo dnf install potrace` |
 | Flatpak | N/A (system tool) |
 
-**Used by:** `bmp-to-svg`, `png-to-svg`, `xcf-to-svg`
+**Used by:** `bmp-to-svg`, `png-to-svg`
 
 **Flags used:** `-s` (SVG output), `-o` (output file)
-
----
-
-### Inkscape
-
-| Property | Value |
-|----------|-------|
-| Minimum version | 1.0 |
-| Command used | `inkscape` |
-| Purpose | AI → SVG conversion |
-| Install (Debian/Ubuntu) | `sudo apt install inkscape` |
-| Flatpak ID | `org.inkscape.Inkscape` |
-
-**Used by:** `ai-to-svg`
-
-**Flags used:** `--export-type=svg`, `--export-filename=<path>`
-
-**Detection paths (in order):**
-1. System PATH (`which inkscape`)
-2. `/var/lib/flatpak/exports/bin/org.inkscape.Inkscape`
-3. `~/.local/share/flatpak/exports/bin/org.inkscape.Inkscape`
 
 ---
 
@@ -93,11 +72,11 @@ rectangle, so a transparent background would render black on black and the emble
 |----------|-------|
 | Minimum version | 3.0 |
 | Command used | `gimp` |
-| Purpose | Python-Fu execution: SVG→PNG, XCF→PNG, bevel, DDS export |
+| Purpose | Python-Fu execution: gradient bevel |
 | Install (Debian/Ubuntu) | `sudo apt install gimp` |
 | Flatpak ID | `org.gimp.GIMP` |
 
-**Used by:** `svg-to-png`, `png-to-dds`, `bevel-pngs`, `xcf-to-png`
+**Used by:** `bevel-pngs`
 
 **Flags used:** `-i` (no interface), `--batch-interpreter=python-fu-eval`, `-b` (batch command), `--quit`
 
@@ -115,10 +94,8 @@ effect. No separate plug-in package is needed.
 
 | Plug-in | PDB Function | Purpose |
 |---------|--------------|---------|
-| SVG import | `file-svg-load` | Load SVG files at a target size |
 | PNG import | `file-png-load` | Load PNG files |
 | PNG export | `file-png-export` | Write PNG files |
-| DDS export | `file-dds-export` | Write DDS textures |
 | Colour to Alpha | `gegl:color-to-alpha` | Remove solid backgrounds |
 | Gaussian Blur | `gegl:gaussian-blur` | Bump map smoothing |
 | Bump Map | `gegl:bump-map` | Bevel embossing |
@@ -159,20 +136,18 @@ Stellaris consumes these directly — no external libraries, frameworks, or code
 ```
 build.sh
 ├── ImageMagick (magick)
-│   └── Used by: png-to-svg, xcf-to-svg, svg-to-png, png-to-dds
+│   └── Used by: png-to-svg, svg-to-png, png-to-dds
 ├── rsvg-convert
 │   └── Used by: svg-to-png
 ├── Python 3
 │   └── Used by: png-to-dds
 ├── potrace
-│   └── Used by: bmp-to-svg, png-to-svg, xcf-to-svg
-├── Inkscape
-│   └── Used by: ai-to-svg
+│   └── Used by: bmp-to-svg, png-to-svg
 └── GIMP
     ├── PNG import (gimp-file-load)
-    │   └── Used by: gradient-bevel, xcf-to-png
+    │   └── Used by: gradient-bevel
     ├── PNG export (file-png-export)
-    │   └── Used by: gradient-bevel, xcf-to-png
+    │   └── Used by: gradient-bevel
     ├── Gaussian Blur (gegl:gaussian-blur)
     │   └── Used by: gradient-bevel
     └── Bump Map (gegl:bump-map)
@@ -188,7 +163,6 @@ The SVG rasterisation and the DDS export no longer use GIMP, so each flag needs 
 | GIMP | 3.0.x, 3.2.x | Primary target |
 | librsvg | 2.6x | `rsvg-convert` for SVG rasterisation |
 | Python | 3.x | Writes the DDS directly |
-| Inkscape | 1.x | CLI flags stable since 1.0 |
 | ImageMagick | 6.x, 7.x | `convert` deprecated in 7.x but still works |
 | potrace | 1.x | Stable API |
 
@@ -201,19 +175,18 @@ The SVG rasterisation and the DDS export no longer use GIMP, so each flag needs 
 ### Debian/Ubuntu
 
 ```bash
-sudo apt install imagemagick librsvg2-bin potrace inkscape gimp
+sudo apt install imagemagick librsvg2-bin potrace gimp
 ```
 
 ### Fedora
 
 ```bash
-sudo dnf install ImageMagick librsvg2-tools potrace inkscape gimp
+sudo dnf install ImageMagick librsvg2-tools potrace gimp
 ```
 
-### Flatpak (tools only)
+### Flatpak (GIMP only)
 
 ```bash
-flatpak install flathub org.inkscape.Inkscape
 flatpak install flathub org.gimp.GIMP
 # ImageMagick, rsvg-convert, potrace and Python must be system packages
 ```
@@ -224,7 +197,6 @@ flatpak install flathub org.gimp.GIMP
 magick --version
 rsvg-convert --version
 potrace --version
-inkscape --version
 gimp --version
 python3 --version
 ```
@@ -234,5 +206,4 @@ python3 --version
 | Issue | Impact | Workaround |
 |-------|--------|------------|
 | ImageMagick 7 `convert` deprecation | Warning messages | Ignore warnings; function unchanged |
-| Inkscape AI import limitations | Complex AI files convert poorly | Export SVG from Illustrator instead |
 | potrace single-colour tracing | Gradients lost in PNG/BMP sources | Use SVG sources |

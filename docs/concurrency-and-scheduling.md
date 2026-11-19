@@ -81,51 +81,47 @@ No timed/scheduled CI jobs exist.
 
 ### Per-Asset Cost
 
-| Stage | GIMP Invocations | Approx. Time |
-|-------|------------------|--------------|
-| Format → SVG | 0–1 (XCF only; Inkscape/potrace otherwise) | 0.1–1s |
-| SVG → 128px PNG | 1 | 0.5–1s |
-| Bevel (main) | 1 | 0.5–1s |
-| PNG → DDS (main) | 1 | 0.5–1s |
-| SVG → 256px PNG | 1 | 0.5–1s |
-| PNG → DDS (map) | 1 | 0.5–1s |
-| SVG → 24px PNG | 1 | 0.5–1s |
-| Bevel (small) | 1 | 0.5–1s |
-| PNG → DDS (small) | 1 | 0.5–1s |
-| **Total** | **8** | **~4–8s** |
+| Stage | Tool | Approx. Time |
+|-------|------|--------------|
+| Format → SVG | potrace, ImageMagick, or shell copy | 0.1–1s |
+| SVG → 128px, 256px, 24px PNGs | `rsvg-convert` + ImageMagick | ~0.1s for all three |
+| Bevel (main + small) | one GIMP session, shared across the batch | ~1s per image plus one start per batch |
+| PNG → DDS (main, map, small) | Python, one process each | milliseconds |
 
 ### Build Totals
 
 | Scenario | Assets | Approx. Time |
 |----------|--------|--------------|
-| Full rebuild | 300+ | 5–15 minutes |
-| Incremental (few new) | 1–10 | <30 seconds |
-| Static-only change | 0 (all skip) | <10 seconds |
+| Full rebuild | 300+ | Bounded by the number of bevel sessions |
+| Incremental (few new) | 1–10 | Seconds |
+| Static-only change | 0 (all skip) | Seconds |
 
-The dominant cost is GIMP process startup (~0.5–1s per invocation), not the image work itself.
+The dominant cost is the GIMP session start, which is amortised over `FLAG_BEVEL_BATCH_SIZE`
+images per session.
 
-## Parallelisation Potential (Future Work)
+## Parallelism and Batching
 
-Not implemented. If ever attempted, the constraints are:
+Implemented. The constraints are:
 
 | Constraint | Requirement |
 |------------|-------------|
 | Output isolation | Each worker writes to distinct output paths (already true — per-asset filenames) |
-| Intermediate isolation | Per-asset `build/` subdirectories or suffixed intermediates |
-| GIMP user dirs | Parallel GIMP instances need `--gimpdir` or similar isolation |
+| Worker bound | At most `FLAG_WORKER_COUNT` rasterisation/export workers run at once |
+| GIMP session bound | At most `FLAG_GIMP_CONCURRENCY` GIMP sessions run at once, each covering `FLAG_BEVEL_BATCH_SIZE` images |
 | Static staging | Must complete before workers start (single writer) |
 | Determinism | Preserve per-asset independence (assets don't depend on each other) |
 
-**Estimated gain:** Near-linear speedup possible (assets are independent), but complexity cost is high for a 5–15 minute build.
-
-**Recommendation:** Not worth implementing at current project scale. If build time becomes painful, batch GIMP operations (one invocation per asset instead of 8) is a simpler optimisation.
+**Knobs:** `FLAG_WORKER_COUNT` (plain-tool workers) and `FLAG_GIMP_CONCURRENCY` (GIMP sessions) can
+be raised on a machine with spare memory; `FLAG_BEVEL_BATCH_SIZE` trades per-session start cost
+against per-session memory.
 
 ## Summary
 
 | Property | Value |
 |----------|-------|
-| Parallelism | None |
-| Concurrency safety | None (user responsibility) |
+| Parallelism | `FLAG_WORKER_COUNT` workers; `FLAG_GIMP_CONCURRENCY` GIMP sessions |
+| Batching | `FLAG_BEVEL_BATCH_SIZE` images per GIMP session |
+| Concurrency safety | None across two builds (user responsibility) |
 | Scheduling | Manual invocation only |
 | CI builds | None (asset download instead) |
 | Build time (full) | 5–15 minutes |

@@ -40,12 +40,12 @@ flowchart LR
     ModPackage -->|Installed by| Paradox[Paradox Mods]
     ModPackage -->|Installed by| Nexus[Nexus Mods]
     ModPackage -->|Loaded by| Stellaris[Stellaris Game]
-    Tools[ImageMagick, Inkscape, GIMP, potrace] -->|Required by| Build
+    Tools[ImageMagick, librsvg, GIMP, potrace] -->|Required by| Build
 ```
 
 The principal external boundaries are:
-- **Source Assets:** Contributor-provided flag designs in various formats (BMP, XCF, PNG, AI, SVG) organised by category directories under `source/flags/`.
-- **Build Tools:** ImageMagick (`convert`), Inkscape, GIMP (3.0+, plug-ins bundled), and potrace must be present on the build machine.
+- **Source Assets:** Contributor-provided flag designs in various formats (BMP, PNG, SVG) organised by category directories under `source/flags/`.
+- **Build Tools:** ImageMagick (`magick`), librsvg, GIMP (3.0+), potrace, and Python 3 must be present on the build machine.
 - **Distribution Platforms:** Steam Workshop, Paradox Mods, Nexus Mods consume the built mod package.
 - **Stellaris Game:** Loads the mod package at runtime; expects DDS flag textures and localisation/colour definitions.
 
@@ -131,10 +131,10 @@ flowchart TD
 ```
 
 The principal runtime sequence is:
-1. **Initialisation:** Validate required tools (ImageMagick, Inkscape, GIMP, potrace), verify source directory exists, parse version argument.
+1. **Initialisation:** Validate required tools (ImageMagick, librsvg, GIMP, potrace, Python 3), verify source directory exists, parse version argument.
 2. **Static asset staging:** Copy backgrounds, colours.txt, localisation.yml, thumbnail.png to output layout; generate primary and secondary `.mod` descriptor files.
 3. **Category iteration:** For each subdirectory under `source/flags/`, create build and output subdirectories (main, map, small).
-4. **Asset conversion:** For each asset file, resolve final filename via `names.txt`, convert source format to SVG, then render three PNG sizes (128px main, 256px map, 24px small), apply gradient bevel to main and small, export all three to DDS.
+4. **Asset conversion:** For each asset file, resolve final filename via `names.txt`, convert source format to SVG, then render three PNG sizes (128px main, 256px map, 24px small), batch the gradient bevels for main and small, and export all three to DDS.
 5. **Completion:** Mod package resides in `out/ui-flags/` with descriptor files in `out/`.
 
 ## 🗂️ Architectural Areas
@@ -148,7 +148,7 @@ Paths:
 - `source/localisation.yml` — English localisation copied to `localisation/ui-flags_l_english.yml`.
 - `source/names.txt` — mapping from source filename (without extension) to output filename.
 - `source/thumbnail.png` — mod thumbnail copied to output root.
-- `source/scripts/` — GIMP Python-Fu scripts for DDS export, SVG→PNG, XCF→PNG, gradient bevel.
+- `source/scripts/` — Python scripts for DDS export and the batched gradient bevel.
 
 Responsibilities:
 - Provide authoring formats and taxonomic organisation for flag designs.
@@ -202,7 +202,7 @@ Boundary rules:
 
 ```mermaid
 flowchart LR
-    SourceFormats[Source Formats\nBMP, XCF, PNG, AI, SVG] --> SVG[SVG Intermediate]
+    SourceFormats[Source Formats\nBMP, PNG, SVG] --> SVG[SVG Intermediate]
     SVG --> PNG128[PNG 128px]
     SVG --> PNG256[PNG 256px]
     SVG --> PNG24[PNG 24px]
@@ -233,9 +233,10 @@ flowchart LR
 | Interface or Integration | Direction | Contract | Owner | Failure Semantics |
 |--------------------------|-----------|----------|-------|-------------------|
 | `build.sh` CLI | Inbound | `build.sh <version>` | Build Pipeline | Exits non-zero with error message if version missing or tools absent |
-| ImageMagick `convert` | Outbound | BMP→PNG flattening | Build Pipeline | Build fails if binary missing or conversion fails |
-| Inkscape CLI | Outbound | AI→SVG, SVG→PNG (fallback) | Build Pipeline | Build fails if binary missing or conversion fails |
-| GIMP Python-Fu | Outbound | XCF→PNG, SVG→PNG, PNG→DDS, gradient bevel | Build Pipeline | Build fails if GIMP is missing or a conversion fails |
+| ImageMagick `magick` | Outbound | SVG→PNG alpha derivation, PNG pixel reads | Build Pipeline | Build fails if binary missing or conversion fails |
+| `rsvg-convert` | Outbound | SVG→PNG rasterisation | Build Pipeline | Build fails if binary missing or conversion fails |
+| GIMP Python-Fu | Outbound | gradient bevel | Build Pipeline | Build fails if GIMP is missing or a conversion fails |
+| Python 3 | Outbound | PNG→DDS export | Build Pipeline | Build fails if the interpreter is missing |
 | potrace CLI | Outbound | BMP→SVG vectorisation | Build Pipeline | Build fails if binary missing or tracing fails |
 | Stellaris Mod Descriptor | Outbound | `.mod` file format (version, name, path, tags, supported_version) | Build Pipeline | Mod not recognised by launcher if malformed |
 | Steam Workshop / Paradox Mods / Nexus Mods | Outbound | Zip of `out/ui-flags/` + descriptor | Maintainer | Platform rejects upload if structure invalid |
@@ -263,10 +264,11 @@ The principal dependency rules are:
 
 | Dependency | Responsibility | Integration Boundary | Architectural Consequence |
 |------------|----------------|----------------------|---------------------------|
-| ImageMagick (`convert`) | Raster flattening (PNG→BMP) | CLI invoked by `build.sh` | Must be in PATH; version not pinned |
-| Inkscape | Vector conversion (AI→SVG, SVG→PNG fallback) | CLI invoked by `build.sh` | Flatpak and system paths probed; version not pinned |
-| GIMP | XCF→PNG, SVG→PNG, PNG→DDS, gradient bevel | Python-Fu via `source/scripts/` | Requires GIMP 3.0+; Flatpak and system paths probed; a new instance per invocation avoids launch contention |
+| ImageMagick (`magick`) | Raster flattening (PNG→BMP), pixel reads | CLI invoked by `build.sh` | Must be in PATH; version not pinned |
+| librsvg (`rsvg-convert`) | SVG→PNG rasterisation | CLI invoked by `build.sh` | Must be in PATH; version not pinned |
+| GIMP | gradient bevel | Python-Fu via `source/scripts/` | Requires GIMP 3.0+; Flatpak and system paths probed; a new instance per invocation avoids launch contention |
 | potrace | BMP→SVG vectorisation | CLI invoked by `build.sh` | Must be in PATH; version not pinned |
+| Python 3 | PNG→DDS export | Script invoked by `build.sh` | Must be in PATH; version not pinned |
 | Stellaris v4.0.* | Target game version | `supported_version` in descriptor | Mod compatibility bound to game version range |
 
 ## 🚀 Deployment and Operations
@@ -276,7 +278,7 @@ The principal dependency rules are:
 | Build invocation | Manual: `./build.sh <version>` | Version argument required; no CI/CD pipeline in repository |
 | Output artefact | Directory tree `out/ui-flags/` + `out/ui-flags.mod` | Maintainer zips and uploads to platforms |
 | Persistent state | None (build is stateless) | Incremental builds reuse `build/` intermediates |
-| Scaling | Single-threaded category loop | Large flag counts increase build time linearly |
+| Scaling | Bounded parallel workers plus batched GIMP sessions | Large flag counts increase the number of sessions, not the per-flag cost |
 | Recovery | Re-run `build.sh` with same version | Idempotent: existing output files skipped if present |
 | Operator responsibility | Provide version, ensure tools installed, upload artefacts | No automated publishing |
 
@@ -285,7 +287,7 @@ The principal dependency rules are:
 | Contract | Owner | Invariant | Verification | Change Policy |
 |----------|-------|-----------|--------------|---------------|
 | Stellaris mod descriptor format | Build Pipeline | `version`, `name`, `path`, `tags`, `supported_version` fields present | Launcher loads mod without error | Update `STELLARIS_VERSION` in `build.sh` when game updates |
-| DDS texture format (uncompressed BGRA8) | GIMP DDS export | Stellaris reads flag textures without error | Visual verification in-game | Regenerate if the GIMP DDS exporter changes its output format |
+| DDS texture format (uncompressed BGRA8) | `png_to_dds.py` | Stellaris reads flag textures without error | Visual verification in-game | Regenerate if the DDS writer changes its output format |
 | Flag filename mapping (`names.txt`) | Maintainer | Each source file maps to unique output filename | Build logs show no collisions | Add entries for new flags; never remove existing |
 | Category directory structure | Maintainer | Output categories mirror source categories | `out/ui-flags/flags/` matches `source/flags/` | New categories added as directories under `source/flags/` |
 | Localisation key format | Maintainer | Keys follow `flag_<category>_<name>` pattern | In-game text displays correctly | Follow existing key pattern for new flags |
@@ -306,11 +308,11 @@ Execute the principal automated verification with:
 
 ## ⚠️ Design Constraints
 
-- **Tool availability:** Build requires four external CLI/GUI tools (ImageMagick, Inkscape, GIMP, potrace) with specific capabilities. Absence of any tool halts the build.
-- **Single-threaded execution:** Category and file loops run sequentially; no parallelism exploited.
+- **Tool availability:** Build requires external CLI/GUI tools (ImageMagick, librsvg, GIMP, potrace, Python 3) with specific capabilities. Absence of any tool halts the build.
+- **Bounded execution:** Rasterisation and export run in `FLAG_WORKER_COUNT` workers; the batched bevels run in `FLAG_GIMP_CONCURRENCY` sessions.
 - **Intermediate retention:** `build/` directory grows with each build; no automatic cleanup.
 - **Version coupling:** `STELLARIS_VERSION` in `build.sh` must be updated manually when Stellaris releases a new major version.
-- **Format coverage:** Only BMP, XCF, PNG, AI, SVG source formats are supported; other formats require new conversion functions.
+- **Format coverage:** Only BMP, PNG, SVG source formats are supported; other formats require new conversion functions.
 - **No CI/CD:** Repository lacks GitHub Actions or other automation for build validation or release packaging.
 
 ## 🔧 Extension Points
@@ -318,7 +320,7 @@ Execute the principal automated verification with:
 ### New Flag Category
 
 1. Create directory under `source/flags/<category>/`.
-2. Add source flag files (BMP, XCF, PNG, AI, SVG) to the directory.
+2. Add source flag files (BMP, PNG, SVG) to the directory.
 3. Add entries to `source/names.txt` mapping source filenames to desired output filenames.
 4. Optionally add `usage.txt` for attribution.
 5. Run build; category appears automatically in output.
@@ -326,7 +328,7 @@ Execute the principal automated verification with:
 ### New Source Format
 
 1. Add conversion function to `build.sh` (e.g., `webp-to-svg`).
-2. Extend the `if/elif` chain in the asset loop to invoke the new function.
+2. Add a branch to `source-to-svg` in `build.sh` to invoke the new function.
 3. Ensure required CLI tool is detected in validation section.
 
 ### New Output Resolution

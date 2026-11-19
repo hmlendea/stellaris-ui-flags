@@ -14,10 +14,8 @@ SOURCE ASSET
 │ STAGE 1: SOURCE FORMAT → SVG                                                │
 │                                                                             │
 │   .svg  ──► COPY                                                            │
-│   .ai   ──► Inkscape ──► SVG                                                │
 │   .bmp  ──► potrace ──► SVG                                                 │
 │   .png  ──► ImageMagick ──► BMP ──► potrace ──► SVG                        │
-│   .xcf  ──► GIMP ──► PNG ──► ImageMagick ──► BMP ──► potrace ──► SVG       │
 │                                                                             │
 │   OUTPUT: build/<category>/<source_name>.svg                               │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -78,23 +76,6 @@ THREE OUTPUT DDS FILES
 
 **Advantages:** Fastest, preserves vector quality, no rasterisation artifacts.
 
-### AI (Adobe Illustrator)
-
-**Path:** `source/flags/<cat>/flag.ai` → `build/<cat>/flag.svg`
-
-**Tool:** Inkscape CLI
-
-**Command:**
-```bash
-inkscape "input.ai" --export-type=svg --export-filename="output.svg"
-```
-
-**Limitations:**
-- Inkscape's AI import is limited (AI is proprietary)
-- Complex gradients, meshes, effects may not convert
-- Text may not render if fonts missing
-- Best for simple vector artwork saved as AI
-
 ### BMP (Bitmap)
 
 **Path:** `source/flags/<cat>/flag.bmp` → `build/<cat>/flag.svg`
@@ -137,36 +118,6 @@ potrace "temp.bmp" -s -o "output.svg"
 **Limitations:** Same as BMP — potrace traces edges, loses anti-aliasing, gradients.
 
 **Best For:** Simple pixel art, high-contrast logos, solid shapes.
-
-### XCF (GIMP Native)
-
-**Path:** `source/flags/<cat>/flag.xcf` → `build/<cat>/flag.svg`
-
-**Pipeline:** XCF → PNG → BMP → SVG
-
-**Step 1: XCF → PNG (GIMP Python-Fu)**
-```bash
-execute-gimp-script-file "xcf_to_png" \
-    INPUT_IMAGE_PATH "input.xcf" \
-    OUTPUT_IMAGE_PATH "temp.png"
-```
-- Loads XCF, merges visible layers, saves PNG
-
-**Step 2: PNG → BMP (ImageMagick)**
-```bash
-convert "temp.png" "temp.bmp"
-```
-
-**Step 3: BMP → SVG (potrace)**
-```bash
-potrace "temp.bmp" -s -o "output.svg"
-```
-
-**Cleanup:** Temporary PNG and BMP removed.
-
-**Use Case:** Layered designs with effects that need GIMP to flatten.
-
-**Limitations:** Longest path, most quality loss (layer merge → raster → trace).
 
 ## Stage 2: SVG → PNG (Three Resolutions)
 
@@ -331,43 +282,36 @@ For 24×24 small flag: identical output size
 
 ## Conversion Quality Considerations
 
-### Vector → Raster → Vector → Raster (PNG/XCF/BMP sources)
+### Vector → Raster → Vector → Raster (PNG/BMP sources)
 
 **Quality Loss Points:**
 1. **Rasterisation** (SVG → PNG at target size) — minimal if SVG source
-2. **Potrace tracing** (PNG/BMP/XCF → SVG) — major loss for complex images
+2. **Potrace tracing** (PNG/BMP → SVG) — major loss for complex images
 3. **Re-rasterisation** (SVG → PNG) — minimal
 4. **Bevel** — adds effect, not loss
 5. **DDS export** — lossless (uncompressed BGRA8)
 
 **Best Quality Path:** SVG source → direct to all three PNG sizes → DDS
 
-**Worst Quality Path:** XCF → PNG → BMP → SVG → PNG → DDS (multiple raster/vector transitions)
+**Worst Quality Path:** PNG → BMP → SVG → PNG → DDS (multiple raster/vector transitions)
 
 ### Format Recommendations
 
 | Source Type | Recommended Format | Reason |
 |-------------|-------------------|--------|
 | New designs | SVG | Vector, scalable, single source |
-| Existing raster | PNG (clean, high-contrast) | Better than BMP/XCF for tracing |
-| Layered GIMP | XCF | Preserves layers for editing |
-| Legacy AI | AI | If SVG not available |
+| Existing raster | PNG (clean, high-contrast) | Better than BMP for tracing |
 | Simple bitmap | BMP | Direct to potrace |
 
 ## Per-Format Conversion Summary
 
-| Source | SVG Conversion | PNG Renders | Bevel | DDS Exports | GIMP Calls |
-|--------|----------------|-------------|-------|-------------|------------|
-| SVG | Copy (0) | 3 | 2 | 3 | 8 |
-| AI | Inkscape (1) | 3 | 2 | 3 | 8 |
-| BMP | Potrace (1) | 3 | 2 | 3 | 8 |
-| PNG | IM+Potrace (2) | 3 | 2 | 3 | 8 |
-| XCF | GIMP+IM+Potrace (3) | 3 | 2 | 3 | 8 |
+| Source | SVG Conversion | PNG Renders | Bevel | DDS Exports |
+|--------|----------------|-------------|-------|-------------|
+| SVG | Copy (0) | 3 | 2 | 3 |
+| BMP | Potrace (1) | 3 | 2 | 3 |
+| PNG | IM+Potrace (2) | 3 | 2 | 3 |
 
-**GIMP Calls per Asset:** 2 (the two `gradient_bevel` bevels). The SVG rasterisation and the three
-DDS exports no longer use GIMP, which is why the build is several times faster.
-
-**Additional Calls for XCF:** +1 (xcf_to_png in conversion stage)
+The bevels are batched, so a whole batch of images shares one GIMP session start.
 
 ## Intermediate File Locations
 

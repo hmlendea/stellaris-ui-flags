@@ -15,8 +15,8 @@ The build pipeline is a single shell script (`build.sh`) that orchestrates the c
 │  1. INITIALISATION                                              │
 │     ├── Validate version argument                               │
 │     ├── Verify source directory exists                          │
-│     └── Validate required tools (convert, potrace, inkscape,    │
-│         gimp)                                                   │
+│     └── Validate required tools (magick, rsvg-convert, potrace, │
+│         gimp, python3)                                          │
 ├─────────────────────────────────────────────────────────────────┤
 │  2. STATIC ASSET STAGING                                        │
 │     ├── Create output directories                               │
@@ -39,17 +39,11 @@ The build pipeline is a single shell script (`build.sh`) that orchestrates the c
 │     ├── Convert source format → SVG                             │
 │     │   ├── BMP → potrace → SVG                                 │
 │     │   ├── PNG → BMP → potrace → SVG                           │
-│     │   ├── XCF → PNG → BMP → potrace → SVG                     │
-│     │   ├── AI → Inkscape → SVG                                 │
 │     │   └── SVG → copy                                          │
-│     ├── Render SVG → 128px PNG (main)                           │
-│     ├── Apply gradient bevel to main PNG                        │
-│     ├── Export main PNG → DDS                                   │
-│     ├── Render SVG → 256px PNG (map)                            │
+│     ├── Render SVG → 128px, 256px and 24px PNGs                 │
 │     ├── Export map PNG → DDS (no bevel)                         │
-│     ├── Render SVG → 24px PNG (small)                           │
-│     ├── Apply gradient bevel to small PNG                       │
-│     └── Export small PNG → DDS                                  │
+│     ├── Batch the main and small PNGs through GIMP bevel        │
+│     └── Export beveled main and small PNGs → DDS                │
 ├─────────────────────────────────────────────────────────────────┤
 │  5. COMPLETION                                                  │
 │     └── Mod package ready in out/ui-flags/                      │
@@ -62,10 +56,11 @@ The build script detects tools in this priority order:
 
 | Tool | Primary Path | Flatpak (system) | Flatpak (user) |
 |------|--------------|------------------|----------------|
-| Inkscape | `/usr/bin/inkscape` | `/var/lib/flatpak/exports/bin/org.inkscape.Inkscape` | `~/.local/share/flatpak/exports/bin/org.inkscape.Inkscape` |
 | GIMP | `/usr/bin/gimp` | `/var/lib/flatpak/exports/bin/org.gimp.GIMP` | `~/.local/share/flatpak/exports/bin/org.gimp.GIMP` |
 | ImageMagick | `/usr/bin/convert` | N/A | N/A |
+| rsvg-convert | `/usr/bin/rsvg-convert` | N/A | N/A |
 | potrace | `/usr/bin/potrace` | N/A | N/A |
+| Python 3 | `/usr/bin/python3` | N/A | N/A |
 
 ### Incremental Builds
 
@@ -198,8 +193,8 @@ Release assets are uploaded manually or via CI to GitHub Releases with naming co
 
 **Requirements:**
 - Linux/macOS/WSL (build.sh is a bash script)
-- All build tools installed (ImageMagick, Inkscape, GIMP 3.0+, potrace)
-- GIMP 3 (the DDS export plug-in is bundled)
+- All build tools installed (ImageMagick, rsvg-convert, GIMP 3.0+, potrace, Python 3)
+- GIMP 3 (the bevel uses the bundled GEGL filters)
 - Sufficient disk space for intermediate artefacts
 
 **Typical Workflow:**
@@ -295,7 +290,7 @@ If a release has issues:
 | `MISSING SOURCE DIRECTORY` | `source/` not found | Run from repository root |
 | `ImageMagick is not installed` | `convert` not in PATH | Install ImageMagick |
 | `potrace is not installed` | `potrace` not in PATH | Install potrace |
-| `Inkscape is not installed` | Inkscape not found | Install Inkscape or ensure Flatpak export |
+| `GIMP is not installed` | GIMP not found | Install GIMP or ensure Flatpak export |
 | `GIMP is not installed` | GIMP not found | Install GIMP 3.0+ |
 | `Failure while converting` | Tool execution failed | Check tool versions, input file validity |
 

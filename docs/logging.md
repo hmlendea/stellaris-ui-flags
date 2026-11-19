@@ -5,7 +5,7 @@
 There is **no logging framework**. The build produces:
 
 1. **Progress messages** — `echo` statements in `build.sh`
-2. **Tool output** — stdout/stderr from GIMP, Inkscape, potrace, ImageMagick
+2. **Tool output** — stdout/stderr from GIMP, potrace, ImageMagick, `rsvg-convert`
 3. **No log files** — everything goes to the terminal
 
 ## Build Script Output
@@ -50,13 +50,6 @@ GIMP batch mode prints to stderr:
 | Plug-in warnings | Non-fatal; usually ignorable |
 
 GIMP startup also prints version/warning noise to stderr on each invocation — this is normal and not an error indicator.
-
-### Inkscape
-
-| Output | Meaning |
-|--------|---------|
-| `WARNING **: Cannot open file` | Source AI file unreadable |
-| Nothing | Success |
 
 ### potrace
 

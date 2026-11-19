@@ -11,7 +11,6 @@ The build pipeline uses two GIMP Python-Fu scripts for image processing operatio
 | `bevel_batch.py` | Bevels every image of a batch in one GIMP session | `bevel-pngs` | newline-separated PNG paths | PNGs (with bevel) |
 | `gradient_bevel.py` | Applies 3D gradient bevel effect | `bevel_batch.py` | PNG | PNG (with bevel) |
 | `png_to_dds.py` | Exports PNG to DDS format | `png-to-dds` | PNG | DDS |
-| `xcf_to_png.py` | Exports XCF (GIMP native) to PNG | `xcf-to-png` / `xcf-to-svg` | XCF | PNG |
 
 ## Shared Modules
 
@@ -227,40 +226,6 @@ while costing milliseconds instead of a multi-second GIMP start.
 - Background colour: Change the `-b` argument
 - Alpha derivation: Modify the difference composite
 
-### xcf_to_png.py
-
-**Purpose:** Exports a GIMP XCF file (native format with layers) to a flat PNG.
-
-**Location:** `source/scripts/xcf_to_png.py`
-
-**Function Signature:**
-```python
-convert_image(source_path, output_path)
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `source_path` | string | Path to input XCF file |
-| `output_path` | string | Path for output PNG file |
-
-**Algorithm:**
-```
-1. Load XCF file (preserves all layers)
-2. Merge all visible layers (flatten)
-3. Save as PNG
-```
-
-**GIMP PDB Functions Used:**
-- `gimp-file-load` — Load XCF (native loader)
-- `gimp-image-merge-visible-layers` — Flatten (EXPAND-AS-NECESSARY)
-- `file-png-export` — Save PNG
-
-**Modification Points:**
-- Layer merge mode: Change `merge_visible_layers` to use a different `Gimp.MergeType`
-- Output format: Replace `export_png` with another export helper
-
 ## Invocation Pattern
 
 All scripts are invoked via GIMP batch mode from `build.sh`, with parameters supplied as `GIMP_SCRIPT_*` environment variables:
@@ -319,7 +284,7 @@ Scripts work with Flatpak GIMP (`org.gimp.GIMP`) when invoked via the detected F
 | Script | Failure Cause | Symptom |
 |--------|---------------|---------|
 | gradient_bevel | Unsupported GEGL operation | GIMP error, no output |
-| xcf_to_png | Corrupt XCF | Load fails |
+| bevel_batch | GIMP session killed | The image is left with no completion marker and retried |
 
 ### Debugging
 Run the script directly through GIMP batch mode with the parameters supplied as environment variables, and inspect the GIMP console output.

@@ -26,7 +26,7 @@ This guide covers the common modification scenarios: adding content, changing pr
 
 1. **Prepare source file**
    - Preferred: SVG with transparent background
-   - Acceptable: PNG, BMP, XCF, AI (see format trade-offs in `source-assets.md`)
+   - Acceptable: PNG, BMP (see format trade-offs in `source-assets.md`)
    - Design on transparent or solid-removable background (INV-14)
 
 2. **Place in category directory**
