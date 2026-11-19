@@ -33,7 +33,7 @@ GNU GPL v3.0 — see [LICENSE](../LICENSE).
 
 ### Why does the build take so long?
 
-Each asset requires 8 GIMP invocations (3 renders, 2 bevels, 3 DDS exports), each with ~0.5–1s startup overhead. 300+ assets × 8 calls = 5–15 minutes total.
+Each asset needs two bevels, and the bevels are batched into shared GIMP sessions. Starting GIMP costs a few seconds, while every further image inside a running session costs a fraction of one, so the cost is dominated by the number of sessions rather than the number of flags. The SVG rasterisation and the DDS export use plain tools and are effectively free.
 
 ### Can I speed up the build?
 

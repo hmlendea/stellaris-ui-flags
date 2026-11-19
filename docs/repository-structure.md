@@ -115,7 +115,7 @@ Single-file shell script containing:
 - Configuration constants (Mod ID, name, version, Stellaris version)
 - Path definitions (source, build, output directories)
 - Tool detection (Inkscape, GIMP binaries - system + Flatpak)
-- Conversion functions (`bmp-to-svg`, `png-to-svg`, `xcf-to-svg`, `ai-to-svg`, `svg-to-png`, `png-to-dds`, `apply-gradient-bevel`)
+- Conversion functions (`bmp-to-svg`, `png-to-svg`, `xcf-to-svg`, `ai-to-svg`, `svg-to-png`, `png-to-dds`, `bevel-pngs`)
 - Utility functions (`get-flag-file-name`, `generate-mod-descriptor`)
 - Main execution loop (category iteration → file iteration → conversion pipeline)
 

@@ -253,9 +253,10 @@ BUMP_ELEVATION = 40.0   # Increase for a higher light angle
 
 **Cause:** Logic error in build script — map path should skip bevel.
 
-**Fix:** Verify `build.sh` map processing:
+**Fix:** Verify that the map PNG is never registered for beveling in `build.sh`:
 ```bash
-# Should be: svg-to-png → png-to-dds (NO apply-gradient-bevel)
+# The map PNG is rasterised and exported directly; only the main and small PNGs
+# are added to FLAG_MAIN_PNG_PATHS and FLAG_SMALL_PNG_PATHS, which feed the bevel rounds.
 ```
 
 ---

@@ -63,14 +63,20 @@ svg-to-png "build/human/flag.svg" "build/human/flag_small.png" 24
 
 ### Bevel Application
 
-The bevel is applied in place, rewriting the intermediate PNG.
+The bevel is applied in place, rewriting each intermediate PNG. The images are batched into shared
+GIMP sessions so that the per-invocation start-up cost is paid once per batch.
 
 ```bash
-# Main flag bevel
-apply-gradient-bevel "build/human/flag.png"
+# Bevel the main and small flags of several flags in one GIMP session
+bevel-pngs "1" \
+    "build/human/ui_flag.png" \
+    "build/human/small/ui_flag.png" \
+    "build/plantoid/ui_flag.png" \
+    "build/plantoid/small/ui_flag.png"
 
-# Small flag bevel
-apply-gradient-bevel "build/human/flag_small.png"
+# Retry whichever bevels are still missing after a session is killed
+collect-unbeveled-pngs
+bevel-pngs "2" "${FLAG_BEVEL_PATHS[@]}"
 ```
 
 ### PNG → DDS Export
@@ -116,10 +122,23 @@ magick -size 128x128 xc:white /tmp/alpha.png -alpha off \
     -define png:color-type=6 "/path/to/output.png"
 ```
 
+### bevel_batch.py
+
+```bash
+# Apply the gradient bevel to a newline-separated batch, rewriting each PNG in place
+env GIMP_SCRIPT_IMAGE_PATHS="build/human/ui_flag.png
+build/human/small/ui_flag.png" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, '${GIMP_DIRECTORY_PATH}'); exec(open('${GIMP_DIRECTORY_PATH}/bevel_batch.py').read())" --quit
+
+# Parameters:
+#   GIMP_SCRIPT_IMAGE_PATHS — newline-separated PNG paths, each rewritten in place
+```
+
 ### gradient_bevel.py
 
 ```bash
-# Apply gradient bevel to PNG, rewriting it in place
+# Apply gradient bevel to a single PNG, rewriting it in place
 env GIMP_SCRIPT_IMAGE_PATH="/path/to/input.png" \
     gimp -i --batch-interpreter=python-fu-eval \
     -b "import sys; sys.path.insert(0, '${GIMP_DIRECTORY_PATH}'); exec(open('${GIMP_DIRECTORY_PATH}/gradient_bevel.py').read())" --quit
@@ -197,32 +216,25 @@ cp source/flags/human/earth.svg build/human/earth.svg
 # 2. Render 128px PNG
 svg-to-png "build/human/earth.svg" "build/human/earth.png" 128
 
-# 3. Apply bevel to main (in place)
-run-gimp-script "gradient_bevel" IMAGE_PATH "build/human/earth.png"
-
-# 4. Export main DDS
-run-gimp-script "png_to_dds" \
-    INPUT_IMAGE_PATH "build/human/earth.png" \
-    OUTPUT_IMAGE_PATH "out/ui-flags/flags/human/ui_earth.dds"
-
-# 5. Render 256px PNG (map)
+# 3. Render 256px PNG (map)
 svg-to-png "build/human/earth.svg" "build/human/earth_map.png" 256
 
-# 6. Export map DDS (no bevel)
-run-gimp-script "png_to_dds" \
-    INPUT_IMAGE_PATH "build/human/earth_map.png" \
-    OUTPUT_IMAGE_PATH "out/ui-flags/flags/human/map/ui_earth.dds"
-
-# 7. Render 24px PNG (small)
+# 4. Render 24px PNG (small)
 svg-to-png "build/human/earth.svg" "build/human/earth_small.png" 24
 
-# 8. Apply bevel to small (in place)
-run-gimp-script "gradient_bevel" IMAGE_PATH "build/human/earth_small.png"
+# 5. Apply the bevel to main and small in one GIMP session (in place)
+bevel-pngs "1" "build/human/earth.png" "build/human/earth_small.png"
 
-# 9. Export small DDS
-run-gimp-script "png_to_dds" \
-    INPUT_IMAGE_PATH "build/human/earth_small.png" \
-    OUTPUT_IMAGE_PATH "out/ui-flags/flags/human/small/ui_earth.dds"
+# 6. Export main, map and small DDS
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/human/earth.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="out/ui-flags/flags/human/ui_earth.dds" \
+    python3 "${SOURCE_SCRIPTS_DIR_PATH}/png_to_dds.py"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/human/earth_map.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="out/ui-flags/flags/human/map/ui_earth.dds" \
+    python3 "${SOURCE_SCRIPTS_DIR_PATH}/png_to_dds.py"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/human/earth_small.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="out/ui-flags/flags/human/small/ui_earth.dds" \
+    python3 "${SOURCE_SCRIPTS_DIR_PATH}/png_to_dds.py"
 ```
 
 ---
@@ -330,16 +342,16 @@ svg-to-png "build/human/earth.svg" "/tmp/test.png" 128
 ### Test Bevel
 
 ```bash
-run-gimp-script "gradient_bevel" IMAGE_PATH "/tmp/test.png"
-# Check /tmp/test.png
+bevel-pngs "test" "/tmp/test.png"
+# Check /tmp/test.png and /tmp/test.png.beveled
 ```
 
 ### Test DDS Export
 
 ```bash
-run-gimp-script "png_to_dds" \
-    INPUT_IMAGE_PATH "/tmp/test.png" \
-    OUTPUT_IMAGE_PATH "/tmp/test.dds"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.dds" \
+    python3 "source/scripts/png_to_dds.py"
 # Check /tmp/test.dds opens in GIMP
 ```
 
@@ -434,16 +446,16 @@ cp out/ui-flags.mod "$MOD_DIR/"
 
 ```bash
 # Check all tools
-which convert potrace inkscape gimp
+which convert potrace inkscape gimp rsvg-convert
 
 # Check Flatpak paths
 ls /var/lib/flatpak/exports/bin/org.gimp.GIMP
 ls /var/lib/flatpak/exports/bin/org.inkscape.Inkscape
 
-# Check the DDS export plug-in
-run-gimp-script "png_to_dds" \
-    INPUT_IMAGE_PATH "/tmp/test.png" \
-    OUTPUT_IMAGE_PATH "/tmp/test.dds" 2>&1 | grep -i error
+# Check the DDS export
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.dds" \
+    python3 "source/scripts/png_to_dds.py" 2>&1 | grep -i error
 # No output = working
 ```
 

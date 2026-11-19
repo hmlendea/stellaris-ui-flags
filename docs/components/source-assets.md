@@ -46,6 +46,7 @@ source/
 │   ├── ui_total-war/
 │   └── zoological/
 └── scripts/                 # GIMP Python-Fu scripts
+    ├── bevel_batch.py
     ├── gimp_image_operations.py
     ├── gimp_procedures.py
     ├── gimp_script_arguments.py
@@ -308,7 +309,8 @@ imperial-eagle=ui_domination_1
 
 | Script | Purpose | Invoked By |
 |--------|---------|------------|
-| `gradient_bevel.py` | Applies 3D bevel effect with gradient shading | `apply-gradient-bevel` function |
+| `bevel_batch.py` | Bevels every image of a batch in one GIMP session | `bevel-pngs` function |
+| `gradient_bevel.py` | Applies 3D bevel effect with gradient shading | `bevel_batch.py` |
 | `png_to_dds.py` | Exports PNG to DDS with game-compatible settings | `png-to-dds` function |
 | `xcf_to_png.py` | Exports XCF (GIMP) to PNG | `xcf-to-png` function |
 

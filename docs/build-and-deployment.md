@@ -308,7 +308,7 @@ If a release has issues:
 
 ### Performance Considerations
 
-- **Sequential processing:** Assets processed one at a time (no parallelism)
-- **Incremental builds:** Skip existing outputs — significant speedup on re-runs
-- **Tool startup overhead:** GIMP/Inkscape invoked per asset — dominant cost
-- **Typical build time:** 5-15 minutes for full rebuild depending on asset count
+- **Bounded parallelism:** Rasterisation and export run in `FLAG_WORKER_COUNT` workers; the batched bevels run in `FLAG_GIMP_CONCURRENCY` sessions, each covering `FLAG_BEVEL_BATCH_SIZE` flags
+- **Incremental builds:** Skip existing outputs and cached bevels — significant speedup on re-runs
+- **Tool startup overhead:** One GIMP start per bevel batch; the other tools start per file but cost milliseconds
+- **Typical build time:** Dominated by the number of bevel sessions rather than the number of flags

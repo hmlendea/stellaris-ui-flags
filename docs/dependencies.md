@@ -97,7 +97,7 @@ rectangle, so a transparent background would render black on black and the emble
 | Install (Debian/Ubuntu) | `sudo apt install gimp` |
 | Flatpak ID | `org.gimp.GIMP` |
 
-**Used by:** `svg-to-png`, `png-to-dds`, `apply-gradient-bevel`, `xcf-to-png`
+**Used by:** `svg-to-png`, `png-to-dds`, `bevel-pngs`, `xcf-to-png`
 
 **Flags used:** `-i` (no interface), `--batch-interpreter=python-fu-eval`, `-b` (batch command), `--quit`
 

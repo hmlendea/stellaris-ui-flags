@@ -198,21 +198,38 @@ starting GIMP
 
 ---
 
-### `apply-gradient-bevel`
+### `bevel-pngs`
 
-Applies gradient bevel effect to PNG using GIMP Python-Fu.
+Applies the gradient bevel to a list of PNGs, batching them into shared GIMP sessions.
 
 ```bash
-apply-gradient-bevel <image_path>
+bevel-pngs <round_name> <png_path>...
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `image_path` | string | Path to the PNG file, rewritten in place |
+| `round_name` | string | Name of the retry round, used for the session log file names |
+| `png_path` | list | Paths of the PNG files, each rewritten in place |
 
-**Tool:** GIMP batch mode with `gradient_bevel.py`
+**Behaviour:** Chunks the paths by `FLAG_BEVEL_BATCH_SIZE`, runs at most `FLAG_GIMP_CONCURRENCY`
+sessions at once, and writes a completion marker per image only after its bevel has been saved.
+
+**Tool:** GIMP batch mode with `bevel_batch.py`
+
+---
+
+### `collect-unbeveled-pngs`
+
+Fills `FLAG_BEVEL_PATHS` with every registered flag PNG that is not beveled, so the retry rounds can
+attempt exactly the images a killed session left behind.
+
+```bash
+collect-unbeveled-pngs
+```
+
+**Tool:** None, file-system checks only
 
 ---
 

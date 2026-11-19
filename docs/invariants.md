@@ -77,7 +77,7 @@ Invariants are conditions that must always hold true for the system to function 
 
 **Invariant:** The 256px map variant never has gradient bevel applied.
 
-**Enforced by:** Main loop order — map path calls `svg-to-png` then `png-to-dds` directly, without `apply-gradient-bevel`.
+**Enforced by:** Only the registered main and small PNGs are collected into `FLAG_BEVEL_PATHS`; the map PNG is rasterised and exported directly without ever reaching `bevel-pngs`.
 
 **Violation Effect:** Map flags gain unwanted 3D effect; visual inconsistency.
 
@@ -178,27 +178,34 @@ Invariants are conditions that must always hold true for the system to function 
 
 ---
 
-### INV-16: Sequential Asset Processing
+### INV-16: Bounded Parallel Workers
 
-**Invariant:** Assets are processed one at a time, in filesystem order, with no parallelism.
+**Invariant:** Assets are rasterised and exported by at most `FLAG_WORKER_COUNT` workers, and at most
+`FLAG_GIMP_CONCURRENCY` GIMP sessions run at once.
 
-**Enforced by:** Sequential `for` loop structure.
+**Enforced by:** The worker loop waits for a free slot before starting the next worker, and
+`start-bevel-session` waits for a free session slot before starting the next chunk.
 
-**Violation Effect:** Concurrent builds on the same working copy corrupt outputs (shared `build/` and `out/` directories, no locking).
+**Violation Effect:** Concurrent builds on the same working copy corrupt outputs (shared `build/`
+and `out/` directories, no locking).
 
 **Maintenance Rule:** Never run two builds simultaneously on the same checkout.
 
 ---
 
-### INV-17: GIMP Invoked Per Operation
+### INV-17: GIMP Sessions Batch the Bevels
 
-**Invariant:** Each image operation (render, bevel, DDS export) is a separate GIMP process invocation.
+**Invariant:** The bevels are applied by shared GIMP sessions, each covering up to
+`FLAG_BEVEL_BATCH_SIZE` images; the rasterisation and the DDS export use no GIMP session.
 
-**Enforced by:** Function design — each function invokes GIMP once.
+**Enforced by:** `bevel-pngs` chunks the paths and hands each chunk to `bevel_batch.py` in a single
+session.
 
-**Violation Effect:** None — but batching operations into one GIMP session would require refactoring all conversion functions.
+**Violation Effect:** One GIMP start per image, which restores the per-invocation start-up cost the
+batching removes; an oversized batch exhausts the session memory and is killed partway.
 
-**Consequence:** ~0.5–1s startup overhead × 8 invocations per asset.
+**Consequence:** The per-image cost is the bevel itself; the session start is amortised over a whole
+batch, and a killed session is retried over the remaining rounds.
 
 ---
 
@@ -257,8 +264,8 @@ Invariants are conditions that must always hold true for the system to function 
 | INV-13 Background DDS valid | ❌ Manual | In-game test |
 | INV-14 Removable backgrounds | ❌ Manual | Source preparation |
 | INV-15 Intermediates persist | ✅ Structural | No cleanup |
-| INV-16 Sequential processing | ✅ Structural | Loop design |
-| INV-17 GIMP per operation | ✅ Structural | Function design |
+| INV-16 Bounded parallel workers | ✅ Structural | Worker and session limits |
+| INV-17 Batched GIMP sessions | ✅ Structural | Batching design |
 | INV-18 Skip needs all three | ✅ Structural | Existence check |
 | INV-19 Release before tag | ❌ Manual | Release procedure |
 | INV-20 Version consistency | ❌ Manual | Release procedure |

@@ -2,13 +2,14 @@
 
 ## Overview
 
-The build pipeline uses four GIMP Python-Fu scripts for image processing operations that require GIMP's advanced capabilities. Each script is invoked as a GIMP batch command that evaluates the script file, passing its parameters through environment variables.
+The build pipeline uses two GIMP Python-Fu scripts for image processing operations that require GIMP's advanced capabilities, plus a wrapper that batches the bevels into shared sessions. Each script is invoked as a GIMP batch command that evaluates the script file, passing its parameters through environment variables.
 
 ## Script Inventory
 
 | Script | Purpose | Invoked By | Input | Output |
 |--------|---------|------------|-------|--------|
-| `gradient_bevel.py` | Applies 3D gradient bevel effect | `apply-gradient-bevel` | PNG | PNG (with bevel) |
+| `bevel_batch.py` | Bevels every image of a batch in one GIMP session | `bevel-pngs` | newline-separated PNG paths | PNGs (with bevel) |
+| `gradient_bevel.py` | Applies 3D gradient bevel effect | `bevel_batch.py` | PNG | PNG (with bevel) |
 | `png_to_dds.py` | Exports PNG to DDS format | `png-to-dds` | PNG | DDS |
 | `xcf_to_png.py` | Exports XCF (GIMP native) to PNG | `xcf-to-png` / `xcf-to-svg` | XCF | PNG |
 
@@ -22,6 +23,38 @@ The build pipeline uses four GIMP Python-Fu scripts for image processing operati
 | `gimp_image_operations.py` | Image, layer, selection, filter, and export operations |
 
 ## Script Details
+
+### bevel_batch.py
+
+**Purpose:** Applies the gradient bevel to every image of a batch inside one GIMP session, so the
+per-invocation start-up cost is paid once per batch instead of once per image.
+
+**Location:** `source/scripts/bevel_batch.py`
+
+**Function Signatures:**
+```python
+read_image_paths()
+bevel_images(image_paths)
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `IMAGE_PATHS` | string | Newline-separated paths of the PNG files, each rewritten in place |
+
+**Algorithm:**
+
+```
+1. Split the newline-separated IMAGE_PATHS argument into paths
+2. Apply the gradient bevel to each path in turn
+3. Write the completion marker only after each bevel has been saved
+4. Report every path that failed, and continue with the remaining ones
+```
+
+**Note:** A failure on one image does not stop the batch, because an unmarked image is retried over
+the remaining rounds. The caller keeps the batch bounded, because the memory a session holds grows
+with the number of images it has processed.
 
 ### gradient_bevel.py
 

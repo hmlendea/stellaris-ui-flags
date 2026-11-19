@@ -2,7 +2,9 @@
 
 ## Overview
 
-The build system is **strictly sequential** — there is no parallelism, no scheduling, no background processing. This is a deliberate design choice (D1, INV-16).
+The build system is **pipeline-parallel**. Rasterisation and DDS export run in independent workers, and
+the bevels are batched into shared GIMP sessions. Two knobs bound the parallelism: `FLAG_WORKER_COUNT`
+for the plain-tool workers and `FLAG_GIMP_CONCURRENCY` for the GIMP sessions (D1).
 
 ## Execution Model
 
@@ -12,25 +14,27 @@ build.sh <version>
 ├── [Sequential] Setup validation
 ├── [Sequential] Static staging
 └── [Sequential] Per-category loop
-    └── [Sequential] Per-asset loop
-        └── [Sequential] Pipeline stages
+    └── [Sequential] Per-asset registration
+        └── [FLAG_WORKER_COUNT parallel] Rasterise + export workers
             1. Format → SVG
-            2. SVG → 128px PNG → bevel → DDS
-            3. SVG → 256px PNG → DDS
-            4. SVG → 24px PNG → bevel → DDS
+            2. SVG → 128px, 256px, 24px PNG
+            3. PNG → DDS (main, map, small)
+    └── [FLAG_GIMP_CONCURRENCY parallel] Batched bevel rounds
+        └── [FLAG_BEVEL_BATCH_SIZE] flags per GIMP session
 ```
 
-Every operation runs to completion before the next begins. No threads, no subprocess pools, no job queues.
+Registration is sequential, and the bevels run only after every worker has finished, so the bevel
+sessions never overlap the workers. Inside a round, sessions run concurrently up to
+`FLAG_GIMP_CONCURRENCY`.
 
-## Why Sequential
+## Why These Limits
 
 | Reason | Detail |
 |--------|--------|
-| Simplicity | Bash sequential loops are trivial to reason about and debug |
-| GIMP process model | Each operation spawns a fresh GIMP process (`--new-instance`); parallel GIMP instances would need separate user dirs/configs |
-| Shared state | `build/` and `out/` are shared directories with no locking — parallel writes would corrupt outputs |
-| Scale | 300+ assets × ~8 GIMP invocations ≈ 5–15 minutes — acceptable for a content mod |
-| Determinism | Sequential filesystem-order processing gives reproducible behaviour |
+| GIMP process model | Each session spawns a fresh GIMP process (`--new-instance`); every instance reserves its own tile cache, so the session count is bounded separately from the worker count |
+| Bounded memory | A GIMP session's memory grows with the number of images it has processed, so the batch is capped by `FLAG_BEVEL_BATCH_SIZE` and a killed session is retried |
+| Shared state | Each flag writes only its own paths, and each session writes its own log, so the workers do not interleave output |
+| Scale | One GIMP start covers a whole batch, so the cost is bounded by the number of sessions rather than the number of flags |
 
 ## Concurrency Safety
 

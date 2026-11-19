@@ -228,14 +228,29 @@ written directly.
 
 ### Build Concurrency
 
-The `FLAG_WORKER_COUNT` environment variable sets how many flags are rendered concurrently. Each
-worker is a separate GIMP process, and every instance reserves its own tile cache, so the setting
-trades processor utilisation against memory. The default is `2`, which measured fastest on a
-machine whose memory was already heavily used; higher values cause the OOM killer to terminate
-workers, and the build reports the affected flags far slower than a serial run.
+The `FLAG_WORKER_COUNT` environment variable sets how many flags are rasterised and exported
+concurrently. Each worker uses plain tools, so the setting only trades processor utilisation.
 
 ```bash
 FLAG_WORKER_COUNT=4 ./build.sh 2.3.1
+```
+
+The `FLAG_GIMP_CONCURRENCY` environment variable sets how many GIMP sessions may run at once. Each
+session reserves its own tile cache, so the setting trades processor utilisation against memory.
+
+```bash
+FLAG_GIMP_CONCURRENCY=4 ./build.sh 2.3.1
+```
+
+The `FLAG_BEVEL_BATCH_SIZE` environment variable sets how many flags one GIMP session bevels before
+it is replaced. Starting GIMP costs a few seconds while every further image in a running session
+costs a fraction of one, so a larger batch is faster; the memory a session holds also grows with the
+number of images it has processed, and a session that exhausts it is killed partway. The default is
+`4`, which completed every batch on a machine whose memory was already heavily used. Any bevel that
+a killed session leaves unmarked is retried over the remaining rounds.
+
+```bash
+FLAG_BEVEL_BATCH_SIZE=12 ./build.sh 2.3.1
 ```
 
 ### Local Development

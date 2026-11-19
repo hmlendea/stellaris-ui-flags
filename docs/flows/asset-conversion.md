@@ -35,13 +35,15 @@ SOURCE ASSET
     │
     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ STAGE 3: BEVEL APPLICATION (main & small only)                              │
+│ STAGE 3: BATCHED BEVEL (main & small only)                                  │
 │                                                                             │
-│   128px PNG ──► GIMP (gradient_bevel) ──► 128px PNG (beveled, in place)     │
-│    24px PNG ──► GIMP (gradient_bevel) ──►  24px PNG (beveled, in place)     │
-│   256px PNG ──► (NO BEVEL)                                                 │
+│   128px PNG ─┐                                                              │
+│              ├──► GIMP session (bevel_batch) ──► PNGs (beveled, in place)   │
+│    24px PNG ─┘                                                              │
+│   256px PNG ───► (NO BEVEL)                                                 │
 │                                                                             │
 │   Bevel: blurred silhouette emboss with gradient highlight/shadow           │
+│   FLAG_BEVEL_BATCH_SIZE flags per session, FLAG_GIMP_CONCURRENCY at once    │
 └─────────────────────────────────────────────────────────────────────────────┘
     │
     ▼

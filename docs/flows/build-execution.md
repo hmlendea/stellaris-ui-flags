@@ -111,36 +111,33 @@ START
   │
   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 8. SVG → 128px PNG (MAIN) + BEVEL                                           │
+│ 8. SVG → 128px PNG (MAIN), 256px PNG (MAP), 24px PNG (SMALL)                │
 │    ├── svg-to-png(build SVG, build MAIN PNG, 128)                          │
-│    │   └── GIMP: load SVG at 128x128, remove background, repaint white     │
-│    ├── apply-gradient-bevel(build MAIN PNG)                                │
-│    │   └── GIMP: load PNG, blur silhouette, emboss relief, gradient tint   │
-│    ├── png-to-dds(build MAIN PNG, out MAIN DDS)                            │
-│    │   └── GIMP: load PNG, save as DDS (uncompressed BGRA8)                │
-│    └── OUTPUT: out/ui-flags/flags/<cat>/<name>.dds (128px, beveled)        │
-└─────────────────────────────────────────────────────────────────────────────┘
-  │
-  ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ 9. SVG → 256px PNG (MAP) — NO BEVEL                                         │
+│    │   └── rsvg-convert + ImageMagick, no GIMP session                      │
 │    ├── svg-to-png(build SVG, build MAP PNG, 256)                           │
-│    │   └── GIMP: load SVG at 256x256, remove background, repaint white     │
-│    ├── png-to-dds(build MAP PNG, out MAP DDS)                              │
-│    │   └── GIMP: load PNG, save as DDS (uncompressed BGRA8)                │
-│    └── OUTPUT: out/ui-flags/flags/<cat>/map/<name>.dds (256px, no bevel)   │
+│    ├── svg-to-png(build SVG, build SMALL PNG, 24)                          │
+│    └── OUTPUT: build/<category>/<name>.png and the map/ and small/ variants │
 └─────────────────────────────────────────────────────────────────────────────┘
   │
   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 10. SVG → 24px PNG (SMALL) + BEVEL                                          │
-│    ├── svg-to-png(build SVG, build SMALL PNG, 24)                          │
-│    │   └── GIMP: load SVG at 24x24, remove background, repaint white       │
-│    ├── apply-gradient-bevel(build SMALL PNG)                               │
-│    │   └── GIMP: load PNG, blur silhouette, emboss relief, gradient tint   │
+│ 9. BATCHED BEVEL (MAIN + SMALL)                                             │
+│    ├── bevel-pngs(round, unbeveled MAIN and SMALL PNGs)                    │
+│    │   └── GIMP: blur silhouette, emboss relief, gradient tint per image   │
+│    │   └── FLAG_BEVEL_BATCH_SIZE images per session, FLAG_GIMP_CONCURRENCY │
+│    │       sessions at once; one session start covers the whole batch      │
+│    ├── Round whose session is killed retries the unmarked PNGs             │
+│    └── OUTPUT: MAIN and SMALL PNGs beveled in place, each with a .beveled  │
+└─────────────────────────────────────────────────────────────────────────────┘
+  │
+  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 10. PNG → DDS EXPORT                                                        │
+│    ├── png-to-dds(build MAIN PNG, out MAIN DDS)                            │
+│    ├── png-to-dds(build MAP PNG, out MAP DDS)                              │
 │    ├── png-to-dds(build SMALL PNG, out SMALL DDS)                          │
-│    │   └── GIMP: load PNG, save as DDS (uncompressed BGRA8)                │
-│    └── OUTPUT: out/ui-flags/flags/<cat>/small/<name>.dds (24px, beveled)   │
+│    │   └── Python writes the uncompressed format directly, no GIMP session │
+│    └── OUTPUT: out/ui-flags/flags/<cat>/<name>.dds and the map/ and small/ │
 └─────────────────────────────────────────────────────────────────────────────┘
   │
   ▼
