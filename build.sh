@@ -34,12 +34,26 @@ FLAG_NAMES_FILE_PATH="${SOURCE_DIR_PATH}/names.txt"
 THUMBNAIL_FILE_PATH="${SOURCE_DIR_PATH}/thumbnail.png"
 
 # Each variant is rendered in a separate GIMP process when the shared session is killed, so several
-# attempts cover machines whose memory is nearly exhausted by other applications.
-readonly VARIANT_ATTEMPT_COUNT=5
+# attempts cover machines whose memory is nearly exhausted by other applications. A long-lived
+# GIMP session can also crash partway, which leaves a truncated PNG behind.
+readonly VARIANT_ATTEMPT_COUNT=8
+
+# How many flags to render at once. Each worker is a separate GIMP process, so this trades CPU
+# utilisation against memory: every instance reserves its own tile cache. Two workers measured
+# fastest on a memory-constrained machine; higher counts start being killed by the OOM killer.
+readonly FLAG_WORKER_COUNT="${FLAG_WORKER_COUNT:-2}"
 
 [ ! -d "${SOURCE_DIR_PATH}" ] && echo "MISSING SOURCE DIRECTORY" && exit -1
 [ ! -f "/usr/bin/convert" ] && echo "[ERROR] ImageMagick is not installed on this system" && exit 1
 [ ! -f "/usr/bin/potrace" ] && echo "[ERROR] potrace is not installed on this system" && exit 1
+
+PYTHON_BINARY="/usr/bin/python3"
+if [ ! -f "${PYTHON_BINARY}" ]; then
+    PYTHON_BINARY="$(command -v python3)"
+fi
+if [ ! -x "${PYTHON_BINARY}" ]; then
+    echo "[ERROR] Python 3 is not installed on this system" && exit 1
+fi
 
 function execute-inkscape {
     local INKSCAPE_BINARY="/usr/bin/inkscape"
@@ -145,13 +159,14 @@ function png-to-dds {
 
     echo -e "\e[36mConverting PNG to DDS for '${INPUT_IMAGE_PATH}'...\e[0m"
 
-    execute-gimp-script-file "png_to_dds" \
-        INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
-        OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
+    # The uncompressed DDS format is simple enough to write directly, which avoids a GIMP start.
+    env "GIMP_SCRIPT_INPUT_IMAGE_PATH=${INPUT_IMAGE_PATH}" \
+        "GIMP_SCRIPT_OUTPUT_IMAGE_PATH=${OUTPUT_IMAGE_PATH}" \
+        "${PYTHON_BINARY}" "${SOURCE_SCRIPTS_DIR_PATH}/png_to_dds.py" || true
 
     if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
         echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
-        exit 3
+        return 1
     fi
 }
 
@@ -220,24 +235,26 @@ function render-flag {
 
     echo -e "\e[36mRendering the flag variants for '${SOURCE_PATH}'...\e[0m"
 
-    # All variants are rendered in a single GIMP session because each process costs about four seconds to start.
+    # Every PNG of the flag is rendered in a single GIMP session, because each process costs about
+    # three seconds to start. The DDS export does not use GIMP at all.
     execute-gimp-script-file "render_flag_variants" \
         SOURCE_PATH "${SOURCE_PATH}" \
         MAIN_PNG_PATH "${MAIN_PNG_PATH}" \
-        MAIN_DDS_PATH "${MAIN_DDS_PATH}" \
         MAP_PNG_PATH "${MAP_PNG_PATH}" \
-        MAP_DDS_PATH "${MAP_DDS_PATH}" \
         SMALL_PNG_PATH "${SMALL_PNG_PATH}" \
-        SMALL_DDS_PATH "${SMALL_DDS_PATH}" \
         MAIN_SIZE "128" \
         MAP_SIZE "256" \
         SMALL_SIZE "24"
 
-    # A memory-limited machine can terminate the shared session partway, so any variant that is still
-    # absent is rendered again through individual invocations, which each release their memory on exit.
-    ensure-beveled-variant "${SOURCE_PATH}" "${MAIN_PNG_PATH}" "${MAIN_DDS_PATH}" "128"
-    ensure-flat-variant "${SOURCE_PATH}" "${MAP_PNG_PATH}" "${MAP_DDS_PATH}" "256"
-    ensure-beveled-variant "${SOURCE_PATH}" "${SMALL_PNG_PATH}" "${SMALL_DDS_PATH}" "24"
+    # A memory-limited machine can terminate the shared session partway, so any PNG that is still
+    # absent is rendered again through individual invocations.
+    ensure-beveled-png "${SOURCE_PATH}" "${MAIN_PNG_PATH}" "128"
+    ensure-flat-png "${SOURCE_PATH}" "${MAP_PNG_PATH}" "256"
+    ensure-beveled-png "${SOURCE_PATH}" "${SMALL_PNG_PATH}" "24"
+
+    png-to-dds "${MAIN_PNG_PATH}" "${MAIN_DDS_PATH}"
+    png-to-dds "${MAP_PNG_PATH}" "${MAP_DDS_PATH}"
+    png-to-dds "${SMALL_PNG_PATH}" "${SMALL_DDS_PATH}"
 
     local MISSING_OUTPUT_PATH=""
     for OUTPUT_PATH in "${MAIN_DDS_PATH}" "${MAP_DDS_PATH}" "${SMALL_DDS_PATH}"; do
@@ -250,39 +267,45 @@ function render-flag {
     fi
 }
 
-function ensure-beveled-variant {
+function is-usable-png {
+    local PNG_PATH="${1}"
+
+    [ -s "${PNG_PATH}" ] || return 1
+    identify "${PNG_PATH}" >/dev/null 2>&1
+}
+
+function ensure-beveled-png {
     local SOURCE_PATH="${1}"
     local PNG_PATH="${2}"
-    local DDS_PATH="${3}"
-    local IMAGE_SIZE="${4}"
+    local IMAGE_SIZE="${3}"
     local ATTEMPT_NUMBER=1
 
-    while [ ! -f "${DDS_PATH}" ] && [ "${ATTEMPT_NUMBER}" -le "${VARIANT_ATTEMPT_COUNT}" ]; do
-        echo -e "\e[33mRendering the ${IMAGE_SIZE}px variant of '${SOURCE_PATH}' on attempt ${ATTEMPT_NUMBER}...\e[0m"
-        render-beveled-variant "${SOURCE_PATH}" "${PNG_PATH}" "${DDS_PATH}" "${IMAGE_SIZE}"
+    while ! is-usable-png "${PNG_PATH}" && [ "${ATTEMPT_NUMBER}" -le "${VARIANT_ATTEMPT_COUNT}" ]; do
+        echo -e "\e[33mRendering the ${IMAGE_SIZE}px PNG of '${SOURCE_PATH}' on attempt ${ATTEMPT_NUMBER}...\e[0m"
+        rm -f "${PNG_PATH}"
+        render-beveled-png "${SOURCE_PATH}" "${PNG_PATH}" "${IMAGE_SIZE}"
         ATTEMPT_NUMBER=$((ATTEMPT_NUMBER + 1))
     done
 }
 
-function ensure-flat-variant {
+function ensure-flat-png {
     local SOURCE_PATH="${1}"
     local PNG_PATH="${2}"
-    local DDS_PATH="${3}"
-    local IMAGE_SIZE="${4}"
+    local IMAGE_SIZE="${3}"
     local ATTEMPT_NUMBER=1
 
-    while [ ! -f "${DDS_PATH}" ] && [ "${ATTEMPT_NUMBER}" -le "${VARIANT_ATTEMPT_COUNT}" ]; do
-        echo -e "\e[33mRendering the ${IMAGE_SIZE}px variant of '${SOURCE_PATH}' on attempt ${ATTEMPT_NUMBER}...\e[0m"
-        render-flat-variant "${SOURCE_PATH}" "${PNG_PATH}" "${DDS_PATH}" "${IMAGE_SIZE}"
+    while ! is-usable-png "${PNG_PATH}" && [ "${ATTEMPT_NUMBER}" -le "${VARIANT_ATTEMPT_COUNT}" ]; do
+        echo -e "\e[33mRendering the ${IMAGE_SIZE}px PNG of '${SOURCE_PATH}' on attempt ${ATTEMPT_NUMBER}...\e[0m"
+        rm -f "${PNG_PATH}"
+        render-flat-png "${SOURCE_PATH}" "${PNG_PATH}" "${IMAGE_SIZE}"
         ATTEMPT_NUMBER=$((ATTEMPT_NUMBER + 1))
     done
 }
 
-function render-beveled-variant {
+function render-beveled-png {
     local SOURCE_PATH="${1}"
     local PNG_PATH="${2}"
-    local DDS_PATH="${3}"
-    local IMAGE_SIZE="${4}"
+    local IMAGE_SIZE="${3}"
 
     execute-gimp-script-file "svg_to_png" \
         INPUT_IMAGE_PATH "${SOURCE_PATH}" \
@@ -291,28 +314,18 @@ function render-beveled-variant {
 
     if [ -f "${PNG_PATH}" ]; then
         execute-gimp-script-file "gradient_bevel" IMAGE_PATH "${PNG_PATH}"
-        execute-gimp-script-file "png_to_dds" \
-            INPUT_IMAGE_PATH "${PNG_PATH}" \
-            OUTPUT_IMAGE_PATH "${DDS_PATH}"
     fi
 }
 
-function render-flat-variant {
+function render-flat-png {
     local SOURCE_PATH="${1}"
     local PNG_PATH="${2}"
-    local DDS_PATH="${3}"
-    local IMAGE_SIZE="${4}"
+    local IMAGE_SIZE="${3}"
 
     execute-gimp-script-file "svg_to_png" \
         INPUT_IMAGE_PATH "${SOURCE_PATH}" \
         OUTPUT_IMAGE_PATH "${PNG_PATH}" \
         OUTPUT_IMAGE_SIZE "${IMAGE_SIZE}"
-
-    if [ -f "${PNG_PATH}" ]; then
-        execute-gimp-script-file "png_to_dds" \
-            INPUT_IMAGE_PATH "${PNG_PATH}" \
-            OUTPUT_IMAGE_PATH "${DDS_PATH}"
-    fi
 }
 
 function get-flag-file-name {
@@ -341,6 +354,9 @@ function generate-mod-descriptor {
 }
 
 mkdir -p "${OUTPUT_BACKGROUNDS_DIR_PATH}"
+
+# Worker logs from a previous run would otherwise be summarised again at the end of this one.
+rm -f "${BUILD_DIR_PATH}"/*.log
 mkdir -p "${OUTPUT_LOCALISATIONS_DIR_PATH}"
 
 cp "${SOURCE_BACKGROUNDS_DIR_PATH}"/* "${OUTPUT_BACKGROUNDS_DIR_PATH}"
@@ -415,13 +431,34 @@ for CATEGORY_DIR in "${SOURCE_FLAGS_DIR_PATH}"/*; do
             cp "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
         fi
 
-        render-flag \
-            "${FLAG_SVG_BUILD_FILE_PATH}" \
-            "${FLAG_BUILD_MAIN_FILE_PATH}" \
-            "${FLAG_OUTPUT_MAIN_FILE_PATH}" \
-            "${FLAG_BUILD_MAP_FILE_PATH}" \
-            "${FLAG_OUTPUT_MAP_FILE_PATH}" \
-            "${FLAG_BUILD_SMALL_FILE_PATH}" \
-            "${FLAG_OUTPUT_SMALL_FILE_PATH}"
+        # Rendering is limited to FLAG_WORKER_COUNT concurrent GIMP processes. Each worker logs to
+        # its own file so that the output is not interleaved.
+        while [ "$(jobs -rp | wc -l)" -ge "${FLAG_WORKER_COUNT}" ]; do
+            wait -n
+        done
+
+        (
+            FLAG_LOG_PATH="${BUILD_DIR_PATH}/${FLAG_FILE_NAME}.log"
+            render-flag \
+                "${FLAG_SVG_BUILD_FILE_PATH}" \
+                "${FLAG_BUILD_MAIN_FILE_PATH}" \
+                "${FLAG_OUTPUT_MAIN_FILE_PATH}" \
+                "${FLAG_BUILD_MAP_FILE_PATH}" \
+                "${FLAG_OUTPUT_MAP_FILE_PATH}" \
+                "${FLAG_BUILD_SMALL_FILE_PATH}" \
+                "${FLAG_OUTPUT_SMALL_FILE_PATH}" > "${FLAG_LOG_PATH}" 2>&1
+        ) &
     done
 done
+
+wait
+
+for LOG_FILE_PATH in "${BUILD_DIR_PATH}"/*.log; do
+    [ -f "${LOG_FILE_PATH}" ] || continue
+    grep -E "\[(ERROR|WARNING)\]|on attempt" "${LOG_FILE_PATH}"
+done
+
+MISSING_OUTPUT_COUNT=$(find "${OUTPUT_FLAGS_DIR_PATH}" -name '*.dds' -not -path '*/backgrounds/*' | wc -l)
+EXPECTED_OUTPUT_COUNT=$(( $(find "${SOURCE_FLAGS_DIR_PATH}" -type f \( -name '*.svg' -o -name '*.png' -o -name '*.bmp' -o -name '*.xcf' -o -name '*.ai' \) | wc -l) * 3 ))
+
+echo "Produced ${MISSING_OUTPUT_COUNT} of ${EXPECTED_OUTPUT_COUNT} flag DDS files."

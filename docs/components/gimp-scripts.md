@@ -119,6 +119,11 @@ BEVEL_INDENT_OFFSET = 12        # Bevel left inset in px
 
 **Purpose:** Exports a PNG image to DDS format with Stellaris-compatible settings.
 
+This script does not use GIMP at all. It writes the 128-byte `DDS ` header itself, byte-identical
+to the one `file-dds-export` produces with compression disabled, followed by raw BGRA pixels with no
+mipmaps. Avoiding the GIMP start makes the export effectively free, because that start dominates
+every other stage.
+
 **Location:** `source/scripts/png_to_dds.py`
 
 **Function Signature:**
@@ -133,9 +138,10 @@ convert_image(source_path, output_path)
 | `source_path` | string | Path to input PNG file |
 | `output_path` | string | Path for output DDS file |
 
-**Export Settings (in `gimp_image_operations.export_dds`):**
-```python
-'compression-format': 'none',
+**Export Settings:**
+```
+Header: 128 bytes, byte-identical to GIMP's file-dds-export with compression disabled
+Body:   raw BGRA pixels, no mipmaps
 ```
 
 **Effective Settings:**
@@ -143,15 +149,12 @@ convert_image(source_path, output_path)
 - **Mipmaps:** None
 - **Colour Space:** Linear (no sRGB conversion)
 
-**Note:** The uncompressed format matches the DDS textures previously produced by the GIMP 2.10 build.
-
-**GIMP PDB Functions Used:**
-- `gimp-file-load` — Load PNG
-- `file-dds-export` — Save DDS
+**Note:** The header matches the DDS textures previously produced by the GIMP 2.10 build, so the
+output is byte-compatible while skipping the GIMP process entirely.
 
 **Modification Points:**
-- Compression format: Change `DDS_COMPRESSION_FORMAT`
-- Mipmap generation: Add a `mipmaps` export property
+- Header fields: Edit `build_header`
+- Channel order: Edit the slice assignment in `convert_image`
 
 ### svg_to_png.py
 
@@ -271,7 +274,6 @@ GIMP 3 bundles every required plug-in.
 | SVG import | `file-svg-load` | Load SVG files |
 | PNG import | `file-png-load` | Load PNG files |
 | PNG export | `file-png-export` | Write PNG files |
-| DDS export | `file-dds-export` | Write DDS textures |
 | Colour to Alpha | `gegl:color-to-alpha` | Remove solid backgrounds |
 | Gaussian Blur | `gegl:gaussian-blur` | Relief silhouette smoothing |
 | Bump Map | `gegl:bump-map` | Bevel embossing |

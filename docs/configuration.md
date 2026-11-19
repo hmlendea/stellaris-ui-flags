@@ -178,7 +178,7 @@ fi
 | Script | Purpose | Key Parameters |
 |--------|---------|----------------|
 | `gradient_bevel.py` | Applies gradient bevel effect | `BLUR_RADIUS`, `BUMP_AZIMUTH`, `BUMP_ELEVATION`, `BUMP_DEPTH`, colours |
-| `png_to_dds.py` | Exports PNG to DDS | `DDS_COMPRESSION_FORMAT` in `gimp_image_operations.py` |
+| `png_to_dds.py` | Exports PNG to DDS | Header fields in `build_header` |
 | `svg_to_png.py` | Renders SVG to PNG | `OUTPUT_IMAGE_SIZE` argument, background handling |
 | `xcf_to_png.py` | Exports XCF to PNG | Layer merging |
 
@@ -203,13 +203,9 @@ COLOUR_GRADIENT_END = '#715209'    # Dark gold shadow
 
 ### Modifying DDS Export
 
-Edit `source/scripts/gimp_image_operations.py`:
-
-```python
-DDS_COMPRESSION_FORMAT = 'none'
-```
-
-The `export_dds` function passes this value as the `compression-format` export property. See the GIMP DDS export documentation for the accepted formats.
+Edit `source/scripts/png_to_dds.py`. The header fields live in `build_header`, and the channel order
+is set by the slice assignment in `convert_image`. No GIMP settings apply, because the file is
+written directly.
 
 ## Stellaris Version Compatibility
 
@@ -229,6 +225,18 @@ The `export_dds` function passes this value as the `compression-format` export p
 - Range not supported — single pattern only
 
 ## Environment-Specific Configuration
+
+### Build Concurrency
+
+The `FLAG_WORKER_COUNT` environment variable sets how many flags are rendered concurrently. Each
+worker is a separate GIMP process, and every instance reserves its own tile cache, so the setting
+trades processor utilisation against memory. The default is `2`, which measured fastest on a
+machine whose memory was already heavily used; higher values cause the OOM killer to terminate
+workers, and the build reports the affected flags far slower than a serial run.
+
+```bash
+FLAG_WORKER_COUNT=4 ./build.sh 2.3.1
+```
 
 ### Local Development
 

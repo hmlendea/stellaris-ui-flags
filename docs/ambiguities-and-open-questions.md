@@ -10,9 +10,10 @@ This document records areas where the project's behaviour is ambiguous, undocume
 
 **Question:** Does the Flatpak GIMP (`org.gimp.GIMP`) include the DDS export plug-in?
 
-**Context:** Tool detection supports Flatpak GIMP (D11). GIMP 3 bundles the DDS export plug-in (`file-dds-export`), so no separate package is required.
+**Context:** Tool detection supports Flatpak GIMP (D11). The build no longer exports DDS through
+GIMP; `png_to_dds.py` writes the uncompressed format directly, so no DDS plug-in is required.
 
-**Impact:** None for GIMP 3. Builds fail at the PNG→DDS stage only on systems running GIMP older than 3.0.
+**Impact:** None. GIMP is only needed for SVG rasterisation and the bevel effect.
 
 **Resolution Path:** Resolved — GIMP 3 bundles the plug-in. Residual risk: a custom GIMP build without the plug-in.
 

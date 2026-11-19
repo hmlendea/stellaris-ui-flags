@@ -126,28 +126,26 @@ sudo apt install gimp
 flatpak install flathub org.gimp.GIMP
 ```
 
-**Important:** GIMP 2.10 is end of life and is not supported. The scripts require GIMP 3.0 or later, which bundles the DDS export plug-in.
+**Important:** GIMP 2.10 is end of life and is not supported. The scripts require GIMP 3.0 or later.
+The DDS export no longer runs inside GIMP at all, so it does not depend on any GIMP plug-in.
 
 ---
 
-### DDS Export Unavailable
+### DDS Conversion Fails
 
-**Symptom:** GIMP runs but DDS export fails; error mentions `file-dds-export` or unknown format.
+**Symptom:** `Failure while converting '…png' to '…dds'`.
 
-**Cause:** GIMP older than 3.0, or a build without the DDS plug-in.
+**Cause:** The intermediate PNG is missing, empty or truncated, which happens when a long-lived
+GIMP session crashes while writing it. The conversion itself has no external dependencies beyond
+ImageMagick.
 
-**Fix:**
-```bash
-# Verify the GIMP version
-gimp --version
-```
+**Fix:** Re-run the build. The retry loop discards an unusable PNG and renders it again.
 
-**Verify the plug-in:**
+**Verify the conversion on a known-good PNG:**
 ```bash
 env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.dds" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/png_to_dds.py').read())" --quit
+    python3 source/scripts/png_to_dds.py
 # Should produce /tmp/test.dds without error
 ```
 

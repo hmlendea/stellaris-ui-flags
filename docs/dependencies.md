@@ -87,7 +87,8 @@ There are no runtime dependencies — the output is a pure content mod consumed 
 
 ## GIMP Plug-ins
 
-GIMP 3 bundles every plug-in the build requires, including DDS export (`file-dds-export`) and the GEGL operations used by the bevel effect. No separate plug-in package is needed.
+GIMP 3 bundles every plug-in the build requires, including the GEGL operations used by the bevel
+effect. No separate plug-in package is needed.
 
 ### Built-in Plug-ins (bundled with GIMP)
 

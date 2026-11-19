@@ -180,7 +180,7 @@ svg-to-png <input_file_path> <output_file_path> <output_image_size>
 
 ### `png-to-dds`
 
-Exports PNG to DDS using GIMP Python-Fu.
+Exports PNG to DDS with the plain Python writer.
 
 ```bash
 png-to-dds <input_file_path> <output_file_path>
@@ -193,7 +193,8 @@ png-to-dds <input_file_path> <output_file_path>
 | `input_file_path` | string | Path to input PNG file |
 | `output_file_path` | string | Path for output DDS file |
 
-**Tool:** GIMP batch mode with `png_to_dds.py`
+**Tool:** Python 3 with `png_to_dds.py`, which writes the uncompressed format directly instead of
+starting GIMP
 
 ---
 
@@ -262,6 +263,9 @@ BUMP_DEPTH = 5          # Bump-map depth
 ### `convert_image` (png_to_dds.py)
 
 Exports PNG to DDS format.
+
+The 128-byte header is byte-identical to the one GIMP's `file-dds-export` writes with compression
+disabled; only the pixel data follows it, as raw BGRA.
 
 ```python
 convert_image(source_path, output_path)

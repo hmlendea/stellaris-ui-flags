@@ -48,11 +48,12 @@ SOURCE ASSET
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ STAGE 4: PNG → DDS EXPORT                                                   │
 │                                                                             │
-│   128px beveled PNG ──► GIMP (png_to_dds) ──► out/.../main/<name>.dds       │
-│   256px flat PNG    ──► GIMP (png_to_dds) ──► out/.../map/<name>.dds        │
-│    24px beveled PNG ──► GIMP (png_to_dds) ──► out/.../small/<name>.dds      │
+│   128px beveled PNG ──► python (png_to_dds) ──► out/.../main/<name>.dds     │
+│   256px flat PNG    ──► python (png_to_dds) ──► out/.../map/<name>.dds      │
+│    24px beveled PNG ──► python (png_to_dds) ──► out/.../small/<name>.dds    │
 │                                                                             │
-│   DDS: uncompressed BGRA8, linear colour space                              │
+│   DDS: uncompressed BGRA8, no mipmaps, GIMP-compatible header               │
+│   No GIMP session, so the stage costs a fraction of the others              │
 └─────────────────────────────────────────────────────────────────────────────┘
     │
     ▼
@@ -297,20 +298,16 @@ OUTPUT: PNG with 3D bevel effect
 **Function:** `convert_image(source_path, output_path)`
 
 **Process:**
-1. Load PNG
-2. Call `file-dds-export` with `compression-format` set to `none`
-3. Save DDS
+1. Read the PNG dimensions and the four channels with ImageMagick
+2. Reorder the channels to BGRA
+3. Write the 128-byte `DDS ` header, then the pixels
 
 ### DDS Export Settings
 
 ```python
-export_dds(image, output_path)
-# Equivalent to:
-#   run_procedure('file-dds-export', {
-#       'image': image,
-#       'file': Gio.File.new_for_path(output_path),
-#       'compression-format': 'none',
-#   })
+convert_image(source_path, output_path)
+# Header: 128 bytes, byte-identical to file-dds-export with compression disabled
+# Body:   raw BGRA, no mipmaps
 ```
 
 ### Effective Settings
@@ -426,6 +423,6 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test_128.png" \
 | Flag invisible | Alpha channel lost | Verify PNG has transparency before bevel |
 | Bevel too strong/weak | Parameters | Adjust `BLUR_RADIUS`, `BUMP_DEPTH`, and `BUMP_ELEVATION` in gradient_bevel.py |
 | Map flag has bevel | Logic error | Verify map path skips bevel in build.sh |
-| DDS won't load | Export procedure | Verify GIMP reports `file-dds-export`; try opening the DDS in GIMP |
+| DDS won't load | Header fields | Compare the DDS header with a known-good file; the writer reproduces GIMP's exactly |
 | Colours wrong | Colour space | DDS saved linear, game expects sRGB? |
 | Jagged edges | Potrace tracing | Use SVG source instead of PNG/BMP |

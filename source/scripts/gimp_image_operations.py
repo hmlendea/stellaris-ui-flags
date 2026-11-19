@@ -7,10 +7,8 @@ from gi.repository import Gio
 from gimp_procedures import run_procedure
 
 DEFAULT_LAYER_OPACITY = 100.0
-DDS_COMPRESSION_FORMAT = 'none'
 IMAGE_LOAD_PROCEDURE = 'gimp-file-load'
 PNG_EXPORT_PROCEDURE = 'file-png-export'
-DDS_EXPORT_PROCEDURE = 'file-dds-export'
 SVG_LOAD_PROCEDURE = 'file-svg-load'
 COLOUR_TO_ALPHA_OPERATION = 'gegl:color-to-alpha'
 GAUSSIAN_BLUR_OPERATION = 'gegl:gaussian-blur'
@@ -49,15 +47,6 @@ def export_png(image, output_path):
         'file': Gio.File.new_for_path(output_path),
     })
 
-
-def export_dds(image, output_path):
-    """Write the image to the supplied path as an uncompressed DDS file."""
-    run_procedure(DDS_EXPORT_PROCEDURE, {
-        'run-mode': Gimp.RunMode.NONINTERACTIVE,
-        'image': image,
-        'file': Gio.File.new_for_path(output_path),
-        'compression-format': DDS_COMPRESSION_FORMAT,
-    })
 
 
 def add_layer(image, layer_name, layer_mode):

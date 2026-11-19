@@ -215,20 +215,20 @@ execute-gimp-script-file "svg_to_png" \
 
 ### `png-to-dds`
 
-Exports PNG to DDS using GIMP Python-Fu.
+Exports PNG to DDS with a plain Python writer.
 
 ```bash
 png-to-dds <input_file_path> <output_file_path>
 ```
 
 ```bash
-execute-gimp-script-file "png_to_dds" \
-    INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
-    OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
+"${PYTHON_BINARY}" "${SOURCE_SCRIPTS_DIR_PATH}/png_to_dds.py" \
+    "GIMP_SCRIPT_INPUT_IMAGE_PATH=${INPUT_IMAGE_PATH}" \
+    "GIMP_SCRIPT_OUTPUT_IMAGE_PATH=${OUTPUT_IMAGE_PATH}"
 ```
 
 **Path:** PNG → DDS
-**Tool:** GIMP with `png_to_dds.py` script
+**Tool:** Python 3 with `png_to_dds.py`; the uncompressed format needs no GIMP session
 
 ### `apply-gradient-bevel`
 
