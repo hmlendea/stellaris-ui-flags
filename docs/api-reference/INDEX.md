@@ -5,7 +5,7 @@
 This mod is a **content mod** — it adds flag assets, colours, and localisation to Stellaris. It does not expose a traditional code API. The "API surface" consists of:
 
 1. **Build pipeline functions** (bash functions in `build.sh`)
-2. **GIMP Script-fu functions** (Scheme functions in `source/scripts/*.lisp`)
+2. **GIMP Python-Fu functions** (Python functions in `source/scripts/*.py`)
 3. **Content interfaces** (Stellaris mod file formats consumed by the game)
 
 ## Build Pipeline Functions (`build.sh`)
@@ -158,7 +158,7 @@ ai-to-svg <input_file_path> <output_file_path>
 
 ### `svg-to-png`
 
-Renders SVG to PNG at specified size using GIMP Script-fu.
+Renders SVG to PNG at specified size using GIMP Python-Fu.
 
 ```bash
 svg-to-png <input_file_path> <output_file_path> <output_image_size>
@@ -172,7 +172,7 @@ svg-to-png <input_file_path> <output_file_path> <output_image_size>
 | `output_file_path` | string | Path for output PNG file |
 | `output_image_size` | integer | Target dimension in pixels (square) |
 
-**Tool:** GIMP batch mode with `svg-to-png.lisp`
+**Tool:** GIMP batch mode with `svg_to_png.py`
 
 **Sizes Used:** 128 (main), 256 (map), 24 (small)
 
@@ -180,7 +180,7 @@ svg-to-png <input_file_path> <output_file_path> <output_image_size>
 
 ### `png-to-dds`
 
-Exports PNG to DDS using GIMP Script-fu.
+Exports PNG to DDS using GIMP Python-Fu.
 
 ```bash
 png-to-dds <input_file_path> <output_file_path>
@@ -193,32 +193,31 @@ png-to-dds <input_file_path> <output_file_path>
 | `input_file_path` | string | Path to input PNG file |
 | `output_file_path` | string | Path for output DDS file |
 
-**Tool:** GIMP batch mode with `png-to-dds.lisp`
+**Tool:** GIMP batch mode with `png_to_dds.py`
 
 ---
 
 ### `apply-gradient-bevel`
 
-Applies gradient bevel effect to PNG using GIMP Script-fu.
+Applies gradient bevel effect to PNG using GIMP Python-Fu.
 
 ```bash
-apply-gradient-bevel <input_file_path> <output_file_path>
+apply-gradient-bevel <image_path>
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `input_file_path` | string | Path to input PNG file |
-| `output_file_path` | string | Path for output PNG file (with bevel) |
+| `image_path` | string | Path to the PNG file, rewritten in place |
 
-**Tool:** GIMP batch mode with `gradient-bevel.lisp`
+**Tool:** GIMP batch mode with `gradient_bevel.py`
 
 ---
 
 ### `xcf-to-png`
 
-Exports XCF to PNG using GIMP Script-fu.
+Exports XCF to PNG using GIMP Python-Fu.
 
 ```bash
 xcf-to-png <input_file_path> <output_file_path>
@@ -231,89 +230,88 @@ xcf-to-png <input_file_path> <output_file_path>
 | `input_file_path` | string | Path to input XCF file |
 | `output_file_path` | string | Path for output PNG file |
 
-**Tool:** GIMP batch mode with `xcf-to-png.lisp`
+**Tool:** GIMP batch mode with `xcf_to_png.py`
+## GIMP Python-Fu Functions
 
-## GIMP Script-fu Functions
-
-### `gradient-bevel` (gradient-bevel.lisp)
+### `apply_gradient_bevel` (gradient_bevel.py)
 
 Applies 3D gradient bevel effect to a flag emblem.
 
-```lisp
-(gradient-bevel inputPath outputPath)
+```python
+apply_gradient_bevel(image_path)
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `inputPath` | string | Path to input PNG file |
-| `outputPath` | string | Path for output PNG file |
+| `image_path` | string | Path to the PNG file, rewritten in place |
 
-**Behaviour:** Loads PNG, creates Logo and Colour Overlay layers, applies bump mapping and gradient shading, merges, saves PNG.
+**Behaviour:** Loads PNG, applies a white-to-grey radial gradient to the flag, bump maps it using a blurred silhouette as the height map, re-clips it to its transparency, and overlays a radial gold gradient clipped to the shape, then merges and saves the PNG. The algorithm reproduces the GIMP 2.10 bevel.
 
 **Key Constants:**
-```lisp
-bevel-size: 22       ; Bevel width in pixels
-bevel-width: 2.5      ; Gaussian blur radius
-bevel-height: 40      ; Emboss depth
+```python
+BLUR_RADIUS = 2.5       # Gaussian blur radius used for the relief silhouette
+BUMP_AZIMUTH = 115.0    # Bump-map light direction
+BUMP_ELEVATION = 40.0   # Bump-map light elevation
+BUMP_DEPTH = 5          # Bump-map depth
 ```
 
 ---
 
-### `png-to-dds` (png-to-dds.lisp)
+### `convert_image` (png_to_dds.py)
 
 Exports PNG to DDS format.
 
-```lisp
-(png-to-dds inputPath outputPath)
+```python
+convert_image(source_path, output_path)
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `inputPath` | string | Path to input PNG file |
-| `outputPath` | string | Path for output DDS file |
+| `source_path` | string | Path to input PNG file |
+| `output_path` | string | Path for output DDS file |
 
-**Behaviour:** Loads PNG, saves as DDS with DXT1/DXT5 compression and mipmaps.
+**Behaviour:** Loads PNG and exports it as an uncompressed DDS texture.
 
 ---
 
-### `svg-to-png` (svg-to-png.lisp)
+### `render_flag` (svg_to_png.py)
 
 Renders SVG to PNG at specified size.
 
-```lisp
-(svg-to-png inputPath outputPath outputSize)
+```python
+render_flag(source_path, output_path, output_size)
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `inputPath` | string | Path to input SVG file |
-| `outputPath` | string | Path for output PNG file |
-| `outputSize` | integer | Target dimension (square) |
+| `source_path` | string | Path to input SVG file |
+| `output_path` | string | Path for output PNG file |
+| `output_size` | integer | Target dimension (square) |
 
-**Behaviour:** Loads SVG, scales to fit, centers in square image, removes solid background, saves PNG.
+**Behaviour:** Loads SVG at the target size, removes the flat background colour, repaints the opaque area white, and saves the PNG.
 
 ---
 
-### `xcf-to-png` (xcf-to-png.lisp)
+### `convert_image` (xcf_to_png.py)
 
 Exports XCF to flat PNG.
 
-```lisp
-(xcf-to-png inputPath outputPath)
+```python
+convert_image(source_path, output_path)
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `inputPath` | string | Path to input XCF file |
-| `outputPath` | string | Path for output PNG file |
+| `source_path` | string | Path to input XCF file |
+| `output_path` | string | Path for output PNG file |
 
 **Behaviour:** Loads XCF, merges visible layers, saves PNG.
 
@@ -406,7 +404,7 @@ flags/
 **Requirements:**
 - All three variants must exist for each flag
 - Same filename across all three variants
-- DDS format with mipmaps
+- DDS format without mipmaps
 
 ## Usage Examples
 
@@ -427,17 +425,31 @@ rm -rf build out
 ### GIMP Script Direct Invocation
 
 ```bash
-# Render SVG to 128px PNG
-gimp -i -b "(svg-to-png \"input.svg\" \"output.png\" 128)" -b "(gimp-quit 0)"
+GIMP_SCRIPTS_DIRECTORY_PATH="source/scripts"
 
-# Apply bevel
-gimp -i -b "(gradient-bevel \"input.png\" \"output.png\")" -b "(gimp-quit 0)"
+# Render SVG to 128px PNG
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.svg" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/svg_to_png.py').read())" --quit
+
+# Apply bevel (in place)
+env GIMP_SCRIPT_IMAGE_PATH="input.png" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/gradient_bevel.py').read())" --quit
 
 # Export to DDS
-gimp -i -b "(png-to-dds \"input.png\" \"output.dds\")" -b "(gimp-quit 0)"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.dds" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/png_to_dds.py').read())" --quit
 
 # Export XCF to PNG
-gimp -i -b "(xcf-to-png \"input.xcf\" \"output.png\")" -b "(gimp-quit 0)"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.xcf" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/xcf_to_png.py').read())" --quit
 ```
 
 ### Adding a New Flag
@@ -478,7 +490,7 @@ gimp -i -b "(xcf-to-png \"input.xcf\" \"output.png\")" -b "(gimp-quit 0)"
 ## Related Documentation
 
 - [Build Pipeline Component](../components/build-pipeline.md) — Detailed function implementations
-- [GIMP Scripts Component](../components/gimp-scripts.md) — Script-fu details
+- [GIMP Scripts Component](../components/gimp-scripts.md) — Python-Fu details
 - [Build Execution Flow](../flows/build-execution.md) — End-to-end execution
 - [Asset Conversion Flow](../flows/asset-conversion.md) — Per-asset conversion
 - [Configuration](../configuration.md) — Configuration sources

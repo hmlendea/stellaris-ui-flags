@@ -46,7 +46,7 @@ Stellaris UI Flags is a mod for the game Stellaris that adds hundreds of new fla
 | [components/source-assets.md](./components/source-assets.md) | Source asset organisation, formats, and taxonomy |
 | [components/build-pipeline.md](./components/build-pipeline.md) | Build script orchestration and tool integration |
 | [components/output-package.md](./components/output-package.md) | Output mod package structure and Stellaris compliance |
-| [components/gimp-scripts.md](./components/gimp-scripts.md) | GIMP Script-fu scripts for format conversion and effects |
+| [components/gimp-scripts.md](./components/gimp-scripts.md) | GIMP Python-Fu scripts for format conversion and effects |
 
 ### Execution Flows
 

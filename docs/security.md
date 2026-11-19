@@ -72,17 +72,20 @@ The build parses contributor-supplied files with:
 
 **Practice:** Review contributed source files before building with them. Do not build untrusted archives.
 
-### Script-fu Injection
+### Batch Script Parameter Injection
 
-GIMP batch commands are constructed via string interpolation:
+GIMP batch parameters are passed through environment variables, and the script path is interpolated into the batch expression:
 
 ```bash
-gimp -i -b "(${SCRIPT_NAME} \"${INPUT}\" \"${OUTPUT}\")" -b "(gimp-quit 0)"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="${INPUT_PATH}" "${GIMP_TOOL_PATH}" -i \
+    --batch-interpreter=python-fu-eval \
+    -b "exec(open('${GIMP_SCRIPT_PATH}').read())" --quit
 ```
 
-- Filenames containing `"` or `\)` could alter the Script-fu expression
-- **Current exposure:** Low — filenames are maintainer-controlled and follow naming conventions
-- **Practice:** Avoid quotes/parens in source filenames; the `ui_` prefix and names.txt mapping constrain output names
+- The script path and directory are interpolated into the batch expression, so a path containing `'` could alter it
+- Parameters are passed as environment values, not as code, so filenames cannot inject Python
+- **Current exposure:** Low — paths are derived from the repository root and filenames are maintainer-controlled
+- **Practice:** Avoid quotes and parentheses in source filenames; the `ui_` prefix and `names.txt` mapping constrain output names
 
 ## Output Security
 
@@ -117,7 +120,7 @@ GNU GPL v3.0 — code and scripts are open source. Content includes franchise-re
 | Never commit secrets | Credentials in Git history are permanent |
 | Use dedicated upload accounts | Limits blast radius of CI compromise |
 | Review source files before building | Tool parser attack surface |
-| Avoid special characters in filenames | Script-fu injection prevention |
+| Avoid special characters in filenames | Batch expression injection prevention |
 | Report vulnerabilities privately | See `SECURITY.md` for contact |
 
 ## Security Checklist for Release

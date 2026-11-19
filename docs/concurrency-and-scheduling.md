@@ -27,7 +27,7 @@ Every operation runs to completion before the next begins. No threads, no subpro
 | Reason | Detail |
 |--------|--------|
 | Simplicity | Bash sequential loops are trivial to reason about and debug |
-| GIMP process model | Each operation spawns a fresh GIMP process; parallel GIMP instances would need separate user dirs/configs |
+| GIMP process model | Each operation spawns a fresh GIMP process (`--new-instance`); parallel GIMP instances would need separate user dirs/configs |
 | Shared state | `build/` and `out/` are shared directories with no locking — parallel writes would corrupt outputs |
 | Scale | 300+ assets × ~8 GIMP invocations ≈ 5–15 minutes — acceptable for a content mod |
 | Determinism | Sequential filesystem-order processing gives reproducible behaviour |

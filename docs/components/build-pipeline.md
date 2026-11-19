@@ -54,7 +54,7 @@ For each tool, the script checks in priority order:
 | `CONVERT_TOOL_PATH` | ImageMagick `convert` | PNG ↔ BMP, image manipulation |
 | `POTRACE_TOOL_PATH` | `potrace` | Raster → vector tracing |
 | `INKSCAPE_TOOL_PATH` | Inkscape | SVG rendering, AI → SVG |
-| `GIMP_TOOL_PATH` | GIMP | Script-fu execution, XCF → PNG, DDS export |
+| `GIMP_TOOL_PATH` | GIMP | Python-Fu batch execution, XCF → PNG, DDS export |
 
 ### Detection Function Pattern
 
@@ -177,7 +177,7 @@ xcf-to-svg() {
 ```
 
 **Path:** XCF → PNG → BMP → SVG
-**Tools:** GIMP (xcf-to-png), ImageMagick, potrace
+**Tools:** GIMP (xcf_to_png), ImageMagick, potrace
 
 ### `ai-to-svg`
 
@@ -196,65 +196,71 @@ ai-to-svg() {
 
 ### `svg-to-png`
 
-Renders SVG to PNG at specified size using GIMP Script-fu.
+Renders SVG to PNG at specified size using GIMP Python-Fu.
 
 ```bash
-svg-to-png() {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
-    local OUTPUT_IMAGE_SIZE="${3}"
-    "${GIMP_TOOL_PATH}" -i -b "(svg-to-png \"${INPUT_FILE_PATH}\" \"${OUTPUT_FILE_PATH}\" ${OUTPUT_IMAGE_SIZE})" -b "(gimp-quit 0)"
-}
+svg-to-png <input_file_path> <output_file_path> <output_image_size>
+```
+
+```bash
+execute-gimp-script-file "svg_to_png" \
+    INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
+    OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}" \
+    OUTPUT_IMAGE_SIZE "${OUTPUT_IMAGE_SIZE}"
 ```
 
 **Path:** SVG → PNG
-**Tool:** GIMP with `svg-to-png.lisp` script
+**Tool:** GIMP with `svg_to_png.py` script
 **Parameter:** Output image size (pixels)
 
 ### `png-to-dds`
 
-Exports PNG to DDS using GIMP Script-fu.
+Exports PNG to DDS using GIMP Python-Fu.
 
 ```bash
-png-to-dds() {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
-    "${GIMP_TOOL_PATH}" -i -b "(png-to-dds \"${INPUT_FILE_PATH}\" \"${OUTPUT_FILE_PATH}\")" -b "(gimp-quit 0)"
-}
+png-to-dds <input_file_path> <output_file_path>
+```
+
+```bash
+execute-gimp-script-file "png_to_dds" \
+    INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
+    OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
 ```
 
 **Path:** PNG → DDS
-**Tool:** GIMP with `png-to-dds.lisp` script
+**Tool:** GIMP with `png_to_dds.py` script
 
 ### `apply-gradient-bevel`
 
-Applies gradient bevel effect to PNG using GIMP Script-fu.
+Applies gradient bevel effect to PNG using GIMP Python-Fu.
 
 ```bash
-apply-gradient-bevel() {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
-    "${GIMP_TOOL_PATH}" -i -b "(gradient-bevel \"${INPUT_FILE_PATH}\" \"${OUTPUT_FILE_PATH}\")" -b "(gimp-quit 0)"
-}
+apply-gradient-bevel <image_path>
 ```
 
-**Path:** PNG → PNG (with bevel)
-**Tool:** GIMP with `gradient-bevel.lisp` script
+```bash
+execute-gimp-script-file "gradient_bevel" IMAGE_PATH "${IMAGE_PATH}"
+```
+
+**Path:** PNG → PNG (with bevel), rewritten in place
+**Tool:** GIMP with `gradient_bevel.py` script
 
 ### `xcf-to-png`
 
-Exports XCF to PNG using GIMP Script-fu.
+Exports XCF to PNG using GIMP Python-Fu.
 
 ```bash
-xcf-to-png() {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
-    "${GIMP_TOOL_PATH}" -i -b "(xcf-to-png \"${INPUT_FILE_PATH}\" \"${OUTPUT_FILE_PATH}\")" -b "(gimp-quit 0)"
-}
+xcf-to-png <input_file_path> <output_file_path>
+```
+
+```bash
+execute-gimp-script-file "xcf_to_png" \
+    INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
+    OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
 ```
 
 **Path:** XCF → PNG
-**Tool:** GIMP with `xcf-to-png.lisp` script
+**Tool:** GIMP with `xcf_to_png.py` script
 
 ## Main Execution Loop
 
@@ -454,7 +460,7 @@ esac
 
 ### Output Verification
 
-No explicit verification of DDS output validity — relies on GIMP DDS plug-in.
+No explicit verification of DDS output validity — relies on the GIMP DDS exporter.
 
 ## Performance Characteristics
 
@@ -484,7 +490,7 @@ No explicit verification of DDS output validity — relies on GIMP DDS plug-in.
 
 ### Modifying Bevel Parameters
 
-Edit `source/scripts/gradient-bevel.lisp` — no build.sh changes needed.
+Edit `source/scripts/gradient_bevel.py` — no `build.sh` changes needed.
 
 ### Changing Output Naming
 

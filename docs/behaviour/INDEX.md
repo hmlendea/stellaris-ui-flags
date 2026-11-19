@@ -34,7 +34,7 @@ This document describes the observable behaviour of the mod and its build pipeli
 **Limitations:**
 - Source file modifications are **not detected** — modified sources are skipped if outputs exist
 - Script/configuration changes are **not detected**
-- Full rebuild required after changing `gradient-bevel.lisp` or conversion logic
+- Full rebuild required after changing `gradient_bevel.py` or conversion logic
 
 ### Error Behaviour
 
@@ -139,7 +139,7 @@ names.txt:
 
 ### Background Handling
 
-**Behaviour:** `svg-to-png.lisp` attempts to remove solid-colour backgrounds via colour-to-alpha.
+**Behaviour:** `svg_to_png.py` removes the flat background colour via colour-to-alpha.
 
 **Failure Mode:** Complex or gradient backgrounds are not removed — they appear in output.
 

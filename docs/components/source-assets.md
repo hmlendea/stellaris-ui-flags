@@ -45,11 +45,15 @@ source/
 │   ├── ui_starwars/
 │   ├── ui_total-war/
 │   └── zoological/
-└── scripts/                 # GIMP Script-fu scripts
-    ├── gradient-bevel.lisp
-    ├── png-to-dds.lisp
-    ├── svg-to-png.lisp
-    └── xcf-to-png.lisp
+└── scripts/                 # GIMP Python-Fu scripts
+    ├── gimp_image_operations.py
+    ├── gimp_procedures.py
+    ├── gimp_script_arguments.py
+    ├── gimp_script_errors.py
+    ├── gradient_bevel.py
+    ├── png_to_dds.py
+    ├── svg_to_png.py
+    └── xcf_to_png.py
 ```
 
 ## Asset Taxonomy
@@ -158,8 +162,8 @@ source/flags/<category>/
 **Handling:** Copied directly to output — no conversion
 
 **Requirements:**
-- Valid DDS with mipmaps
-- BC1/BC3 compression (DXT1/DXT5)
+- Valid DDS without mipmaps
+- Uncompressed BGRA8
 - Power-of-two dimensions
 
 ## Category Reference
@@ -299,16 +303,16 @@ imperial-eagle=ui_domination_1
 - Recommended: 256x256px
 - Used in: Stellaris launcher, Steam Workshop, Nexus Mods, GitHub Releases
 
-## GIMP Script-fu Scripts
+## GIMP Python-Fu Scripts
 
 **Location:** `source/scripts/`
 
 | Script | Purpose | Invoked By |
 |--------|---------|------------|
-| `gradient-bevel.lisp` | Applies 3D bevel effect with gradient shading | `apply-gradient-bevel` function |
-| `png-to-dds.lisp` | Exports PNG to DDS with game-compatible settings | `png-to-dds` function |
-| `svg-to-png.lisp` | Renders SVG to PNG at specified size | `svg-to-png` function |
-| `xcf-to-png.lisp` | Exports XCF (GIMP) to PNG | `xcf-to-png` function |
+| `gradient_bevel.py` | Applies 3D bevel effect with gradient shading | `apply-gradient-bevel` function |
+| `png_to_dds.py` | Exports PNG to DDS with game-compatible settings | `png-to-dds` function |
+| `svg_to_png.py` | Renders SVG to PNG at specified size | `svg-to-png` function |
+| `xcf_to_png.py` | Exports XCF (GIMP) to PNG | `xcf-to-png` function |
 
 See [GIMP Scripts Component](../components/gimp-scripts.md) for detailed documentation.
 
@@ -333,7 +337,7 @@ See [GIMP Scripts Component](../components/gimp-scripts.md) for detailed documen
 
 ### Adding a Background Texture
 
-1. **Create DDS file** with proper format (BC1/BC3, mipmaps, power-of-two)
+1. **Create DDS file** with the proper format (uncompressed BGRA8, square)
 2. **Place in:** `source/backgrounds/my-background.dds`
 3. **Run build** — auto-copied to output
 

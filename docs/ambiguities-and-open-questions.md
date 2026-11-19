@@ -6,15 +6,15 @@ This document records areas where the project's behaviour is ambiguous, undocume
 
 ## Build System
 
-### A1: Flatpak GIMP DDS Plug-in Availability
+### A1: Flatpak GIMP DDS Export Availability
 
-**Question:** Does the Flatpak GIMP (`org.gimp.GIMP`) include the DDS plug-in?
+**Question:** Does the Flatpak GIMP (`org.gimp.GIMP`) include the DDS export plug-in?
 
-**Context:** Tool detection supports Flatpak GIMP (D11), but the DDS plug-in (`file-dds-save`) is a separate package. Flatpak sandboxing may prevent plug-in installation into the expected directory.
+**Context:** Tool detection supports Flatpak GIMP (D11). GIMP 3 bundles the DDS export plug-in (`file-dds-export`), so no separate package is required.
 
-**Impact:** If Flatpak GIMP lacks DDS support, all builds fail at the PNG→DDS stage — but only on systems using Flatpak GIMP.
+**Impact:** None for GIMP 3. Builds fail at the PNG→DDS stage only on systems running GIMP older than 3.0.
 
-**Resolution Path:** Test on a Flatpak-only system; document result; potentially add plug-in detection to build validation.
+**Resolution Path:** Resolved — GIMP 3 bundles the plug-in. Residual risk: a custom GIMP build without the plug-in.
 
 ---
 
@@ -58,7 +58,7 @@ This document records areas where the project's behaviour is ambiguous, undocume
 
 **Question:** Should the build detect script changes and force reprocessing?
 
-**Context:** Incremental builds skip assets based on output existence only (D7). Changing `gradient-bevel.lisp` or `png-to-dds.lisp` does not trigger reprocessing — stale outputs persist.
+**Context:** Incremental builds skip assets based on output existence only (D7). Changing `gradient_bevel.py` or `png_to_dds.py` does not trigger reprocessing — stale outputs persist.
 
 **Impact:** Contributors may believe a script change took effect when it didn't. Current mitigation: documentation (change-guide.md) instructs full rebuild.
 
@@ -206,11 +206,11 @@ This document records areas where the project's behaviour is ambiguous, undocume
 
 ## Documentation
 
-### A17: Script-fu Parameter Completeness
+### A17: Python-Fu Parameter Completeness
 
-**Question:** Are all tunable Script-fu parameters documented?
+**Question:** Are all tunable Python-Fu parameters documented?
 
-**Context:** `gimp-scripts.md` documents the main parameters (bevel size/width/height, colour stops, DDS settings). Minor parameters (interpolation method, bump map channel) may exist in the scripts.
+**Context:** `gimp-scripts.md` documents the main parameters (blur radius, emboss elevation and depth, colour stops, DDS settings). Minor parameters may exist in the shared `gimp_image_operations.py` module.
 
 **Impact:** Contributors modifying scripts may miss tunable values.
 

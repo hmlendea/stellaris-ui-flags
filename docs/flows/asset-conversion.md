@@ -26,9 +26,9 @@ SOURCE ASSET
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ STAGE 2: SVG → THREE PNG RESOLUTIONS (parallel logical, sequential actual) │
 │                                                                             │
-│   SVG ──► GIMP (svg-to-png) ──► 128×128 PNG (main)                         │
-│   SVG ──► GIMP (svg-to-png) ──► 256×256 PNG (map)                          │
-│   SVG ──► GIMP (svg-to-png) ──►  24×24  PNG (small)                        │
+│   SVG ──► GIMP (svg_to_png) ──► 128×128 PNG (main)                         │
+│   SVG ──► GIMP (svg_to_png) ──► 256×256 PNG (map)                          │
+│   SVG ──► GIMP (svg_to_png) ──►  24×24  PNG (small)                        │
 │                                                                             │
 │   Each invocation: independent GIMP process                                 │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -37,22 +37,22 @@ SOURCE ASSET
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ STAGE 3: BEVEL APPLICATION (main & small only)                              │
 │                                                                             │
-│   128px PNG ──► GIMP (gradient-bevel) ──► 128px PNG (beveled)              │
-│    24px PNG ──► GIMP (gradient-bevel) ──►  24px PNG (beveled)              │
+│   128px PNG ──► GIMP (gradient_bevel) ──► 128px PNG (beveled, in place)     │
+│    24px PNG ──► GIMP (gradient_bevel) ──►  24px PNG (beveled, in place)     │
 │   256px PNG ──► (NO BEVEL)                                                 │
 │                                                                             │
-│   Bevel: 3D emboss with gradient highlight/shadow                          │
+│   Bevel: blurred silhouette emboss with gradient highlight/shadow           │
 └─────────────────────────────────────────────────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ STAGE 4: PNG → DDS EXPORT                                                   │
 │                                                                             │
-│   128px beveled PNG ──► GIMP (png-to-dds) ──► out/.../main/<name>.dds      │
-│   256px flat PNG    ──► GIMP (png-to-dds) ──► out/.../map/<name>.dds       │
-│    24px beveled PNG ──► GIMP (png-to-dds) ──► out/.../small/<name>.dds     │
+│   128px beveled PNG ──► GIMP (png_to_dds) ──► out/.../main/<name>.dds       │
+│   256px flat PNG    ──► GIMP (png_to_dds) ──► out/.../map/<name>.dds        │
+│    24px beveled PNG ──► GIMP (png_to_dds) ──► out/.../small/<name>.dds      │
 │                                                                             │
-│   DDS: BC1/BC3 compression, mipmaps, linear colour space                   │
+│   DDS: uncompressed BGRA8, linear colour space                              │
 └─────────────────────────────────────────────────────────────────────────────┘
     │
     ▼
@@ -137,9 +137,11 @@ potrace "temp.bmp" -s -o "output.svg"
 
 **Pipeline:** XCF → PNG → BMP → SVG
 
-**Step 1: XCF → PNG (GIMP Script-fu)**
-```lisp
-(xcf-to-png "input.xcf" "temp.png")
+**Step 1: XCF → PNG (GIMP Python-Fu)**
+```bash
+execute-gimp-script-file "xcf_to_png" \
+    INPUT_IMAGE_PATH "input.xcf" \
+    OUTPUT_IMAGE_PATH "temp.png"
 ```
 - Loads XCF, merges visible layers, saves PNG
 
@@ -161,26 +163,26 @@ potrace "temp.bmp" -s -o "output.svg"
 
 ## Stage 2: SVG → PNG (Three Resolutions)
 
-### Common SVG Rendering (svg-to-png.lisp)
+### Common SVG Rendering (svg_to_png.py)
 
-**Function:** `svg-to-png(inputPath, outputPath, outputSize)`
+**Function:** `render_flag(source_path, output_path, output_size)`
 
 **Process:**
-1. Load SVG via GIMP's SVG import plug-in
-2. Get imported dimensions
-3. Calculate scale: `outputSize / max(width, height)`
-4. Scale image maintaining aspect ratio
-5. Create new square image `outputSize × outputSize`
-6. Copy scaled content centered in new image
-7. If bottom layer is solid colour: apply colour-to-alpha (transparency)
-8. Merge visible layers
-9. Save PNG
+1. Load SVG directly through `file-svg-load` at the target size, disregarding the ratio
+2. Add a white background layer beneath the imported SVG; without it, SVGs that rely on stroked
+   paths with no fill are fully transparent, so the sampled corner colour is transparent and
+   removing it erases the whole emblem
+3. Merge the imported layers and the background into a single flag layer
+4. Sample the corner colour and remove it with colour to alpha
+5. Lock the alpha and repaint the opaque area white
+6. Merge visible layers
+7. Save PNG
 
 ### Resolution-Specific Details
 
 #### Main Flag (128px)
 
-**Call:** `svg-to-png(svg, build_main.png, 128)`
+**Call:** `render_flag(svg, build_main.png, 128)`
 
 **Output:** `build/<cat>/<source>.png` (128×128)
 
@@ -190,7 +192,7 @@ potrace "temp.bmp" -s -o "output.svg"
 
 #### Map Flag (256px)
 
-**Call:** `svg-to-png(svg, build_map.png, 256)`
+**Call:** `render_flag(svg, build_map.png, 256)`
 
 **Output:** `build/<cat>/map/<source>.png` (256×256)
 
@@ -200,7 +202,7 @@ potrace "temp.bmp" -s -o "output.svg"
 
 #### Small Flag (24px)
 
-**Call:** `svg-to-png(svg, build_small.png, 24)`
+**Call:** `render_flag(svg, build_small.png, 24)`
 
 **Output:** `build/<cat>/small/<source>.png` (24×24)
 
@@ -223,59 +225,54 @@ potrace "temp.bmp" -s -o "output.svg"
 
 ### Background Handling
 
-The script attempts to remove solid-colour backgrounds:
+The script removes the flat background colour that SVG exports usually bake in:
 
-```lisp
-; If bottom layer is solid, make transparent
-(plug-in-colortoalpha RUN-NONINTERACTIVE image bottom-layer background-colour)
+```python
+background_colour = pick_colour(image, flag_layer, 3.0, 0.0)
+remove_colour(flag_layer, background_colour)
 ```
 
-**Assumption:** Flag emblem on solid background (usually white or transparent).
+**Assumption:** Flag emblem on a solid background (usually black or white).
 
 **Failure Mode:** Complex backgrounds not removed — may show in output.
 
 ## Stage 3: Gradient Bevel Application
 
-### Algorithm (gradient-bevel.lisp)
+### Algorithm (gradient_bevel.py)
 
 ```
 INPUT: PNG with alpha channel (flag emblem on transparent)
 OUTPUT: PNG with 3D bevel effect
 
 1. Load PNG as image
-2. Create "Logo" layer (copy of base)
-3. Create "Colour Overlay" layer (solid fill)
-4. FOR each layer (Logo, Colour Overlay):
-   a. Alpha to selection (select non-transparent pixels)
-   b. Grow selection by bevel-size (22px default)
-   c. Create new layer from selection (bump map source)
-   d. Fill with white
-   e. Gaussian blur by bevel-width (2.5px)
-   f. Apply bump map to target layer:
-      - Height: bevel-height (40)
-      - Light direction: calculated from indentX/indentY
-   g. Apply gradient blend:
-      - Logo: White → Grey (highlight → shadow)
-      - Colour Overlay: Gold → Dark Gold
-5. Merge layers
-6. Save PNG
+2. Duplicate the flag layer as a silhouette
+3. Create a "Blur" layer and paint the silhouette onto it in white
+4. Select the silhouette and apply a Gaussian blur to the Blur layer, then clear the selection
+5. Apply a white-to-grey radial gradient to the flag layer
+6. Apply Bump Map to the flag using the Blur layer as the height map
+7. Offset, invert and dim the Blur layer to 50% opacity, then remove it
+8. Create a "Colour" layer with a radial gold gradient, blended with Grain Merge and clipped to the flag shape
+9. Keep the flag as the base layer
+10. Merge visible layers
+11. Save PNG
 ```
 
 ### Bevel Parameters (Defaults)
 
 | Parameter | Value | Effect |
 |-----------|-------|--------|
-| `bevel-size` | 22 | Selection grow radius (bevel width) |
-| `bevel-width` | 2.5 | Gaussian blur for bump map |
-| `bevel-height` | 40 | Bump map height (emboss depth) |
-| `indentX` | bevel-size + 12 | Light X offset |
-| `indentY` | bevel-size + height/8 | Light Y offset |
+| `BLUR_RADIUS` | 2.5 | Gaussian blur for the height-map silhouette |
+| `BUMP_AZIMUTH` | 115.0 | Bump-map light direction |
+| `BUMP_ELEVATION` | 40.0 | Bump-map light elevation |
+| `BUMP_DEPTH` | 5 | Bump-map depth |
+| `BUMP_AMBIENT` | 0.15 | Bump-map ambient light |
 
 ### Colour Gradients
 
 | Layer | Highlight (FG) | Shadow (BG) |
 |-------|----------------|-------------|
-| Logo | White (255,255,255) | Grey (127,127,127) |
+| Blur | White (255,255,255) | Transparent |
+| Flag | White (255,255,255) | Grey (127,127,127) |
 | Colour Overlay | Gold (178,164,136) | Dark Gold (113,82,9) |
 
 ### Visual Result
@@ -295,70 +292,40 @@ OUTPUT: PNG with 3D bevel effect
 
 ## Stage 4: PNG → DDS Export
 
-### Export Function (png-to-dds.lisp)
+### Export Function (png_to_dds.py)
 
-**Function:** `png-to-dds(inputPath, outputPath)`
+**Function:** `convert_image(source_path, output_path)`
 
 **Process:**
 1. Load PNG
-2. Call `file-dds-save` with fixed parameters
+2. Call `file-dds-export` with `compression-format` set to `none`
 3. Save DDS
 
-### DDS Export Parameters
+### DDS Export Settings
 
-```lisp
-(file-dds-save RUN-NONINTERACTIVE image drawable
-               outputPath outputPath
-               0  ; compression: 0=DXT1, 1=DXT3, 2=DXT5, 3=BC4, 4=BC5, 5=BC7
-               0  ; mipmaps: 0=generate
-               0  ; normal map: 0=no
-               0  ; gamma correction: 0=no
-               0  ; sRGB: 0=linear
-               0  ; premultiply alpha: 0=no
-               0  ; flip Y: 0=no
-               0  ; unused
-               1.0 ; mipmap bias
-               0  ; unused
-               0  ; unused
-               0.5) ; sharpen filter
+```python
+export_dds(image, output_path)
+# Equivalent to:
+#   run_procedure('file-dds-export', {
+#       'image': image,
+#       'file': Gio.File.new_for_path(output_path),
+#       'compression-format': 'none',
+#   })
 ```
 
 ### Effective Settings
 
 | Setting | Value | Notes |
 |---------|-------|-------|
-| Compression | Auto (DXT1/BC1 or DXT5/BC3) | Based on alpha channel |
-| Mipmaps | Generated | Full chain down to 1×1 |
+| Compression | Uncompressed BGRA8 | 32bpp, no lossy compression |
+| Mipmaps | None | Single level only |
 | Colour Space | Linear | No sRGB conversion |
 | Alpha | Straight | Not premultiplied |
 | Normal Map | No | Standard texture |
 
-### Compression Selection
+**Note:** The 59 background textures under `source/backgrounds/` are also uncompressed BGRA8 DDS files, so the generated flags match the shipped format.
 
-| Input Alpha | Output Format | Use Case |
-|-------------|---------------|----------|
-| No alpha (opaque) | DXT1 (BC1) | 4bpp, 6:1 compression |
-| Has alpha | DXT5 (BC3) | 8bpp, 4:1 compression |
-
-**Note:** The DDS plug-in auto-detects alpha and selects format.
-
-### Mipmap Chain
-
-For 128×128 main flag:
-```
-Level 0: 128×128
-Level 1:  64×64
-Level 2:  32×32
-Level 3:  16×16
-Level 4:   8×8
-Level 5:   4×4
-Level 6:   2×2
-Level 7:   1×1
-```
-
-For 256×256 map flag: 9 levels (256→1)
-
-For 24×24 small flag: 5 levels (24→12→6→3→1)
+For 24×24 small flag: identical output size
 
 ## Conversion Quality Considerations
 
@@ -369,7 +336,7 @@ For 24×24 small flag: 5 levels (24→12→6→3→1)
 2. **Potrace tracing** (PNG/BMP/XCF → SVG) — major loss for complex images
 3. **Re-rasterisation** (SVG → PNG) — minimal
 4. **Bevel** — adds effect, not loss
-5. **DDS compression** — lossy (DXT1/5)
+5. **DDS export** — lossless (uncompressed BGRA8)
 
 **Best Quality Path:** SVG source → direct to all three PNG sizes → DDS
 
@@ -395,23 +362,21 @@ For 24×24 small flag: 5 levels (24→12→6→3→1)
 | PNG | IM+Potrace (2) | 3 | 2 | 3 | 8 |
 | XCF | GIMP+IM+Potrace (3) | 3 | 2 | 3 | 8 |
 
-**GIMP Calls per Asset:** Always 8 (3 svg-to-png + 2 gradient-bevel + 3 png-to-dds)
+**GIMP Calls per Asset:** Always 8 (3 svg_to_png + 2 gradient_bevel + 3 png_to_dds)
 
-**Additional Calls for XCF:** +1 (xcf-to-png in conversion stage)
+**Additional Calls for XCF:** +1 (xcf_to_png in conversion stage)
 
 ## Intermediate File Locations
 
 ```
 build/<category>/
 ├── <source_name>.svg              # Stage 1 output
-├── <source_name>.png              # Stage 2 main (128px)
-├── <source_name>_bevel.png        # Stage 3 main
+├── <source_name>.png              # Stage 2 main (128px), bevel applied in place
 ├── map/
 │   ├── <source_name>.png          # Stage 2 map (256px)
 │   └── (no bevel)
 └── small/
-    ├── <source_name>.png          # Stage 2 small (24px)
-    └── <source_name>_bevel.png    # Stage 3 small
+    └── <source_name>.png          # Stage 2 small (24px), bevel applied in place
 ```
 
 ## Cleanup
@@ -429,20 +394,29 @@ build/<category>/
 ```bash
 # After build, inspect build/<category>/
 ls -la build/human/
-# Should see: flag.svg, flag.png, flag_bevel.png, map/flag.png, small/flag.png, small/flag_bevel.png
+# Should see: flag.svg, flag.png, map/flag.png, small/flag.png
 ```
 
 ### Test Individual Stages
 
 ```bash
 # Test SVG → PNG (128px)
-gimp -i -b "(svg-to-png \"build/human/flag.svg\" \"/tmp/test_128.png\" 128)" -b "(gimp-quit 0)"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/human/flag.svg" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test_128.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
 
 # Test bevel
-gimp -i -b "(gradient-bevel \"/tmp/test_128.png\" \"/tmp/test_bevel.png\")" -b "(gimp-quit 0)"
+env GIMP_SCRIPT_IMAGE_PATH="/tmp/test_128.png" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/gradient_bevel.py').read())" --quit
 
 # Test DDS export
-gimp -i -b "(png-to-dds \"/tmp/test_bevel.png\" \"/tmp/test.dds\")" -b "(gimp-quit 0)"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test_128.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.dds" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/png_to_dds.py').read())" --quit
 ```
 
 ### Common Issues
@@ -450,8 +424,8 @@ gimp -i -b "(png-to-dds \"/tmp/test_bevel.png\" \"/tmp/test.dds\")" -b "(gimp-qu
 | Symptom | Likely Cause | Check |
 |---------|--------------|-------|
 | Flag invisible | Alpha channel lost | Verify PNG has transparency before bevel |
-| Bevel too strong/weak | Parameters | Adjust `bevel-size`, `bevel-height` in gradient-bevel.lisp |
+| Bevel too strong/weak | Parameters | Adjust `BLUR_RADIUS`, `BUMP_DEPTH`, and `BUMP_ELEVATION` in gradient_bevel.py |
 | Map flag has bevel | Logic error | Verify map path skips bevel in build.sh |
-| DDS won't load | Compression | Verify GIMP DDS plug-in, try opening in GIMP |
+| DDS won't load | Export procedure | Verify GIMP reports `file-dds-export`; try opening the DDS in GIMP |
 | Colours wrong | Colour space | DDS saved linear, game expects sRGB? |
 | Jagged edges | Potrace tracing | Use SVG source instead of PNG/BMP |

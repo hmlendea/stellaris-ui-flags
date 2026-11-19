@@ -51,7 +51,7 @@ Yes — ImageMagick, potrace, Inkscape, and GIMP are all validated at startup. E
 
 ### Does Flatpak GIMP work?
 
-Yes, the build script auto-detects Flatpak exports. **Caveat:** the DDS plug-in may not be included in the Flatpak package — install it into the Flatpak GIMP's plug-ins directory manually.
+Yes, the build script auto-detects Flatpak exports. GIMP 3 bundles the DDS export plug-in, so no manual plug-in installation is needed.
 
 ### Can I build on Windows?
 
@@ -74,7 +74,6 @@ Theoretically yes (bash script, tools available via Homebrew), but untested. Too
 | `.bmp` | potrace → SVG |
 | `.png` | ImageMagick → BMP → potrace → SVG |
 | `.xcf` | GIMP → PNG → BMP → potrace → SVG |
-
 **SVG is strongly recommended** — other formats pass through lossy raster→vector tracing.
 
 ### Why does my PNG flag look different after conversion?
@@ -113,7 +112,7 @@ By design. Main (128px) and small (24px) flags get a gradient bevel for a 3D emb
 
 ### Can I change the bevel appearance?
 
-Yes — edit `source/scripts/gradient-bevel.lisp` (bevel-size, bevel-height, colours). Full rebuild required. Changes affect **all** flags.
+Yes — edit `source/scripts/gradient_bevel.py` (blur radius, emboss depth, colours). Full rebuild required. Changes affect **all** flags.
 
 ### How do I add a colour?
 

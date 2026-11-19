@@ -89,9 +89,9 @@ picture="thumbnail.png"
 **Count:** 40+ files
 
 **Format Requirements:**
-- DDS with mipmaps
-- BC1 (DXT1) or BC3 (DXT5) compression
-- Power-of-two dimensions (typically 256x256 or 512x512)
+- DDS without mipmaps
+- Uncompressed BGRA8
+- Square dimensions (typically 400x400)
 - No alpha channel required for opaque backgrounds
 
 ### Colours
@@ -128,8 +128,8 @@ flags/<category>/
 |----------|-------|
 | Resolution | 128x128px |
 | Format | DDS |
-| Compression | BC3 (DXT5) with alpha |
-| Mipmaps | Yes |
+| Compression | Uncompressed BGRA8 |
+| Mipmaps | No |
 | Bevel Effect | Applied (gradient bevel) |
 | Colour Context | `flag` from colors.txt |
 
@@ -139,8 +139,8 @@ flags/<category>/
 |----------|-------|
 | Resolution | 256x256px |
 | Format | DDS |
-| Compression | BC3 (DXT5) with alpha |
-| Mipmaps | Yes |
+| Compression | Uncompressed BGRA8 |
+| Mipmaps | No |
 | Bevel Effect | **Not applied** |
 | Colour Context | `map` from colors.txt |
 
@@ -150,8 +150,8 @@ flags/<category>/
 |----------|-------|
 | Resolution | 24x24px |
 | Format | DDS |
-| Compression | BC3 (DXT5) with alpha |
-| Mipmaps | Yes |
+| Compression | Uncompressed BGRA8 |
+| Mipmaps | No |
 | Bevel Effect | Applied (gradient bevel) |
 | Colour Context | `flag` from colors.txt |
 
@@ -252,7 +252,7 @@ ui-flags_1.0.0.zip
 - [ ] All category directories present under `flags/`
 - [ ] Each category has `map/`, `small/`, and main DDS files
 - [ ] Background DDS files present in `flags/backgrounds/`
-- [ ] DDS files open correctly in GIMP (verify format, mipmaps)
+- [ ] DDS files open correctly in GIMP (verify format and transparency)
 - [ ] No missing or zero-byte DDS files
 
 ### In-Game Validation
@@ -271,11 +271,11 @@ ui-flags_1.0.0.zip
 | Issue | Cause | Resolution |
 |-------|-------|------------|
 | Mod not appearing | Descriptor path mismatch | Verify `path` in `.mod` matches directory name |
-| Flags missing | DDS format invalid | Re-export with GIMP DDS plug-in, ensure mipmaps |
+| Flags missing | DDS format invalid | Re-export with GIMP 3, verify the DDS export procedure succeeds |
 | Colours wrong | HSV values incorrect | Verify `colors.txt` HSV ranges (0-1 for H,S; V can exceed 1) |
 | Categories missing | Localisation key mismatch | Verify `FLAG_CATEGORY_<dir>` matches directory name exactly |
 | Map flags wrong size | Wrong resolution | Ensure map output is 256px, not 128px |
-| Small flags blurry | No mipmaps | Verify DDS export includes mipmap generation |
+| Small flags blurry | Low source detail | Use an SVG source instead of a raster source |
 
 ## Package Size
 

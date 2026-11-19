@@ -80,9 +80,9 @@ Directory created → discovered by build → output directory created → flags
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | name | string | Output filename base (from names.txt or default) |
-| main.dds | file | 128px, BC3, beveled |
-| map.dds | file | 256px, BC3, flat |
-| small.dds | file | 24px, BC3, beveled |
+| main.dds | file | 128px, uncompressed BGRA8, beveled |
+| map.dds | file | 256px, uncompressed BGRA8, flat |
+| small.dds | file | 24px, uncompressed BGRA8, beveled |
 
 **Lifecycle:**
 ```

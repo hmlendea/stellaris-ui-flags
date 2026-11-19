@@ -119,42 +119,35 @@ GIMP is not installed
 
 **Fix:**
 ```bash
-# System install (with DDS plug-in)
-sudo apt install gimp gimp-dds
+# System install
+sudo apt install gimp
 
 # Or Flatpak
 flatpak install flathub org.gimp.GIMP
 ```
 
-**Important:** Flatpak GIMP may not include the DDS plug-in. Install manually:
-```bash
-# Download DDS plug-in
-# Place in ~/.config/GIMP/2.10/plug-ins/ (or Flatpak equivalent)
-```
+**Important:** GIMP 2.10 is end of life and is not supported. The scripts require GIMP 3.0 or later, which bundles the DDS export plug-in.
 
 ---
 
-### DDS Plug-in Missing
+### DDS Export Unavailable
 
-**Symptom:** GIMP runs but DDS export fails; error mentions `file-dds-save` or unknown format.
+**Symptom:** GIMP runs but DDS export fails; error mentions `file-dds-export` or unknown format.
 
-**Cause:** GIMP DDS plug-in not installed.
+**Cause:** GIMP older than 3.0, or a build without the DDS plug-in.
 
 **Fix:**
 ```bash
-# Debian/Ubuntu
-sudo apt install gimp-dds
-
-# Manual install
-# Download from https://code.google.com/archive/p/gimp-dds/ (or distro package)
-# Copy dds plug-in binary to GIMP plug-ins directory:
-#   System: /usr/lib/gimp/2.0/plug-ins/
-#   User: ~/.config/GIMP/2.10/plug-ins/
+# Verify the GIMP version
+gimp --version
 ```
 
-**Verify:**
+**Verify the plug-in:**
 ```bash
-gimp -i -b "(png-to-dds \"/tmp/test.png\" \"/tmp/test.dds\")" -b "(gimp-quit 0)"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.dds" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/png_to_dds.py').read())" --quit
 # Should produce /tmp/test.dds without error
 ```
 
@@ -190,7 +183,11 @@ file source/flags/<category>/<flag>.*
 # Verify format matches extension
 
 # Run conversion manually
-gimp -i -b "(svg-to-png \"build/<cat>/<flag>.svg\" \"/tmp/test.png\" 128)" -b "(gimp-quit 0)"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/<cat>/<flag>.svg" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
 ```
 
 **Common Causes:**
@@ -221,7 +218,7 @@ gimp build/<category>/<flag>_bevel.png
 **Fix:**
 - Ensure source SVG has transparent background (not white)
 - If PNG source: ensure background is a solid colour (colour-to-alpha can remove it)
-- Check `svg-to-png.lisp` background removal logic
+- Check the background removal logic in `source/scripts/svg_to_png.py`
 
 ---
 
@@ -229,7 +226,7 @@ gimp build/<category>/<flag>_bevel.png
 
 **Symptom:** Flag shows white or coloured square behind emblem.
 
-**Cause:** `svg-to-png.lisp` failed to remove solid background.
+**Cause:** `svg_to_png.py` failed to remove the solid background.
 
 **Fix:**
 - Edit source SVG: remove background rect, keep only emblem
@@ -241,13 +238,13 @@ gimp build/<category>/<flag>_bevel.png
 
 **Symptom:** Flag bevel too strong, too weak, or distorted.
 
-**Cause:** `gradient-bevel.lisp` parameters not suited to the asset.
+**Cause:** `gradient_bevel.py` parameters not suited to the asset.
 
-**Fix:** Adjust parameters in `source/scripts/gradient-bevel.lisp`:
-```lisp
-(bevel-size 22)      ; Increase for wider bevel
-(bevel-width 2.5)    ; Increase for softer edges
-(bevel-height 40)    ; Increase for deeper emboss
+**Fix:** Adjust parameters in `source/scripts/gradient_bevel.py`:
+```python
+BLUR_RADIUS = 2.5       # Increase for softer edges
+BUMP_DEPTH = 5          # Increase for deeper emboss
+BUMP_ELEVATION = 40.0   # Increase for a higher light angle
 ```
 
 **Note:** Parameters are global — affect all flags. Full rebuild required.
@@ -351,7 +348,7 @@ gimp out/ui-flags/flags/<category>/<flag>.dds
 **Requirements:**
 - All three variants (main, map, small) must exist
 - Same filename in all three locations
-- Valid DDS format with mipmaps
+- Valid DDS file (uncompressed BGRA8, square dimensions)
 
 ---
 
@@ -385,8 +382,8 @@ Failed to load texture: flags/<category>/<flag>.dds
 ```
 
 **Causes:**
-- Invalid DDS format (wrong compression, no mipmaps)
-- Non-power-of-two dimensions
+- Invalid DDS file (corrupt header or truncated data)
+- Non-square dimensions
 - Corrupt file
 
 **Fix:** Rebuild the affected asset:
@@ -420,7 +417,7 @@ rm -rf build out
 
 ### Script Changes Not Applied
 
-**Symptom:** Modified `gradient-bevel.lisp` but output unchanged.
+**Symptom:** Modified `gradient_bevel.py` but output unchanged.
 
 **Cause:** Incremental skip — existing outputs not regenerated.
 
@@ -497,45 +494,55 @@ Shows every command executed.
 ```bash
 # After build, check intermediate files
 ls -la build/<category>/
-gimp build/<category>/<flag>.svg      # Check SVG
-gimp build/<category>/<flag>.png      # Check 128px render
-gimp build/<category>/<flag>_bevel.png # Check bevel
-gimp build/<category>/map/<flag>.png  # Check 256px render
-gimp build/<category>/small/<flag>.png # Check 24px render
+# Check the SVG, the 128px render, and the 24px render
+gimp build/<category>/<flag>.svg
+# The bevel is applied in place to the 128px and 24px renders
+gimp build/<category>/<flag>.png
+gimp build/<category>/map/<flag>.png
+gimp build/<category>/small/<flag>.png
 ```
 
 ### Test Individual Scripts
 
-```bash
-# svg-to-png
-gimp -i -b "(svg-to-png \"input.svg\" \"output.png\" 128)" -b "(gimp-quit 0)"
-
-# gradient-bevel
-gimp -i -b "(gradient-bevel \"input.png\" \"output.png\")" -b "(gimp-quit 0)"
-
-# png-to-dds
-gimp -i -b "(png-to-dds \"input.png\" \"output.dds\")" -b "(gimp-quit 0)"
-
-# xcf-to-png
-gimp -i -b "(xcf-to-png \"input.xcf\" \"output.png\")" -b "(gimp-quit 0)"
-```
-
-### Interactive Script-Fu Console
+The scripts read their parameters from `GIMP_SCRIPT_*` environment variables.
 
 ```bash
-gimp
-# Filters → Script-Fu → Console
-# Paste script content, then call:
-(gradient-bevel "/tmp/in.png" "/tmp/out.png")
+# svg_to_png
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.svg" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
+
+# gradient_bevel
+env GIMP_SCRIPT_IMAGE_PATH="input.png" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/gradient_bevel.py').read())" --quit
+
+# png_to_dds
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.dds" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/png_to_dds.py').read())" --quit
+
+# xcf_to_png
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.xcf" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/xcf_to_png.py').read())" --quit
 ```
+
+### Interactive Debugging
+
+Load the script in a Python-Fu console session and call its function directly with the desired arguments.
 
 ### Verify DDS Files
 
 ```bash
-# Open in GIMP — should load with mipmaps visible
+# Open in GIMP — it should load correctly
 gimp out/ui-flags/flags/<category>/<flag>.dds
 
-# Check file size (DXT1 ~1/6 uncompressed, DXT5 ~1/4)
+# Check the file size (expected: 128 + width × height × 4 bytes)
 ls -la out/ui-flags/flags/<category>/<flag>.dds
 ```
 

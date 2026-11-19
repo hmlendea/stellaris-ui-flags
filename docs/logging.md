@@ -45,8 +45,8 @@ GIMP batch mode prints to stderr:
 
 | Output | Meaning |
 |--------|---------|
-| `batch command: experienced an execution error` | Script-fu failure — check arguments and input file |
-| Nothing (success) | Operation completed |
+| `batch command experienced an execution error` | Python-Fu failure — check arguments and input file |
+| `batch command executed successfully` | Operation completed |
 | Plug-in warnings | Non-fatal; usually ignorable |
 
 GIMP startup also prints version/warning noise to stderr on each invocation — this is normal and not an error indicator.
@@ -104,11 +104,15 @@ bash -x ./build.sh <version> 2>&1 | tee trace.log
 Run a single GIMP operation manually with full output:
 
 ```bash
-gimp -i -b "(svg-to-png \"/path/to/input.svg\" \"/path/to/output.png\")" -b "(gimp-quit 0)"
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="/path/to/input.svg" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/path/to/output.png" \
+    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
 ```
 
 - Errors print directly to terminal
-- Interactive alternative: GIMP → Filters → Script-Fu → Console
+- The scripts raise `GimpScriptError` with the failing step when a parameter is missing or a procedure fails
 
 ## What Is NOT Logged
 
