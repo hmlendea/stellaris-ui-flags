@@ -50,8 +50,12 @@ SOURCE ASSET
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ STAGE 4: PNG → DDS EXPORT                                                   │
 │                                                                             │
-│   128px beveled PNG ──► python (png_to_dds) ──► out/.../main/<name>.dds     │
 │   256px flat PNG    ──► python (png_to_dds) ──► out/.../map/<name>.dds      │
+│                                                                             │
+│   The map needs no bevel, so it is exported before the bevel stage. The     │
+│   beveled main and small PNGs are exported only after the bevel stage, so   │
+│   their textures carry the bevel:                                           │
+│   128px beveled PNG ──► python (png_to_dds) ──► out/.../main/<name>.dds     │
 │    24px beveled PNG ──► python (png_to_dds) ──► out/.../small/<name>.dds    │
 │                                                                             │
 │   DDS: uncompressed BGRA8, no mipmaps, GIMP-compatible header               │
@@ -299,8 +303,8 @@ OUTPUT: PNG with 3D bevel effect
 **Function:** `convert_image(source_path, output_path)`
 
 **Process:**
-1. Read the PNG dimensions and the four channels with ImageMagick
-2. Reorder the channels to BGRA
+1. Read the PNG dimensions with ImageMagick
+2. Read the BGRA pixel data from ImageMagick in one invocation
 3. Write the 128-byte `DDS ` header, then the pixels
 
 ### DDS Export Settings

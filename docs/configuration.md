@@ -203,9 +203,8 @@ COLOUR_GRADIENT_END = '#715209'    # Dark gold shadow
 
 ### Modifying DDS Export
 
-Edit `source/scripts/png_to_dds.py`. The header fields live in `build_header`, and the channel order
-is set by the slice assignment in `convert_image`. No GIMP settings apply, because the file is
-written directly.
+Edit `source/scripts/png_to_dds.py`. The header fields live in `build_header`, and the pixel
+format is read by `read_bgra_data`. No GIMP settings apply, because the file is written directly.
 
 ## Stellaris Version Compatibility
 

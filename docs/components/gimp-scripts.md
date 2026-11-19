@@ -186,7 +186,7 @@ output is byte-compatible while skipping the GIMP process entirely.
 
 **Modification Points:**
 - Header fields: Edit `build_header`
-- Channel order: Edit the slice assignment in `convert_image`
+- Image extraction: Edit `read_bgra_data`
 
 ### svg-to-png
 

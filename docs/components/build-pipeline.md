@@ -395,10 +395,8 @@ The per-asset worker rasterises the main, map and small PNGs and exports all thr
             svg-to-png "${FLAG_BUILD_SVG_FILE_PATH}" "${FLAG_BUILD_MAP_PNG_FILE_PATH}" "256"
         fi
 
-        export-flag-dds \
-            "${FLAG_BUILD_MAIN_PNG_FILE_PATH}" "${FLAG_OUTPUT_MAIN_FILE_PATH}" \
-            "${FLAG_BUILD_MAP_PNG_FILE_PATH}" "${FLAG_OUTPUT_MAP_FILE_PATH}" \
-            "${FLAG_BUILD_SMALL_PNG_FILE_PATH}" "${FLAG_OUTPUT_SMALL_FILE_PATH}"
+        # The map needs no bevel, so its DDS is exported now.
+        export-map-dds "${FLAG_BUILD_MAP_PNG_FILE_PATH}" "${FLAG_OUTPUT_MAP_FILE_PATH}"
     ) > "${FLAG_LOG_PATH}" 2>&1
 ) &
 ```
@@ -415,6 +413,23 @@ for BEVEL_ROUND_NUMBER in $(seq 1 "${VARIANT_ATTEMPT_COUNT}"); do
 done
 ```
 
+The beveled main and small PNGs are exported only after the rounds, so their DDS textures carry the
+bevel:
+
+```bash
+for FLAG_KEY in "${FLAG_KEYS[@]}"; do
+    while [ "$(jobs -rp | wc -l)" -ge "${FLAG_WORKER_COUNT}" ]; do
+        wait -n
+    done
+
+    (
+        export-beveled-dds \
+            "${FLAG_MAIN_PNG_PATHS[${FLAG_KEY}]}" "${FLAG_MAIN_DDS_PATHS[${FLAG_KEY}]}" \
+            "${FLAG_SMALL_PNG_PATHS[${FLAG_KEY}]}" "${FLAG_SMALL_DDS_PATHS[${FLAG_KEY}]}"
+    ) > "${BUILD_DIR_PATH}/${FLAG_KEY//\//-}.export.log" 2>&1 &
+done
+```
+
 ## Conversion Flow Summary
 
 ```
@@ -427,9 +442,13 @@ SOURCE FORMAT          CONVERSION PATH                              OUTPUTS
 .bmp                   BMP → SVG                                    → 128, 256, 24 PNG
 
 ALL FORMATS THEN:
-  128px PNG → gradient bevel → DDS (main flag)
-  256px PNG → DDS (map flag, NO bevel)
-  24px PNG  → gradient bevel → DDS (small flag)
+  128px PNG → rasterise → gradient bevel → DDS (main flag)
+  256px PNG → rasterise → DDS (map flag, NO bevel)
+  24px PNG  → rasterise → gradient bevel → DDS (small flag)
+
+EXPORT ORDER:
+  map DDS is exported by the worker, because it needs no bevel
+  main and small DDS are exported after the bevel rounds, from the beveled PNGs
 ```
 
 ## Incremental Build Logic
@@ -467,10 +486,7 @@ Individual asset failures are logged per worker but do not halt the rasterisatio
 ```bash
 source-to-svg "${FLAG_FILE}" "${FLAG_BUILD_SVG_FILE_PATH}"
 ...
-export-flag-dds \
-    "${FLAG_BUILD_MAIN_PNG_FILE_PATH}" "${FLAG_OUTPUT_MAIN_FILE_PATH}" \
-    "${FLAG_BUILD_MAP_PNG_FILE_PATH}" "${FLAG_OUTPUT_MAP_FILE_PATH}" \
-    "${FLAG_BUILD_SMALL_PNG_FILE_PATH}" "${FLAG_OUTPUT_SMALL_FILE_PATH}"
+export-map-dds "${FLAG_BUILD_MAP_PNG_FILE_PATH}" "${FLAG_OUTPUT_MAP_FILE_PATH}"
 ```
 
 A bevel failure does not stop the batch, because an unmarked image is retried over the remaining

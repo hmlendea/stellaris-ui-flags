@@ -295,7 +295,8 @@ convert_image(source_path, output_path)
 | `source_path` | string | Path to input PNG file |
 | `output_path` | string | Path for output DDS file |
 
-**Behaviour:** Loads PNG and exports it as an uncompressed DDS texture.
+**Behaviour:** Reads the PNG dimensions and the BGRA pixel data from ImageMagick in one invocation
+each, then writes a 128-byte DDS header followed by the raw pixels.
 
 ---
 

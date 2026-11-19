@@ -3,6 +3,9 @@
 This writes the format that GIMP's `file-dds-export` produces with compression disabled: a 128-byte
 header followed by raw BGRA pixels, no mipmaps. Writing it directly avoids starting GIMP, which
 costs about three seconds per invocation and dominates the build.
+
+ImageMagick emits the BGRA pixels in a single invocation, so the export costs one process start for
+the dimensions and one for the pixels.
 """
 
 import struct
@@ -18,8 +21,9 @@ DDS_FLAGS = 0x100f
 DDS_PIXEL_FORMAT_FLAGS = 0x41
 DDS_PIXEL_FORMAT_SIZE = 32
 DDS_CAPS_TEXTURE = 0x1000
-BYTES_PER_PIXEL = 4
 IMAGE_MAGICK_BINARY = 'magick'
+BGRA_FORMAT_SPECIFIER = 'bgra:-'
+BYTES_PER_PIXEL = 4
 
 
 def build_header(width, height):
@@ -60,32 +64,21 @@ def read_dimensions(source_path):
     return int(width), int(height)
 
 
-def read_channel_data(source_path, channel):
-    """Return the raw bytes of one channel of the PNG at the supplied path."""
+def read_bgra_data(source_path):
+    """Return the raw BGRA bytes of the PNG at the supplied path."""
     return subprocess.run(
-        [IMAGE_MAGICK_BINARY, source_path, '-depth', '8', '-channel', channel,
-         '-separate', 'gray:-'],
+        [IMAGE_MAGICK_BINARY, source_path, '-depth', '8', BGRA_FORMAT_SPECIFIER],
         capture_output=True, check=True).stdout
 
 
 def convert_image(source_path, output_path):
     """Convert the PNG stored at the source path into an uncompressed DDS file."""
     width, height = read_dimensions(source_path)
-
-    red = read_channel_data(source_path, 'R')
-    green = read_channel_data(source_path, 'G')
-    blue = read_channel_data(source_path, 'B')
-    alpha = read_channel_data(source_path, 'A')
-
-    pixels = bytearray(len(red) * BYTES_PER_PIXEL)
-    pixels[0::4] = blue
-    pixels[1::4] = green
-    pixels[2::4] = red
-    pixels[3::4] = alpha
+    pixels = read_bgra_data(source_path)
 
     with open(output_path, 'wb') as output_file:
         output_file.write(build_header(width, height))
-        output_file.write(bytes(pixels))
+        output_file.write(pixels)
 
 
 def main():

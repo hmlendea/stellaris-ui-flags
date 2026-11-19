@@ -116,6 +116,8 @@ START
 │    │   └── rsvg-convert + ImageMagick, no GIMP session                      │
 │    ├── svg-to-png(build SVG, build MAP PNG, 256)                           │
 │    ├── svg-to-png(build SVG, build SMALL PNG, 24)                          │
+│    ├── export-map-dds(build MAP PNG, out MAP DDS)                          │
+│    │   └── the map needs no bevel, so it is exported by the worker         │
 │    └── OUTPUT: build/<category>/<name>.png and the map/ and small/ variants │
 └─────────────────────────────────────────────────────────────────────────────┘
   │
@@ -132,12 +134,12 @@ START
   │
   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 10. PNG → DDS EXPORT                                                        │
-│    ├── png-to-dds(build MAIN PNG, out MAIN DDS)                            │
-│    ├── png-to-dds(build MAP PNG, out MAP DDS)                              │
-│    ├── png-to-dds(build SMALL PNG, out SMALL DDS)                          │
+│ 10. BEVELED PNG → DDS EXPORT                                                │
+│    ├── export-beveled-dds(build MAIN PNG, out MAIN DDS)                    │
+│    ├── export-beveled-dds(build SMALL PNG, out SMALL DDS)                  │
 │    │   └── Python writes the uncompressed format directly, no GIMP session │
-│    └── OUTPUT: out/ui-flags/flags/<cat>/<name>.dds and the map/ and small/ │
+│    ├── Runs after the bevel rounds, so the output textures carry the bevel │
+│    └── OUTPUT: out/ui-flags/flags/<cat>/<name>.dds and the small/ variant  │
 └─────────────────────────────────────────────────────────────────────────────┘
   │
   ▼

@@ -307,20 +307,29 @@ function source-to-svg {
     esac
 }
 
-function export-flag-dds {
+function export-map-dds {
+    local MAP_PNG_PATH="${1}"
+    local MAP_DDS_PATH="${2}"
+
+    png-to-dds "${MAP_PNG_PATH}" "${MAP_DDS_PATH}"
+
+    if [ ! -f "${MAP_DDS_PATH}" ]; then
+        echo "[ERROR] Failure while exporting '${MAP_DDS_PATH}'!"
+        exit 3
+    fi
+}
+
+function export-beveled-dds {
     local MAIN_PNG_PATH="${1}"
     local MAIN_DDS_PATH="${2}"
-    local MAP_PNG_PATH="${3}"
-    local MAP_DDS_PATH="${4}"
-    local SMALL_PNG_PATH="${5}"
-    local SMALL_DDS_PATH="${6}"
+    local SMALL_PNG_PATH="${3}"
+    local SMALL_DDS_PATH="${4}"
 
     png-to-dds "${MAIN_PNG_PATH}" "${MAIN_DDS_PATH}"
-    png-to-dds "${MAP_PNG_PATH}" "${MAP_DDS_PATH}"
     png-to-dds "${SMALL_PNG_PATH}" "${SMALL_DDS_PATH}"
 
     local MISSING_OUTPUT_PATH=""
-    for OUTPUT_PATH in "${MAIN_DDS_PATH}" "${MAP_DDS_PATH}" "${SMALL_DDS_PATH}"; do
+    for OUTPUT_PATH in "${MAIN_DDS_PATH}" "${SMALL_DDS_PATH}"; do
         [ -f "${OUTPUT_PATH}" ] || MISSING_OUTPUT_PATH="${OUTPUT_PATH}"
     done
 
@@ -453,6 +462,8 @@ generate-mod-descriptor "${MOD_DESCRIPTOR_SECONDARY_FILE_PATH}"
 declare -a FLAG_KEYS=()
 declare -A FLAG_MAIN_PNG_PATHS=()
 declare -A FLAG_SMALL_PNG_PATHS=()
+declare -A FLAG_MAIN_DDS_PATHS=()
+declare -A FLAG_SMALL_DDS_PATHS=()
 declare -A FLAG_BEVEL_SVGS=()
 declare -A FLAG_BEVEL_SIZES=()
 
@@ -513,6 +524,8 @@ for CATEGORY_DIR in "${SOURCE_FLAGS_DIR_PATH}"/*; do
         FLAG_KEYS+=("${FLAG_KEY}")
         FLAG_MAIN_PNG_PATHS[${FLAG_KEY}]="${FLAG_BUILD_MAIN_FILE_PATH}"
         FLAG_SMALL_PNG_PATHS[${FLAG_KEY}]="${FLAG_BUILD_SMALL_FILE_PATH}"
+        FLAG_MAIN_DDS_PATHS[${FLAG_KEY}]="${FLAG_OUTPUT_MAIN_FILE_PATH}"
+        FLAG_SMALL_DDS_PATHS[${FLAG_KEY}]="${FLAG_OUTPUT_SMALL_FILE_PATH}"
 
         FLAG_BEVEL_SVGS[${FLAG_BUILD_MAIN_FILE_PATH}]="${FLAG_SVG_BUILD_FILE_PATH}"
         FLAG_BEVEL_SIZES[${FLAG_BUILD_MAIN_FILE_PATH}]="128"
@@ -536,13 +549,9 @@ for CATEGORY_DIR in "${SOURCE_FLAGS_DIR_PATH}"/*; do
                     svg-to-png "${FLAG_SVG_BUILD_FILE_PATH}" "${FLAG_BUILD_MAP_FILE_PATH}" "256"
                 fi
 
-                export-flag-dds \
-                    "${FLAG_BUILD_MAIN_FILE_PATH}" \
-                    "${FLAG_OUTPUT_MAIN_FILE_PATH}" \
-                    "${FLAG_BUILD_MAP_FILE_PATH}" \
-                    "${FLAG_OUTPUT_MAP_FILE_PATH}" \
-                    "${FLAG_BUILD_SMALL_FILE_PATH}" \
-                    "${FLAG_OUTPUT_SMALL_FILE_PATH}"
+                # The map needs no bevel, so its DDS is exported now. The main and small DDS are
+                # exported after the bevel rounds, from the beveled PNGs.
+                export-map-dds "${FLAG_BUILD_MAP_FILE_PATH}" "${FLAG_OUTPUT_MAP_FILE_PATH}"
             ) > "${FLAG_LOG_PATH}" 2>&1
         ) &
     done
@@ -573,6 +582,27 @@ for BEVEL_ROUND_NUMBER in $(seq 1 "${VARIANT_ATTEMPT_COUNT}"); do
     for PNG_PATH in "${FLAG_BEVEL_PATHS[@]}"; do
         is-usable-png "${PNG_PATH}" || rasterise-bevel-png "${PNG_PATH}"
     done
+done
+
+wait
+
+# The beveled main and small PNGs are exported only now, so their DDS textures carry the bevel. The
+# map DDS was already exported by the workers, because the map needs no bevel. The exports are
+# bounded by the same worker count as the rasterisation, so the process count stays in check.
+for FLAG_KEY in "${FLAG_KEYS[@]}"; do
+    while [ "$(jobs -rp | wc -l)" -ge "${FLAG_WORKER_COUNT}" ]; do
+        wait -n
+    done
+
+    FLAG_EXPORT_LOG_PATH="${BUILD_DIR_PATH}/${FLAG_KEY//\//-}.export.log"
+
+    (
+        export-beveled-dds \
+            "${FLAG_MAIN_PNG_PATHS[${FLAG_KEY}]}" \
+            "${FLAG_MAIN_DDS_PATHS[${FLAG_KEY}]}" \
+            "${FLAG_SMALL_PNG_PATHS[${FLAG_KEY}]}" \
+            "${FLAG_SMALL_DDS_PATHS[${FLAG_KEY}]}"
+    ) > "${FLAG_EXPORT_LOG_PATH}" 2>&1 &
 done
 
 wait
