@@ -177,7 +177,7 @@ fi
 
 | Script | Purpose | Key Parameters |
 |--------|---------|----------------|
-| `gradient_bevel.py` | Applies gradient bevel effect | `BLUR_RADIUS`, `RELIEF_AZIMUTH`, `RELIEF_ELEVATION`, `RELIEF_DEPTH`, colours |
+| `gradient_bevel.py` | Applies gradient bevel effect | `BLUR_RADIUS`, `BUMP_AZIMUTH`, `BUMP_ELEVATION`, `BUMP_DEPTH`, colours |
 | `png_to_dds.py` | Exports PNG to DDS | `DDS_COMPRESSION_FORMAT` in `gimp_image_operations.py` |
 | `svg_to_png.py` | Renders SVG to PNG | `OUTPUT_IMAGE_SIZE` argument, background handling |
 | `xcf_to_png.py` | Exports XCF to PNG | Layer merging |
@@ -188,9 +188,9 @@ Edit `source/scripts/gradient_bevel.py`:
 
 ```python
 BLUR_RADIUS = 2.5       # Blur radius used for the relief silhouette
-RELIEF_AZIMUTH = 115.0  # Emboss light direction
-RELIEF_ELEVATION = 40.0 # Emboss light elevation
-RELIEF_DEPTH = 5        # Emboss depth
+BUMP_AZIMUTH = 115.0    # Bump-map light direction
+BUMP_ELEVATION = 40.0   # Bump-map light elevation
+BUMP_DEPTH = 5          # Bump-map depth
 ```
 
 Colour stops:

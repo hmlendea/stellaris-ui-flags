@@ -45,50 +45,75 @@ apply_gradient_bevel(image_path)
 
 ```
 1. Load input PNG as image
-2. Get image dimensions (width, height)
-3. Create a black "Relief" layer
-4. Paint the flag silhouette onto the Relief layer in white
-5. Apply Gaussian blur to the Relief layer to round the silhouette edges
-6. Apply emboss to the Relief layer to obtain directional relief shading
-7. Erase everything outside the flag shape
-8. Create a "Colour" layer with a radial gold gradient, clipped to the flag shape
-9. Remove the original flag layer
-10. Merge visible layers
-11. Save as PNG
+2. Duplicate the flag layer as a height-map silhouette
+3. Paint the flag silhouette onto a blur layer in white
+4. Select the silhouette and apply a Gaussian blur to the blur layer, then clear the selection
+5. Apply white-to-grey radial gradient to the flag layer
+6. Apply Bump Map to the flag using the blurred silhouette as height map
+7. Offset, invert and dim the blur layer, then remove it
+8. Apply radial gold gradient to a Colour layer (Grain Merge blend) clipped to the flag shape
+9. Merge visible layers
+10. Save as PNG
 ```
 
+**Note:** `edit_gradient_fill` differs from the GIMP 2.10 `gimp-edit-blend`. The legacy `95` and
+`100` arguments were that procedure's opacity and were ignored; the GIMP 3 `offset` argument, which
+is third, is the legacy offset of `0`. Passing `95` or `100` as the offset starts both gradients at
+their dark end and renders the flag as flat, solid colour. The legacy Grain Merge blend is retained.
+
+**Note:** The blur of the height map runs while the silhouette selection is still active, as the
+legacy script does. Without the selection the blur widens the height map well beyond the silhouette,
+the bump map sees an almost flat gradient, and the relief is flattened. This selection is what the
+legacy `plug-in-gauss-rle` inherited from the preceding `gimp-image-select-item`.
+
+**Note:** The flag is deliberately not re-clipped to the silhouette after the bump map. The legacy
+bump map also coloured the pixels outside the silhouette, and re-clipping discards that relief and
+thins the emblem edges.
+
 **Key Constants (in script):**
+
 ```python
 BLUR_RADIUS = 2.5       # Gaussian blur radius used for the relief silhouette
-RELIEF_AZIMUTH = 115.0  # Emboss light direction
-RELIEF_ELEVATION = 40.0 # Emboss light elevation
-RELIEF_DEPTH = 5        # Emboss depth
+BUMP_AZIMUTH = 115.0    # Bump-map light direction
+BUMP_ELEVATION = 40.0   # Bump-map light elevation
+BUMP_DEPTH = 5          # Bump-map depth
+BUMP_AMBIENT = 0.15     # Bump-map ambient light
+GRADIENT_OFFSET = 0.0   # Gradient offset (legacy opacity of 95/100 was ignored)
+USE_GRADIENT_DITHER = True  # Dither gradients, as the legacy gimp-edit-blend does
+BLUR_OFFSET_ADJUSTMENT = 5   # Blur layer pixel offset
+BLUR_LAYER_OPACITY = 50.0    # Blur layer opacity
+BEVEL_SIZE = 22         # Selection inset for the flag gradient
+BEVEL_INDENT_OFFSET = 12        # Bevel left inset in px
 ```
 
 **Colour Stops:**
 
 | Layer | Highlight (Foreground) | Shadow (Background) |
 |-------|------------------------|---------------------|
-| Relief | White | Black |
+| Blur | White silhouette | Transparent |
+| Flag | White | Grey (127,127,127) |
 | Colour | Gold (178,164,136) | Dark Gold (113,82,9) |
 
-**GIMP PDB Functions Used:**
-- `gimp-file-load` — Load PNG
-- `gimp-layer-new` — Create the Relief and Colour layers
+**GIMP procedures used:**
+- `file-png-load` — Load PNG
+- `gimp-layer-copy` — Create the silhouette layer
+- `gimp-layer-new` — Create blur and Colour layers
 - `gimp-image-insert-layer` — Add layers to the image
-- `gimp-image-select-item` — Select the flag silhouette
-- `gimp-drawable-edit-fill` — Fill with the foreground or background colour
-- `gimp-drawable-edit-gradient-fill` — Apply the radial gold gradient
+- `gimp-image-select-item` — Select the flag silhouette / colour layer
+- `gimp-drawable-edit-fill` / `edit_gradient_fill` — Fill with colour or gradient
 - `gegl:gaussian-blur` — Blur the relief silhouette
-- `gegl:emboss` — Emboss the relief silhouette
+- `gegl:bump-map` — Emboss the flag using the silhouette as height map
 - `gimp-image-merge-visible-layers` — Flatten
 - `file-png-export` — Save PNG
 
 **Modification Points:**
-- Bevel softness: Change `BLUR_RADIUS`
-- Bevel depth: Change `RELIEF_DEPTH`
-- Bevel light direction: Change `RELIEF_AZIMUTH` and `RELIEF_ELEVATION`
+- Relief softness: Change `BLUR_RADIUS`
+- Bevel depth: Change `BUMP_DEPTH`
+- Bevel light direction: Change `BUMP_AZIMUTH` and `BUMP_ELEVATION`
 - Gradient colours: Modify `COLOUR_GRADIENT_START` and `COLOUR_GRADIENT_END`
+- Bevel offset: Change `BLUR_OFFSET_ADJUSTMENT`
+- Bevel shadow strength: Change `BLUR_LAYER_OPACITY`
+- Flag gradient inset and centre: Change `GRADIENT_OFFSET`, `BEVEL_INDENT_OFFSET`
 
 ### png_to_dds.py
 
@@ -249,7 +274,7 @@ GIMP 3 bundles every required plug-in.
 | DDS export | `file-dds-export` | Write DDS textures |
 | Colour to Alpha | `gegl:color-to-alpha` | Remove solid backgrounds |
 | Gaussian Blur | `gegl:gaussian-blur` | Relief silhouette smoothing |
-| Emboss | `gegl:emboss` | Bevel embossing |
+| Bump Map | `gegl:bump-map` | Bevel embossing |
 | Python-Fu | `python-fu-eval` | Batch script interpreter |
 
 ### Flatpak Support

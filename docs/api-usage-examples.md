@@ -131,9 +131,9 @@ env GIMP_SCRIPT_IMAGE_PATH="/path/to/input.png" \
 #   GIMP_SCRIPT_IMAGE_PATH — PNG path, rewritten in place
 # Parameters (hardcoded in script):
 #   BLUR_RADIUS: 2.5
-#   RELIEF_AZIMUTH: 115.0
-#   RELIEF_ELEVATION: 40.0
-#   RELIEF_DEPTH: 5
+#   BUMP_AZIMUTH: 115.0
+#   BUMP_ELEVATION: 40.0
+#   BUMP_DEPTH: 5
 #   Relief: white silhouette on black
 #   Colour Overlay: gold (178,164,136) to dark gold (113,82,9)
 ```

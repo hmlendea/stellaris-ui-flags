@@ -178,9 +178,9 @@ rm -rf build out
 | Parameter | Current | Effect |
 |-----------|---------|--------|
 | `BLUR_RADIUS` | 2.5 | Silhouette blur radius |
-| `RELIEF_AZIMUTH` | 115.0 | Emboss light direction |
-| `RELIEF_ELEVATION` | 40.0 | Emboss light elevation |
-| `RELIEF_DEPTH` | 5 | Emboss depth/intensity |
+| `BUMP_AZIMUTH` | 115.0 | Bump-map light direction |
+| `BUMP_ELEVATION` | 40.0 | Bump-map light elevation |
+| `BUMP_DEPTH` | 5 | Bump-map depth/intensity |
 
 ### Colour Stops
 

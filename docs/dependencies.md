@@ -99,7 +99,7 @@ GIMP 3 bundles every plug-in the build requires, including DDS export (`file-dds
 | DDS export | `file-dds-export` | Write DDS textures |
 | Colour to Alpha | `gegl:color-to-alpha` | Remove solid backgrounds |
 | Gaussian Blur | `gegl:gaussian-blur` | Bump map smoothing |
-| Emboss | `gegl:emboss` | Bevel embossing |
+| Bump Map | `gegl:bump-map` | Bevel embossing |
 
 ## CI/CD Dependencies
 
@@ -153,7 +153,7 @@ build.sh
     │   └── Used by: svg-to-png
     ├── Gaussian Blur (gegl:gaussian-blur)
     │   └── Used by: gradient-bevel
-    └── Emboss (gegl:emboss)
+    └── Bump Map (gegl:bump-map)
         └── Used by: gradient-bevel
 ```
 

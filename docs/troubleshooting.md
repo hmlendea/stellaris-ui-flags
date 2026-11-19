@@ -243,8 +243,8 @@ gimp build/<category>/<flag>_bevel.png
 **Fix:** Adjust parameters in `source/scripts/gradient_bevel.py`:
 ```python
 BLUR_RADIUS = 2.5       # Increase for softer edges
-RELIEF_DEPTH = 5        # Increase for deeper emboss
-RELIEF_ELEVATION = 40.0 # Increase for a higher light angle
+BUMP_DEPTH = 5          # Increase for deeper emboss
+BUMP_ELEVATION = 40.0   # Increase for a higher light angle
 ```
 
 **Note:** Parameters are global — affect all flags. Full rebuild required.

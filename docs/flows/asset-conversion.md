@@ -169,11 +169,14 @@ potrace "temp.bmp" -s -o "output.svg"
 
 **Process:**
 1. Load SVG directly through `file-svg-load` at the target size, disregarding the ratio
-2. Merge the imported layers into a single flag layer
-3. Sample the corner colour and remove it with colour to alpha
-4. Lock the alpha and repaint the opaque area white
-5. Merge visible layers
-6. Save PNG
+2. Add a white background layer beneath the imported SVG; without it, SVGs that rely on stroked
+   paths with no fill are fully transparent, so the sampled corner colour is transparent and
+   removing it erases the whole emblem
+3. Merge the imported layers and the background into a single flag layer
+4. Sample the corner colour and remove it with colour to alpha
+5. Lock the alpha and repaint the opaque area white
+6. Merge visible layers
+7. Save PNG
 
 ### Resolution-Specific Details
 
@@ -242,31 +245,34 @@ INPUT: PNG with alpha channel (flag emblem on transparent)
 OUTPUT: PNG with 3D bevel effect
 
 1. Load PNG as image
-2. Create a black "Relief" layer
-3. Paint the flag silhouette onto the Relief layer in white
-4. Apply Gaussian blur to the Relief layer to round the silhouette edges
-5. Apply emboss to the Relief layer for directional relief shading
-6. Erase everything outside the flag shape
-7. Create a "Colour" layer with a radial gold gradient, clipped to the flag shape
-8. Remove the original flag layer
-9. Merge visible layers
-10. Save PNG
+2. Duplicate the flag layer as a silhouette
+3. Create a "Blur" layer and paint the silhouette onto it in white
+4. Select the silhouette and apply a Gaussian blur to the Blur layer, then clear the selection
+5. Apply a white-to-grey radial gradient to the flag layer
+6. Apply Bump Map to the flag using the Blur layer as the height map
+7. Offset, invert and dim the Blur layer to 50% opacity, then remove it
+8. Create a "Colour" layer with a radial gold gradient, blended with Grain Merge and clipped to the flag shape
+9. Keep the flag as the base layer
+10. Merge visible layers
+11. Save PNG
 ```
 
 ### Bevel Parameters (Defaults)
 
 | Parameter | Value | Effect |
 |-----------|-------|--------|
-| `BLUR_RADIUS` | 2.5 | Gaussian blur for the relief silhouette |
-| `RELIEF_AZIMUTH` | 115.0 | Emboss light direction |
-| `RELIEF_ELEVATION` | 40.0 | Emboss light elevation |
-| `RELIEF_DEPTH` | 5 | Emboss depth |
+| `BLUR_RADIUS` | 2.5 | Gaussian blur for the height-map silhouette |
+| `BUMP_AZIMUTH` | 115.0 | Bump-map light direction |
+| `BUMP_ELEVATION` | 40.0 | Bump-map light elevation |
+| `BUMP_DEPTH` | 5 | Bump-map depth |
+| `BUMP_AMBIENT` | 0.15 | Bump-map ambient light |
 
 ### Colour Gradients
 
 | Layer | Highlight (FG) | Shadow (BG) |
 |-------|----------------|-------------|
-| Relief | White (255,255,255) | Black (0,0,0) |
+| Blur | White (255,255,255) | Transparent |
+| Flag | White (255,255,255) | Grey (127,127,127) |
 | Colour Overlay | Gold (178,164,136) | Dark Gold (113,82,9) |
 
 ### Visual Result
@@ -418,7 +424,7 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test_128.png" \
 | Symptom | Likely Cause | Check |
 |---------|--------------|-------|
 | Flag invisible | Alpha channel lost | Verify PNG has transparency before bevel |
-| Bevel too strong/weak | Parameters | Adjust `BLUR_RADIUS`, `RELIEF_DEPTH`, and `RELIEF_ELEVATION` in gradient_bevel.py |
+| Bevel too strong/weak | Parameters | Adjust `BLUR_RADIUS`, `BUMP_DEPTH`, and `BUMP_ELEVATION` in gradient_bevel.py |
 | Map flag has bevel | Logic error | Verify map path skips bevel in build.sh |
 | DDS won't load | Export procedure | Verify GIMP reports `file-dds-export`; try opening the DDS in GIMP |
 | Colours wrong | Colour space | DDS saved linear, game expects sRGB? |

@@ -14,7 +14,7 @@ DDS_EXPORT_PROCEDURE = 'file-dds-export'
 SVG_LOAD_PROCEDURE = 'file-svg-load'
 COLOUR_TO_ALPHA_OPERATION = 'gegl:color-to-alpha'
 GAUSSIAN_BLUR_OPERATION = 'gegl:gaussian-blur'
-EMBOSS_OPERATION = 'gegl:emboss'
+BUMP_MAP_OPERATION = 'gegl:bump-map'
 
 
 def load_image(source_path):
@@ -69,6 +69,16 @@ def add_layer(image, layer_name, layer_mode):
     return layer
 
 
+def add_background_layer(image, layer_name):
+    """Create a transparent layer of the image size and insert it beneath the others."""
+    layer = Gimp.Layer.new(image, layer_name, image.get_width(), image.get_height(),
+                           Gimp.ImageType.RGBA_IMAGE, DEFAULT_LAYER_OPACITY,
+                           Gimp.LayerMode.NORMAL)
+    image.insert_layer(layer, None, len(image.get_layers()))
+
+    return layer
+
+
 def set_background_colour(hexadecimal_colour):
     """Set the context background colour from a hexadecimal value."""
     Gimp.context_set_background(Gegl.Color.new(hexadecimal_colour))
@@ -84,14 +94,14 @@ def fill_with_background(layer):
     layer.edit_fill(Gimp.FillType.BACKGROUND)
 
 
-def fill_with_radial_gradient(layer, start_x, start_y, end_x, end_y,
-                              start_colour, end_colour):
-    """Fill the layer with a radial gradient running from the start to the end colour."""
+def select_gradient_foreground_to_background():
+    """Select the foreground-to-background gradient in the context."""
     Gimp.context_set_gradient_fg_bg_rgb()
-    set_foreground_colour(start_colour)
-    set_background_colour(end_colour)
-    layer.edit_gradient_fill(Gimp.GradientType.RADIAL, 0.0, False, 0, 0.0, True,
-                             start_x, start_y, end_x, end_y)
+
+
+def invert_layer(layer):
+    """Invert the colours of the layer."""
+    layer.invert(False)
 
 
 def clear_layer(layer):
@@ -114,6 +124,11 @@ def select_shape(image, shape_layer):
     return image.select_item(Gimp.ChannelOps.REPLACE, shape_layer)
 
 
+def select_alpha(layer):
+    """Select the opaque area of the layer."""
+    layer.get_image().select_item(Gimp.ChannelOps.REPLACE, layer)
+
+
 def invert_selection(image):
     """Invert the current selection."""
     Gimp.Selection.invert(image)
@@ -122,6 +137,16 @@ def invert_selection(image):
 def set_alpha_lock(layer, is_locked):
     """Enable or disable the alpha lock of the layer."""
     layer.set_lock_alpha(is_locked)
+
+
+def set_layer_opacity(layer, opacity):
+    """Set the opacity of the layer as a percentage."""
+    layer.set_opacity(opacity)
+
+
+def set_layer_offsets(layer, offset_x, offset_y):
+    """Move the layer by the supplied offsets."""
+    layer.set_offsets(offset_x, offset_y)
 
 
 def merge_visible_layers(image):
@@ -137,6 +162,23 @@ def remove_image(image):
 def remove_layer(image, layer):
     """Delete the layer from the image."""
     image.remove_layer(layer)
+
+
+def duplicate_layer(image, layer):
+    """Insert a copy of the layer at the top of the image and return it."""
+    result = run_procedure('gimp-layer-copy', {'layer': layer})
+    copy = result.index(1)
+    image.insert_layer(copy, None, 0)
+
+    return copy
+
+
+def clip_to_layer_alpha(image, target_layer, alpha_reference_layer):
+    """Erase everything on the target layer that lies outside the reference layer's opaque area."""
+    select_alpha(alpha_reference_layer)
+    invert_selection(image)
+    clear_layer(target_layer)
+    select_none(image)
 
 
 def pick_colour(image, drawable, position_x, position_y):
@@ -156,19 +198,33 @@ def recolour_opaque_area(image, layer, hexadecimal_colour):
     set_alpha_lock(layer, False)
 
 
+def apply_gaussian_blur(layer, radius):
+    """Apply a Gaussian blur of the supplied radius to the layer."""
+    apply_filter(layer, GAUSSIAN_BLUR_OPERATION, {
+        'std-dev-x': radius,
+        'std-dev-y': radius,
+        'abyss-policy': 'clamp',
+        'clip-extent': False,
+    })
+
+
+def apply_legacy_bump_map(drawable, height_map_drawable, properties):
+    """Apply bump mapping to the drawable using the height map as its auxiliary input."""
+    filter_object = Gimp.DrawableFilter.new(drawable, BUMP_MAP_OPERATION, BUMP_MAP_OPERATION)
+    filter_object.set_aux_input('aux', height_map_drawable)
+    filter_config = filter_object.get_config()
+
+    for property_name, property_value in properties.items():
+        filter_config.set_property(property_name, property_value)
+
+    drawable.merge_filter(filter_object)
+
+
 def paint_shape_onto_layer(image, shape_layer, target_layer, hexadecimal_colour):
     """Paint the opaque area of the shape layer onto the target layer."""
     select_shape(image, shape_layer)
     set_background_colour(hexadecimal_colour)
     fill_with_background(target_layer)
-    select_none(image)
-
-
-def clear_outside_shape(image, shape_layer, target_layer):
-    """Erase everything on the target layer that lies outside the shape layer."""
-    select_shape(image, shape_layer)
-    invert_selection(image)
-    clear_layer(target_layer)
     select_none(image)
 
 

@@ -247,14 +247,14 @@ apply_gradient_bevel(image_path)
 |-----------|------|-------------|
 | `image_path` | string | Path to the PNG file, rewritten in place |
 
-**Behaviour:** Loads PNG, builds a blurred silhouette of the flag and embosses it into a relief layer, overlays a radial gold gradient clipped to the shape, merges, and saves the PNG.
+**Behaviour:** Loads PNG, applies a white-to-grey radial gradient to the flag, bump maps it using a blurred silhouette as the height map, re-clips it to its transparency, and overlays a radial gold gradient clipped to the shape, then merges and saves the PNG. The algorithm reproduces the GIMP 2.10 bevel.
 
 **Key Constants:**
 ```python
 BLUR_RADIUS = 2.5       # Gaussian blur radius used for the relief silhouette
-RELIEF_AZIMUTH = 115.0  # Emboss light direction
-RELIEF_ELEVATION = 40.0 # Emboss light elevation
-RELIEF_DEPTH = 5        # Emboss depth
+BUMP_AZIMUTH = 115.0    # Bump-map light direction
+BUMP_ELEVATION = 40.0   # Bump-map light elevation
+BUMP_DEPTH = 5          # Bump-map depth
 ```
 
 ---
