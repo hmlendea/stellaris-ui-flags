@@ -158,7 +158,7 @@ ai-to-svg <input_file_path> <output_file_path>
 
 ### `svg-to-png`
 
-Renders SVG to PNG at specified size using GIMP Python-Fu.
+Renders SVG to PNG at specified size with `rsvg-convert` and ImageMagick.
 
 ```bash
 svg-to-png <input_file_path> <output_file_path> <output_image_size>
@@ -172,7 +172,7 @@ svg-to-png <input_file_path> <output_file_path> <output_image_size>
 | `output_file_path` | string | Path for output PNG file |
 | `output_image_size` | integer | Target dimension in pixels (square) |
 
-**Tool:** GIMP batch mode with `svg_to_png.py`
+**Tool:** `rsvg-convert` and ImageMagick, through the `svg-to-png` function in `build.sh`
 
 **Sizes Used:** 128 (main), 256 (map), 24 (small)
 
@@ -282,13 +282,10 @@ convert_image(source_path, output_path)
 
 ---
 
-### `render_flag` (svg_to_png.py)
+### `svg-to-png` internals
 
-Renders SVG to PNG at specified size.
-
-```python
-render_flag(source_path, output_path, output_size)
-```
+The stage is implemented by the `svg-to-png` function in `build.sh`, which invokes `rsvg-convert`
+and then ImageMagick for the alpha channel.
 
 **Parameters:**
 
@@ -436,7 +433,7 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.svg" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
     gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/svg_to_png.py').read())" --quit
+    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/gradient_bevel.py').read())" --quit
 
 # Apply bevel (in place)
 env GIMP_SCRIPT_IMAGE_PATH="input.png" \

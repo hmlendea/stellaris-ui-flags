@@ -70,7 +70,6 @@ stellaris-ui-flags/
 │   │   ├── gimp_script_errors.py
 │   │   ├── gradient_bevel.py
 │   │   ├── png_to_dds.py
-│   │   ├── svg_to_png.py
 │   │   └── xcf_to_png.py
 │   └── thumbnail.png
 ├── .github/

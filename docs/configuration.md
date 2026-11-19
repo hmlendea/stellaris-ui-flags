@@ -179,7 +179,7 @@ fi
 |--------|---------|----------------|
 | `gradient_bevel.py` | Applies gradient bevel effect | `BLUR_RADIUS`, `BUMP_AZIMUTH`, `BUMP_ELEVATION`, `BUMP_DEPTH`, colours |
 | `png_to_dds.py` | Exports PNG to DDS | Header fields in `build_header` |
-| `svg_to_png.py` | Renders SVG to PNG | `OUTPUT_IMAGE_SIZE` argument, background handling |
+| `svg-to-png` (in `build.sh`) | Renders SVG to PNG | Background colour, output size |
 | `xcf_to_png.py` | Exports XCF to PNG | Layer merging |
 
 ### Modifying Gradient Bevel

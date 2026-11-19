@@ -103,20 +103,17 @@ Parameters are supplied through `GIMP_SCRIPT_*` environment variables, and the s
 GIMP_DIRECTORY_PATH="source/scripts"
 ```
 
-### svg_to_png.py
+### svg-to-png (build.sh)
 
 ```bash
-# Render SVG to PNG at specified size
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="/path/to/input.svg" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/path/to/output.png" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, '${GIMP_DIRECTORY_PATH}'); exec(open('${GIMP_DIRECTORY_PATH}/svg_to_png.py').read())" --quit
-
-# Parameters:
-#   GIMP_SCRIPT_INPUT_IMAGE_PATH  — Input SVG path
-#   GIMP_SCRIPT_OUTPUT_IMAGE_PATH — Output PNG path
-#   GIMP_SCRIPT_OUTPUT_IMAGE_SIZE — Size in pixels (square output)
+# Render SVG to PNG at specified size, over a white background
+rsvg-convert -w 128 -h 128 -b white -o /tmp/raw.png "/path/to/input.svg"
+BACKGROUND=$(magick /tmp/raw.png -format '%[pixel:p{3,0}]' info:)
+magick /tmp/raw.png \( +clone -fill "$BACKGROUND" -colorize 100 \) \
+    -compose Difference -composite -colorspace Gray /tmp/alpha.png
+magick -size 128x128 xc:white /tmp/alpha.png -alpha off \
+    -compose CopyOpacity -composite -type TrueColorAlpha \
+    -define png:color-type=6 "/path/to/output.png"
 ```
 
 ### gradient_bevel.py
@@ -198,10 +195,7 @@ run-gimp-script() {
 cp source/flags/human/earth.svg build/human/earth.svg
 
 # 2. Render 128px PNG
-run-gimp-script "svg_to_png" \
-    INPUT_IMAGE_PATH "build/human/earth.svg" \
-    OUTPUT_IMAGE_PATH "build/human/earth.png" \
-    OUTPUT_IMAGE_SIZE "128"
+svg-to-png "build/human/earth.svg" "build/human/earth.png" 128
 
 # 3. Apply bevel to main (in place)
 run-gimp-script "gradient_bevel" IMAGE_PATH "build/human/earth.png"
@@ -212,10 +206,7 @@ run-gimp-script "png_to_dds" \
     OUTPUT_IMAGE_PATH "out/ui-flags/flags/human/ui_earth.dds"
 
 # 5. Render 256px PNG (map)
-run-gimp-script "svg_to_png" \
-    INPUT_IMAGE_PATH "build/human/earth.svg" \
-    OUTPUT_IMAGE_PATH "build/human/earth_map.png" \
-    OUTPUT_IMAGE_SIZE "256"
+svg-to-png "build/human/earth.svg" "build/human/earth_map.png" 256
 
 # 6. Export map DDS (no bevel)
 run-gimp-script "png_to_dds" \
@@ -223,10 +214,7 @@ run-gimp-script "png_to_dds" \
     OUTPUT_IMAGE_PATH "out/ui-flags/flags/human/map/ui_earth.dds"
 
 # 7. Render 24px PNG (small)
-run-gimp-script "svg_to_png" \
-    INPUT_IMAGE_PATH "build/human/earth.svg" \
-    OUTPUT_IMAGE_PATH "build/human/earth_small.png" \
-    OUTPUT_IMAGE_SIZE "24"
+svg-to-png "build/human/earth.svg" "build/human/earth_small.png" 24
 
 # 8. Apply bevel to small (in place)
 run-gimp-script "gradient_bevel" IMAGE_PATH "build/human/earth_small.png"
@@ -335,10 +323,7 @@ grep my_colour out/ui-flags/flags/colors.txt
 ### Test SVG Rendering
 
 ```bash
-run-gimp-script "svg_to_png" \
-    INPUT_IMAGE_PATH "build/human/earth.svg" \
-    OUTPUT_IMAGE_PATH "/tmp/test.png" \
-    OUTPUT_IMAGE_SIZE "128"
+svg-to-png "build/human/earth.svg" "/tmp/test.png" 128
 # Check /tmp/test.png
 ```
 

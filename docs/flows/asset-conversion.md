@@ -24,13 +24,13 @@ SOURCE ASSET
     │
     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ STAGE 2: SVG → THREE PNG RESOLUTIONS (parallel logical, sequential actual) │
+│ STAGE 2: SVG → THREE PNG RESOLUTIONS                                         │
 │                                                                             │
-│   SVG ──► GIMP (svg_to_png) ──► 128×128 PNG (main)                         │
-│   SVG ──► GIMP (svg_to_png) ──► 256×256 PNG (map)                          │
-│   SVG ──► GIMP (svg_to_png) ──►  24×24  PNG (small)                        │
+│   SVG ──► rsvg-convert + ImageMagick (svg-to-png) ──► 128×128 PNG (main)     │
+│   SVG ──► rsvg-convert + ImageMagick (svg-to-png) ──► 256×256 PNG (map)      │
+│   SVG ──► rsvg-convert + ImageMagick (svg-to-png) ──►  24×24  PNG (small)    │
 │                                                                             │
-│   Each invocation: independent GIMP process                                 │
+│   No GIMP session; about a hundred milliseconds for all three                 │
 └─────────────────────────────────────────────────────────────────────────────┘
     │
     ▼
@@ -164,26 +164,25 @@ potrace "temp.bmp" -s -o "output.svg"
 
 ## Stage 2: SVG → PNG (Three Resolutions)
 
-### Common SVG Rendering (svg_to_png.py)
+### Common SVG Rendering (svg-to-png)
 
-**Function:** `render_flag(source_path, output_path, output_size)`
+**Location:** the `svg-to-png` function in `build.sh`
 
 **Process:**
-1. Load SVG directly through `file-svg-load` at the target size, disregarding the ratio
-2. Add a white background layer beneath the imported SVG; without it, SVGs that rely on stroked
-   paths with no fill are fully transparent, so the sampled corner colour is transparent and
-   removing it erases the whole emblem
-3. Merge the imported layers and the background into a single flag layer
-4. Sample the corner colour and remove it with colour to alpha
-5. Lock the alpha and repaint the opaque area white
-6. Merge visible layers
-7. Save PNG
+1. Rasterise the SVG with `rsvg-convert` at the target size over a white background
+2. Sample the background colour from the top-left corner
+3. Take the difference from that colour as the alpha channel
+4. Composite the alpha over an opaque white base, forcing PNG colour type 6
+
+The white background matters: SVGs traced from bitmaps draw black shapes with no background
+rectangle, so a transparent background renders black on black and the emblem disappears. Forcing the
+colour type matters too, because a greyscale PNG is read as the wrong channels by the DDS writer.
 
 ### Resolution-Specific Details
 
 #### Main Flag (128px)
 
-**Call:** `render_flag(svg, build_main.png, 128)`
+**Call:** `svg-to-png <svg> build_main.png 128`
 
 **Output:** `build/<cat>/<source>.png` (128×128)
 
@@ -359,7 +358,8 @@ For 24×24 small flag: identical output size
 | PNG | IM+Potrace (2) | 3 | 2 | 3 | 8 |
 | XCF | GIMP+IM+Potrace (3) | 3 | 2 | 3 | 8 |
 
-**GIMP Calls per Asset:** Always 8 (3 svg_to_png + 2 gradient_bevel + 3 png_to_dds)
+**GIMP Calls per Asset:** 2 (the two `gradient_bevel` bevels). The SVG rasterisation and the three
+DDS exports no longer use GIMP, which is why the build is several times faster.
 
 **Additional Calls for XCF:** +1 (xcf_to_png in conversion stage)
 
@@ -398,11 +398,8 @@ ls -la build/human/
 
 ```bash
 # Test SVG → PNG (128px)
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/human/flag.svg" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test_128.png" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
+rsvg-convert -w 128 -h 128 -b white -o /tmp/raw.png "build/human/flag.svg"
+magick identify /tmp/raw.png
 
 # Test bevel
 env GIMP_SCRIPT_IMAGE_PATH="/tmp/test_128.png" \

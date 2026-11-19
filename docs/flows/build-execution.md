@@ -296,7 +296,7 @@ fi
 **Pipeline:**
 ```
 SVG (build)
-  → svg_to_png (128px)
+  → svg-to-png (128px)
   → PNG (build)
   → gradient_bevel (rewrites the PNG in place)
   → png_to_dds
@@ -310,7 +310,7 @@ SVG (build)
 **Pipeline:**
 ```
 SVG (build)
-  → svg_to_png (256px)
+  → svg-to-png (256px)
   → PNG (build)
   → png_to_dds
   → DDS (out/map)
@@ -325,7 +325,7 @@ SVG (build)
 **Pipeline:**
 ```
 SVG (build)
-  → svg_to_png (24px)
+  → svg-to-png (24px)
   → PNG (build)
   → gradient_bevel (rewrites the PNG in place)
   → png_to_dds

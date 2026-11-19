@@ -10,7 +10,6 @@ The build pipeline uses four GIMP Python-Fu scripts for image processing operati
 |--------|---------|------------|-------|--------|
 | `gradient_bevel.py` | Applies 3D gradient bevel effect | `apply-gradient-bevel` | PNG | PNG (with bevel) |
 | `png_to_dds.py` | Exports PNG to DDS format | `png-to-dds` | PNG | DDS |
-| `svg_to_png.py` | Renders SVG to PNG at specified size | `svg-to-png` | SVG | PNG |
 | `xcf_to_png.py` | Exports XCF (GIMP native) to PNG | `xcf-to-png` / `xcf-to-svg` | XCF | PNG |
 
 ## Shared Modules
@@ -156,51 +155,44 @@ output is byte-compatible while skipping the GIMP process entirely.
 - Header fields: Edit `build_header`
 - Channel order: Edit the slice assignment in `convert_image`
 
-### svg_to_png.py
+### svg-to-png
 
-**Purpose:** Renders an SVG file to a PNG at a specified pixel size, removing the flat background colour.
+**Purpose:** Renders an SVG file to a PNG at a specified pixel size, removing the flat background
+colour.
 
-**Location:** `source/scripts/svg_to_png.py`
+**Location:** the `svg-to-png` function in `build.sh`
 
-**Function Signature:**
-```python
-render_flag(source_path, output_path, output_size)
-```
+**Tooling:** `rsvg-convert` and ImageMagick. This stage no longer uses GIMP: rasterising through
+`rsvg-convert` and deriving the alpha with ImageMagick reproduces the former GIMP pipeline exactly
+while costing milliseconds instead of a multi-second GIMP start.
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `source_path` | string | Path to input SVG file |
-| `output_path` | string | Path for output PNG file |
-| `output_size` | integer | Target dimension in pixels (square: width = height) |
+| `input_image_path` | string | Path to input SVG file |
+| `output_image_path` | string | Path for output PNG file |
+| `output_image_size` | integer | Target dimension in pixels (square: width = height) |
 
 **Algorithm:**
 ```
-1. Load SVG directly at the target output size (square)
-2. Merge the imported layers into a single flag layer
-3. Sample the corner colour, then remove it with colour to alpha
-4. Lock the alpha and repaint the opaque area white
-5. Merge visible layers
-6. Save as PNG
+1. Rasterise the SVG at the target size over a white background
+2. Sample the background colour from the top-left corner
+3. Take the difference from that colour as the alpha channel
+4. Composite that alpha over an opaque white base
+5. Save as a truecolour PNG with alpha
 ```
 
 **Key Operations:**
-- **SVG Import:** `file-svg-load` renders the SVG at the requested size with the ratio disregarded
-- **Background Removal:** `gegl:color-to-alpha` on the sampled corner colour
-- **Repaint:** The alpha lock keeps the shape while every opaque pixel becomes white
-
-**GIMP PDB Functions Used:**
-- `file-svg-load` — Load SVG at a target size
-- `gimp-image-merge-visible-layers` — Flatten
-- `gimp-image-pick-color` — Sample the corner colour
-- `gegl:color-to-alpha` — Remove the flat background
-- `gimp-layer-set-lock-alpha` — Restrict the repaint to the shape
-- `file-png-export` — Save PNG
+- **Rasterisation:** `rsvg-convert -w N -h N -b white`. The white background is essential; SVGs traced from bitmaps draw black shapes with no background rectangle, so a transparent background would render black on black and leave the emblem invisible.
+- **Alpha:** the emblem is whatever differs from the sampled background colour, and that difference becomes the alpha channel.
+- **Base:** an explicit white image, because the pipeline expects the emblem to be white with the shape in the alpha channel alone.
+- **Colour type:** the output must be forced to PNG colour type 6. ImageMagick otherwise emits a greyscale image, which the DDS writer reads as the wrong channels.
 
 **Modification Points:**
 - Output size: Passed as parameter (128, 256, or 24)
-- Background removal: Modify the sampled position or the colour threshold
+- Background colour: Change the `-b` argument
+- Alpha derivation: Modify the difference composite
 
 ### xcf_to_png.py
 
@@ -251,7 +243,7 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="in.svg" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="out.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
     "${GIMP_TOOL_PATH}" -i --batch-interpreter=python-fu-eval \
-    -b "exec(open('source/scripts/svg_to_png.py').read())" --quit
+    -b "exec(open('source/scripts/gradient_bevel.py').read())" --quit
 ```
 
 **Flags:**
@@ -294,8 +286,6 @@ Scripts work with Flatpak GIMP (`org.gimp.GIMP`) when invoked via the detected F
 | Script | Failure Cause | Symptom |
 |--------|---------------|---------|
 | gradient_bevel | Unsupported GEGL operation | GIMP error, no output |
-| png_to_dds | DDS export procedure missing | "Unknown file format" |
-| svg_to_png | Invalid SVG | Import fails, empty image |
 | xcf_to_png | Corrupt XCF | Load fails |
 
 ### Debugging

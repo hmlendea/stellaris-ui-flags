@@ -38,10 +38,14 @@ THUMBNAIL_FILE_PATH="${SOURCE_DIR_PATH}/thumbnail.png"
 # GIMP session can also crash partway, which leaves a truncated PNG behind.
 readonly VARIANT_ATTEMPT_COUNT=8
 
-# How many flags to render at once. Each worker is a separate GIMP process, so this trades CPU
-# utilisation against memory: every instance reserves its own tile cache. Two workers measured
-# fastest on a memory-constrained machine; higher counts start being killed by the OOM killer.
-readonly FLAG_WORKER_COUNT="${FLAG_WORKER_COUNT:-2}"
+# How many flags to process at once. The SVG rasterisation and the DDS export are cheap, so a high
+# value is fine for them; the GIMP bevels are gated separately by FLAG_GIMP_CONCURRENCY.
+readonly FLAG_WORKER_COUNT="${FLAG_WORKER_COUNT:-4}"
+
+# How many GIMP processes may run at once. Every instance needs a few hundred megabytes, so raising
+# this too far gets the bevels killed by the OOM killer, which silently leaves them unbeveled.
+readonly FLAG_GIMP_CONCURRENCY="${FLAG_GIMP_CONCURRENCY:-4}"
+readonly GIMP_SLOT_DIRECTORY_PATH="${BUILD_DIR_PATH}/gimp-slots"
 
 [ ! -d "${SOURCE_DIR_PATH}" ] && echo "MISSING SOURCE DIRECTORY" && exit -1
 [ ! -f "/usr/bin/convert" ] && echo "[ERROR] ImageMagick is not installed on this system" && exit 1
@@ -53,6 +57,14 @@ if [ ! -f "${PYTHON_BINARY}" ]; then
 fi
 if [ ! -x "${PYTHON_BINARY}" ]; then
     echo "[ERROR] Python 3 is not installed on this system" && exit 1
+fi
+
+RSVG_BINARY="/usr/bin/rsvg-convert"
+if [ ! -x "${RSVG_BINARY}" ]; then
+    RSVG_BINARY="$(command -v rsvg-convert)"
+fi
+if [ ! -x "${RSVG_BINARY}" ]; then
+    echo "[ERROR] rsvg-convert is not installed on this system" && exit 1
 fi
 
 function execute-inkscape {
@@ -98,10 +110,37 @@ function execute-gimp-script-file {
 
     local GIMP_BATCH_COMMAND="import sys; sys.path.insert(0, '${SOURCE_SCRIPTS_DIR_PATH}'); exec(open('${GIMP_SCRIPT_PATH}').read())"
 
+    # At most FLAG_GIMP_CONCURRENCY GIMP processes may run at once. A lock file per slot keeps the
+    # concurrency independent of how many workers the pipeline uses.
+    mkdir -p "${GIMP_SLOT_DIRECTORY_PATH}"
+    local GIMP_SLOT_PATH=""
+    local GIMP_SLOT_NUMBER=1
+    while [ -z "${GIMP_SLOT_PATH}" ]; do
+        local CANDIDATE_SLOT_PATH="${GIMP_SLOT_DIRECTORY_PATH}/slot-${GIMP_SLOT_NUMBER}.lock"
+        exec {GIMP_SLOT_FILE_DESCRIPTOR}>"${CANDIDATE_SLOT_PATH}"
+
+        if flock -n "${GIMP_SLOT_FILE_DESCRIPTOR}"; then
+            GIMP_SLOT_PATH="${CANDIDATE_SLOT_PATH}"
+        else
+            exec {GIMP_SLOT_FILE_DESCRIPTOR}>&-
+            GIMP_SLOT_NUMBER=$((GIMP_SLOT_NUMBER + 1))
+
+            if [ "${GIMP_SLOT_NUMBER}" -gt "${FLAG_GIMP_CONCURRENCY}" ]; then
+                GIMP_SLOT_NUMBER=1
+                sleep 1
+            fi
+        fi
+    done
+
     # A new instance is required so that consecutive invocations do not attach
     # to an instance that is still shutting down and discard the batch command.
     env "${GIMP_SCRIPT_ARGUMENTS[@]}" "${GIMP_BINARY}" --new-instance -i \
         --batch-interpreter=python-fu-eval -b "${GIMP_BATCH_COMMAND}" --quit
+    local GIMP_EXIT_CODE=$?
+
+    exec {GIMP_SLOT_FILE_DESCRIPTOR}>&-
+
+    return "${GIMP_EXIT_CODE}"
 }
 
 function xcf-to-png {
@@ -205,10 +244,43 @@ function svg-to-png {
 
     echo -e "\e[36mConverting SVG to PNG for '${INPUT_IMAGE_PATH}'...\e[0m"
 
-    execute-gimp-script-file "svg_to_png" \
-        INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
-        OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}" \
-        OUTPUT_IMAGE_SIZE "${OUTPUT_IMAGE_SIZE}"
+    # rsvg-convert rasterises the emblem over a flat background, and the emblem is simply the
+    # difference from that background colour, which becomes the alpha channel. This reproduces the
+    # GIMP pipeline pixel for pixel while costing milliseconds instead of a multi-second GIMP start.
+    # The temporary file must keep a .png extension because rsvg-convert infers the output format
+    # from it.
+    local RAW_PNG_PATH="${OUTPUT_IMAGE_PATH}.raw.png"
+
+    # The background must be white. SVGs traced from bitmaps draw black shapes without a background
+    # rectangle, so the default transparent background would render black on black and leave the
+    # emblem invisible.
+    "${RSVG_BINARY}" -w "${OUTPUT_IMAGE_SIZE}" -h "${OUTPUT_IMAGE_SIZE}" -b white \
+        -o "${RAW_PNG_PATH}" "${INPUT_IMAGE_PATH}"
+
+    if [ ! -f "${RAW_PNG_PATH}" ]; then
+        echo "[ERROR] Failure while rasterising '${INPUT_IMAGE_PATH}'!"
+        exit 3
+    fi
+
+    local BACKGROUND_COLOUR=$(magick "${RAW_PNG_PATH}" -format '%[pixel:p{3,0}]' info:)
+
+    # The emblem is everything that differs from the background colour, and that difference is the
+    # alpha channel. The base is a plain white image, because the pipeline expects the emblem to be
+    # white and to carry its shape in the alpha channel alone.
+    magick "${RAW_PNG_PATH}" \
+        \( +clone -fill "${BACKGROUND_COLOUR}" -colorize 100 \) \
+        -compose Difference -composite \
+        -colorspace Gray \
+        "${RAW_PNG_PATH}.alpha.png"
+
+    magick -size "${OUTPUT_IMAGE_SIZE}x${OUTPUT_IMAGE_SIZE}" xc:white \
+        "${RAW_PNG_PATH}.alpha.png" -alpha off \
+        -compose CopyOpacity -composite \
+        -type TrueColorAlpha \
+        -define png:color-type=6 \
+        "${OUTPUT_IMAGE_PATH}"
+
+    rm -f "${RAW_PNG_PATH}" "${RAW_PNG_PATH}.alpha.png"
 
     if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
         echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
@@ -235,23 +307,29 @@ function render-flag {
 
     echo -e "\e[36mRendering the flag variants for '${SOURCE_PATH}'...\e[0m"
 
-    # Every PNG of the flag is rendered in a single GIMP session, because each process costs about
-    # three seconds to start. The DDS export does not use GIMP at all.
-    execute-gimp-script-file "render_flag_variants" \
-        SOURCE_PATH "${SOURCE_PATH}" \
-        MAIN_PNG_PATH "${MAIN_PNG_PATH}" \
-        MAP_PNG_PATH "${MAP_PNG_PATH}" \
-        SMALL_PNG_PATH "${SMALL_PNG_PATH}" \
-        MAIN_SIZE "128" \
-        MAP_SIZE "256" \
-        SMALL_SIZE "24"
+    # Only the two bevels need GIMP. The SVG rasterisation and the DDS export use plain tools, and
+    # each GIMP start costs about three seconds, so the session is skipped whenever both bevels are
+    # already present.
+    if ! is-beveled-png "${MAIN_PNG_PATH}" || ! is-beveled-png "${SMALL_PNG_PATH}"; then
+        if ! is-beveled-png "${MAIN_PNG_PATH}"; then
+            svg-to-png "${SOURCE_PATH}" "${MAIN_PNG_PATH}" "128"
+            execute-gimp-script-file "gradient_bevel" IMAGE_PATH "${MAIN_PNG_PATH}"
+        fi
 
-    # A memory-limited machine can terminate the shared session partway, so any PNG that is still
-    # absent is rendered again through individual invocations.
+        if ! is-beveled-png "${SMALL_PNG_PATH}"; then
+            svg-to-png "${SOURCE_PATH}" "${SMALL_PNG_PATH}" "24"
+            execute-gimp-script-file "gradient_bevel" IMAGE_PATH "${SMALL_PNG_PATH}"
+        fi
+    fi
+
+    if ! is-usable-png "${MAP_PNG_PATH}"; then
+        svg-to-png "${SOURCE_PATH}" "${MAP_PNG_PATH}" "256"
+    fi
+
+    # A memory-limited machine can terminate a GIMP session partway, so any bevel that is still
+    # missing is attempted again through individual invocations.
     ensure-beveled-png "${SOURCE_PATH}" "${MAIN_PNG_PATH}" "128"
-    ensure-flat-png "${SOURCE_PATH}" "${MAP_PNG_PATH}" "256"
     ensure-beveled-png "${SOURCE_PATH}" "${SMALL_PNG_PATH}" "24"
-
     png-to-dds "${MAIN_PNG_PATH}" "${MAIN_DDS_PATH}"
     png-to-dds "${MAP_PNG_PATH}" "${MAP_DDS_PATH}"
     png-to-dds "${SMALL_PNG_PATH}" "${SMALL_DDS_PATH}"
@@ -274,15 +352,27 @@ function is-usable-png {
     identify "${PNG_PATH}" >/dev/null 2>&1
 }
 
+function bevel-marker-path {
+    local PNG_PATH="${1}"
+
+    echo "${PNG_PATH}.beveled"
+}
+
+function is-beveled-png {
+    local PNG_PATH="${1}"
+
+    is-usable-png "${PNG_PATH}" && [ -f "$(bevel-marker-path "${PNG_PATH}")" ]
+}
+
 function ensure-beveled-png {
     local SOURCE_PATH="${1}"
     local PNG_PATH="${2}"
     local IMAGE_SIZE="${3}"
     local ATTEMPT_NUMBER=1
 
-    while ! is-usable-png "${PNG_PATH}" && [ "${ATTEMPT_NUMBER}" -le "${VARIANT_ATTEMPT_COUNT}" ]; do
+    while ! is-beveled-png "${PNG_PATH}" && [ "${ATTEMPT_NUMBER}" -le "${VARIANT_ATTEMPT_COUNT}" ]; do
         echo -e "\e[33mRendering the ${IMAGE_SIZE}px PNG of '${SOURCE_PATH}' on attempt ${ATTEMPT_NUMBER}...\e[0m"
-        rm -f "${PNG_PATH}"
+        rm -f "${PNG_PATH}" "$(bevel-marker-path "${PNG_PATH}")"
         render-beveled-png "${SOURCE_PATH}" "${PNG_PATH}" "${IMAGE_SIZE}"
         ATTEMPT_NUMBER=$((ATTEMPT_NUMBER + 1))
     done
@@ -297,7 +387,7 @@ function ensure-flat-png {
     while ! is-usable-png "${PNG_PATH}" && [ "${ATTEMPT_NUMBER}" -le "${VARIANT_ATTEMPT_COUNT}" ]; do
         echo -e "\e[33mRendering the ${IMAGE_SIZE}px PNG of '${SOURCE_PATH}' on attempt ${ATTEMPT_NUMBER}...\e[0m"
         rm -f "${PNG_PATH}"
-        render-flat-png "${SOURCE_PATH}" "${PNG_PATH}" "${IMAGE_SIZE}"
+        svg-to-png "${SOURCE_PATH}" "${PNG_PATH}" "${IMAGE_SIZE}"
         ATTEMPT_NUMBER=$((ATTEMPT_NUMBER + 1))
     done
 }
@@ -307,10 +397,7 @@ function render-beveled-png {
     local PNG_PATH="${2}"
     local IMAGE_SIZE="${3}"
 
-    execute-gimp-script-file "svg_to_png" \
-        INPUT_IMAGE_PATH "${SOURCE_PATH}" \
-        OUTPUT_IMAGE_PATH "${PNG_PATH}" \
-        OUTPUT_IMAGE_SIZE "${IMAGE_SIZE}"
+    svg-to-png "${SOURCE_PATH}" "${PNG_PATH}" "${IMAGE_SIZE}"
 
     if [ -f "${PNG_PATH}" ]; then
         execute-gimp-script-file "gradient_bevel" IMAGE_PATH "${PNG_PATH}"
@@ -322,10 +409,7 @@ function render-flat-png {
     local PNG_PATH="${2}"
     local IMAGE_SIZE="${3}"
 
-    execute-gimp-script-file "svg_to_png" \
-        INPUT_IMAGE_PATH "${SOURCE_PATH}" \
-        OUTPUT_IMAGE_PATH "${PNG_PATH}" \
-        OUTPUT_IMAGE_SIZE "${IMAGE_SIZE}"
+    svg-to-png "${SOURCE_PATH}" "${PNG_PATH}" "${IMAGE_SIZE}"
 }
 
 function get-flag-file-name {

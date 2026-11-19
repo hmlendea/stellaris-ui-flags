@@ -19,6 +19,7 @@ from gimp_image_operations import (add_layer, apply_gaussian_blur, apply_legacy_
 from gimp_script_arguments import read_argument
 
 IMAGE_PATH_ARGUMENT = 'IMAGE_PATH'
+COMPLETION_MARKER_SUFFIX = '.beveled'
 
 BLUR_LAYER_NAME = 'Blur'
 COLOUR_LAYER_NAME = 'Colour'
@@ -135,6 +136,10 @@ def main():
     image_path = read_argument(IMAGE_PATH_ARGUMENT)
 
     apply_gradient_bevel(image_path)
+
+    # The marker is written only after the bevel has been saved, so a session that dies partway or is
+    # killed is never mistaken for a completed bevel.
+    open(image_path + COMPLETION_MARKER_SUFFIX, 'w', encoding='utf-8').close()
 
 
 if __name__ == '__main__':

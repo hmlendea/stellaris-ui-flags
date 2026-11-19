@@ -52,7 +52,6 @@ source/
     ├── gimp_script_errors.py
     ├── gradient_bevel.py
     ├── png_to_dds.py
-    ├── svg_to_png.py
     └── xcf_to_png.py
 ```
 
@@ -311,7 +310,6 @@ imperial-eagle=ui_domination_1
 |--------|---------|------------|
 | `gradient_bevel.py` | Applies 3D bevel effect with gradient shading | `apply-gradient-bevel` function |
 | `png_to_dds.py` | Exports PNG to DDS with game-compatible settings | `png-to-dds` function |
-| `svg_to_png.py` | Renders SVG to PNG at specified size | `svg-to-png` function |
 | `xcf_to_png.py` | Exports XCF (GIMP) to PNG | `xcf-to-png` function |
 
 See [GIMP Scripts Component](../components/gimp-scripts.md) for detailed documentation.

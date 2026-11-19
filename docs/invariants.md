@@ -153,7 +153,8 @@ Invariants are conditions that must always hold true for the system to function 
 
 ### INV-14: Source Assets Have Removable Backgrounds
 
-**Invariant (assumption):** Source flag designs have their emblem on a transparent or solid-colour background that `svg_to_png.py` can remove.
+**Invariant (assumption):** Source flag designs have their emblem on a transparent or solid-colour background that the
+`svg-to-png` stage can remove.
 
 **NOT enforced by:** Build script.
 

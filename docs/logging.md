@@ -108,7 +108,7 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="/path/to/input.svg" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/path/to/output.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
     gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/gradient_bevel.py').read())" --quit
 ```
 
 - Errors print directly to terminal

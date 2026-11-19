@@ -196,21 +196,24 @@ ai-to-svg() {
 
 ### `svg-to-png`
 
-Renders SVG to PNG at specified size using GIMP Python-Fu.
+Renders SVG to PNG at specified size with `rsvg-convert` and ImageMagick.
 
 ```bash
 svg-to-png <input_file_path> <output_file_path> <output_image_size>
 ```
 
 ```bash
-execute-gimp-script-file "svg_to_png" \
-    INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
-    OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}" \
-    OUTPUT_IMAGE_SIZE "${OUTPUT_IMAGE_SIZE}"
+rsvg-convert -w "${OUTPUT_IMAGE_SIZE}" -h "${OUTPUT_IMAGE_SIZE}" -b white \
+    -o "${RAW_PNG_PATH}" "${INPUT_IMAGE_PATH}"
+magick "${RAW_PNG_PATH}" \( +clone -fill "${BACKGROUND_COLOUR}" -colorize 100 \) \
+    -compose Difference -composite -colorspace Gray "${RAW_PNG_PATH}.alpha.png"
+magick -size "${OUTPUT_IMAGE_SIZE}x${OUTPUT_IMAGE_SIZE}" xc:white \
+    "${RAW_PNG_PATH}.alpha.png" -alpha off -compose CopyOpacity -composite \
+    -type TrueColorAlpha -define png:color-type=6 "${OUTPUT_IMAGE_PATH}"
 ```
 
 **Path:** SVG → PNG
-**Tool:** GIMP with `svg_to_png.py` script
+**Tool:** `rsvg-convert` and ImageMagick; no GIMP session is required
 **Parameter:** Output image size (pixels)
 
 ### `png-to-dds`

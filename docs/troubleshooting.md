@@ -181,11 +181,8 @@ file source/flags/<category>/<flag>.*
 # Verify format matches extension
 
 # Run conversion manually
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/<cat>/<flag>.svg" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.png" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
+rsvg-convert -w 128 -h 128 -b white -o /tmp/raw.png "build/<cat>/<flag>.svg"
+magick identify /tmp/raw.png
 ```
 
 **Common Causes:**
@@ -214,9 +211,10 @@ gimp build/<category>/<flag>_bevel.png
 ```
 
 **Fix:**
-- Ensure source SVG has transparent background (not white)
+- Ensure the SVG renders the emblem in a colour that differs from the background; the alpha channel is that difference
+- Traced SVGs draw black shapes with no background rectangle, so the stage renders them over white
 - If PNG source: ensure background is a solid colour (colour-to-alpha can remove it)
-- Check the background removal logic in `source/scripts/svg_to_png.py`
+- Check the background removal logic in the `svg-to-png` function in `build.sh`
 
 ---
 
@@ -224,7 +222,7 @@ gimp build/<category>/<flag>_bevel.png
 
 **Symptom:** Flag shows white or coloured square behind emblem.
 
-**Cause:** `svg_to_png.py` failed to remove the solid background.
+**Cause:** the `svg-to-png` stage failed to remove the solid background.
 
 **Fix:**
 - Edit source SVG: remove background rect, keep only emblem
@@ -505,12 +503,9 @@ gimp build/<category>/small/<flag>.png
 The scripts read their parameters from `GIMP_SCRIPT_*` environment variables.
 
 ```bash
-# svg_to_png
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.svg" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
+# svg-to-png (no GIMP)
+rsvg-convert -w 128 -h 128 -b white -o /tmp/raw.png "input.svg"
+magick identify /tmp/raw.png
 
 # gradient_bevel
 env GIMP_SCRIPT_IMAGE_PATH="input.png" \

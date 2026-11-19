@@ -28,6 +28,27 @@ There are no runtime dependencies — the output is a pure content mod consumed 
 
 ---
 
+### librsvg (`rsvg-convert`)
+
+| Property | Value |
+|----------|-------|
+| Minimum version | 2.40 |
+| Command used | `rsvg-convert` |
+| Purpose | SVG rasterisation to PNG |
+| Install (Debian/Ubuntu) | `sudo apt install librsvg2-bin` |
+| Install (Fedora) | `sudo dnf install librsvg2-tools` |
+| Install (Arch) | `sudo pacman -S librsvg` |
+| Flatpak | N/A (system tool) |
+
+**Used by:** `svg-to-png`
+
+**Flags used:** `-w`, `-h` (output size), `-b white` (background), `-o` (output file)
+
+The `-b white` background is required. SVGs traced from bitmaps draw black shapes with no background
+rectangle, so a transparent background would render black on black and the emblem would be invisible.
+
+---
+
 ### potrace
 
 | Property | Value |
@@ -137,25 +158,27 @@ Stellaris consumes these directly — no external libraries, frameworks, or code
 
 ```
 build.sh
-├── ImageMagick (convert)
-│   └── Used by: png-to-svg, xcf-to-svg
+├── ImageMagick (magick)
+│   └── Used by: png-to-svg, xcf-to-svg, svg-to-png, png-to-dds
+├── rsvg-convert
+│   └── Used by: svg-to-png
+├── Python 3
+│   └── Used by: png-to-dds
 ├── potrace
 │   └── Used by: bmp-to-svg, png-to-svg, xcf-to-svg
 ├── Inkscape
 │   └── Used by: ai-to-svg
 └── GIMP
-    ├── SVG import (file-svg-load)
-    │   └── Used by: svg-to-png
+    ├── PNG import (gimp-file-load)
+    │   └── Used by: gradient-bevel, xcf-to-png
     ├── PNG export (file-png-export)
-    │   └── Used by: svg-to-png, gradient-bevel, xcf-to-png
-    ├── DDS export (file-dds-export)
-    │   └── Used by: png-to-dds
-    ├── Colour to Alpha (gegl:color-to-alpha)
-    │   └── Used by: svg-to-png
+    │   └── Used by: gradient-bevel, xcf-to-png
     ├── Gaussian Blur (gegl:gaussian-blur)
     │   └── Used by: gradient-bevel
     └── Bump Map (gegl:bump-map)
         └── Used by: gradient-bevel
+
+The SVG rasterisation and the DDS export no longer use GIMP, so each flag needs only the bevels.
 ```
 
 ## Version Compatibility
@@ -163,6 +186,8 @@ build.sh
 | Tool | Tested Versions | Notes |
 |------|-----------------|-------|
 | GIMP | 3.0.x, 3.2.x | Primary target |
+| librsvg | 2.6x | `rsvg-convert` for SVG rasterisation |
+| Python | 3.x | Writes the DDS directly |
 | Inkscape | 1.x | CLI flags stable since 1.0 |
 | ImageMagick | 6.x, 7.x | `convert` deprecated in 7.x but still works |
 | potrace | 1.x | Stable API |
@@ -176,13 +201,13 @@ build.sh
 ### Debian/Ubuntu
 
 ```bash
-sudo apt install imagemagick potrace inkscape gimp
+sudo apt install imagemagick librsvg2-bin potrace inkscape gimp
 ```
 
 ### Fedora
 
 ```bash
-sudo dnf install ImageMagick potrace inkscape gimp
+sudo dnf install ImageMagick librsvg2-tools potrace inkscape gimp
 ```
 
 ### Flatpak (tools only)
@@ -190,16 +215,18 @@ sudo dnf install ImageMagick potrace inkscape gimp
 ```bash
 flatpak install flathub org.inkscape.Inkscape
 flatpak install flathub org.gimp.GIMP
-# ImageMagick and potrace must be system packages
+# ImageMagick, rsvg-convert, potrace and Python must be system packages
 ```
 
 ### Verification
 
 ```bash
-convert --version
+magick --version
+rsvg-convert --version
 potrace --version
 inkscape --version
 gimp --version
+python3 --version
 ```
 
 ## Known Issues

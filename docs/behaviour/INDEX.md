@@ -139,7 +139,8 @@ names.txt:
 
 ### Background Handling
 
-**Behaviour:** `svg_to_png.py` removes the flat background colour via colour-to-alpha.
+**Behaviour:** the `svg-to-png` stage removes the flat background colour by taking the
+difference from the sampled corner colour.
 
 **Failure Mode:** Complex or gradient backgrounds are not removed — they appear in output.
 
