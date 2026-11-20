@@ -43,18 +43,19 @@ Derived paths constructed dynamically during execution.
 
 For each tool, the script checks in priority order:
 
-1. **System path** (e.g., `/usr/bin/inkscape`)
-2. **Flatpak system export** (e.g., `/var/lib/flatpak/exports/bin/org.inkscape.Inkscape`)
-3. **Flatpak user export** (e.g., `~/.local/share/flatpak/exports/bin/org.inkscape.Inkscape`)
+1. **System path** (e.g., `/usr/bin/gimp`)
+2. **Flatpak system export** (e.g., `/var/lib/flatpak/exports/bin/org.gimp.GIMP`)
+3. **Flatpak user export** (e.g., `~/.local/share/flatpak/exports/bin/org.gimp.GIMP`)
 
 ### Tools Detected
 
 | Variable | Tool | Purpose |
 |----------|------|---------|
-| `CONVERT_TOOL_PATH` | ImageMagick `convert` | PNG ↔ BMP, image manipulation |
-| `POTRACE_TOOL_PATH` | `potrace` | Raster → vector tracing |
-| `INKSCAPE_TOOL_PATH` | Inkscape | SVG rendering, AI → SVG |
-| `GIMP_TOOL_PATH` | GIMP | Python-Fu batch execution, XCF → PNG, DDS export |
+| `/usr/bin/convert` | ImageMagick | PNG ↔ BMP, pixel reads |
+| `/usr/bin/potrace` | `potrace` | Raster → vector tracing |
+| `RSVG_BINARY` | `rsvg-convert` | SVG → PNG rasterisation |
+| `PYTHON_BINARY` | Python 3 | DDS export |
+| `GIMP_BINARY` | GIMP | Python-Fu batch execution, gradient bevel |
 
 ### Detection Function Pattern
 
@@ -159,108 +160,59 @@ png-to-svg() {
 **Path:** PNG → BMP → SVG
 **Tools:** ImageMagick convert, potrace
 
-### `xcf-to-svg`
-
-Converts XCF (GIMP) to SVG via PNG → BMP intermediates.
-
-```bash
-xcf-to-svg() {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
-    local TEMP_PNG_FILE_PATH="${OUTPUT_FILE_PATH}.png"
-    local TEMP_BMP_FILE_PATH="${OUTPUT_FILE_PATH}.bmp"
-    xcf-to-png "${INPUT_FILE_PATH}" "${TEMP_PNG_FILE_PATH}"
-    "${CONVERT_TOOL_PATH}" "${TEMP_PNG_FILE_PATH}" "${TEMP_BMP_FILE_PATH}"
-    bmp-to-svg "${TEMP_BMP_FILE_PATH}" "${OUTPUT_FILE_PATH}"
-    rm -f "${TEMP_PNG_FILE_PATH}" "${TEMP_BMP_FILE_PATH}"
-}
-```
-
-**Path:** XCF → PNG → BMP → SVG
-**Tools:** GIMP (xcf_to_png), ImageMagick, potrace
-
-### `ai-to-svg`
-
-Converts Adobe Illustrator AI to SVG via Inkscape.
-
-```bash
-ai-to-svg() {
-    local INPUT_FILE_PATH="${1}"
-    local OUTPUT_FILE_PATH="${2}"
-    "${INKSCAPE_TOOL_PATH}" "${INPUT_FILE_PATH}" --export-type=svg --export-filename="${OUTPUT_FILE_PATH}"
-}
-```
-
-**Path:** AI → SVG
-**Tool:** Inkscape CLI
-
 ### `svg-to-png`
 
-Renders SVG to PNG at specified size using GIMP Python-Fu.
+Renders SVG to PNG at specified size with `rsvg-convert` and ImageMagick.
 
 ```bash
 svg-to-png <input_file_path> <output_file_path> <output_image_size>
 ```
 
 ```bash
-execute-gimp-script-file "svg_to_png" \
-    INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
-    OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}" \
-    OUTPUT_IMAGE_SIZE "${OUTPUT_IMAGE_SIZE}"
+rsvg-convert -w "${OUTPUT_IMAGE_SIZE}" -h "${OUTPUT_IMAGE_SIZE}" -b white \
+    -o "${RAW_PNG_PATH}" "${INPUT_IMAGE_PATH}"
+magick "${RAW_PNG_PATH}" \( +clone -fill "${BACKGROUND_COLOUR}" -colorize 100 \) \
+    -compose Difference -composite -colorspace Gray "${RAW_PNG_PATH}.alpha.png"
+magick -size "${OUTPUT_IMAGE_SIZE}x${OUTPUT_IMAGE_SIZE}" xc:white \
+    "${RAW_PNG_PATH}.alpha.png" -alpha off -compose CopyOpacity -composite \
+    -type TrueColorAlpha -define png:color-type=6 "${OUTPUT_IMAGE_PATH}"
 ```
 
 **Path:** SVG → PNG
-**Tool:** GIMP with `svg_to_png.py` script
+**Tool:** `rsvg-convert` and ImageMagick; no GIMP session is required
 **Parameter:** Output image size (pixels)
 
 ### `png-to-dds`
 
-Exports PNG to DDS using GIMP Python-Fu.
+Exports PNG to DDS with a plain Python writer.
 
 ```bash
 png-to-dds <input_file_path> <output_file_path>
 ```
 
 ```bash
-execute-gimp-script-file "png_to_dds" \
-    INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
-    OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
+"${PYTHON_BINARY}" "${SOURCE_SCRIPTS_DIR_PATH}/png_to_dds.py" \
+    "GIMP_SCRIPT_INPUT_IMAGE_PATH=${INPUT_IMAGE_PATH}" \
+    "GIMP_SCRIPT_OUTPUT_IMAGE_PATH=${OUTPUT_IMAGE_PATH}"
 ```
 
 **Path:** PNG → DDS
-**Tool:** GIMP with `png_to_dds.py` script
+**Tool:** Python 3 with `png_to_dds.py`; the uncompressed format needs no GIMP session
 
-### `apply-gradient-bevel`
+### `bevel-pngs`
 
-Applies gradient bevel effect to PNG using GIMP Python-Fu.
+Applies the gradient bevel to a list of PNGs, batching them into shared GIMP sessions.
 
 ```bash
-apply-gradient-bevel <image_path>
+bevel-pngs <round_name> <png_path>...
 ```
 
 ```bash
-execute-gimp-script-file "gradient_bevel" IMAGE_PATH "${IMAGE_PATH}"
+execute-gimp-script-file "bevel_batch" IMAGE_PATHS "$(printf '%s\n' "$@")"
 ```
 
 **Path:** PNG → PNG (with bevel), rewritten in place
-**Tool:** GIMP with `gradient_bevel.py` script
-
-### `xcf-to-png`
-
-Exports XCF to PNG using GIMP Python-Fu.
-
-```bash
-xcf-to-png <input_file_path> <output_file_path>
-```
-
-```bash
-execute-gimp-script-file "xcf_to_png" \
-    INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
-    OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
-```
-
-**Path:** XCF → PNG
-**Tool:** GIMP with `xcf_to_png.py` script
+**Tool:** GIMP with `bevel_batch.py` script
 
 ## Main Execution Loop
 
@@ -367,38 +319,63 @@ for FLAG_FILE in "${CATEGORY_DIR}"*; do
     FLAG_BUILD_SMALL_BEVEL_PNG_FILE_PATH="${BUILD_DIR_PATH}/${CATEGORY_NAME}/small/${SOURCE_FILE_NAME}_bevel.png"
 
     # Convert source format to SVG
-    case "${FLAG_FILE}" in
-        *.bmp)  bmp-to-svg  "${FLAG_FILE}" "${FLAG_BUILD_SVG_FILE_PATH}" ;;
-        *.png)  png-to-svg  "${FLAG_FILE}" "${FLAG_BUILD_SVG_FILE_PATH}" ;;
-        *.xcf)  xcf-to-svg  "${FLAG_FILE}" "${FLAG_BUILD_SVG_FILE_PATH}" ;;
-        *.ai)   ai-to-svg   "${FLAG_FILE}" "${FLAG_BUILD_SVG_FILE_PATH}" ;;
-        *.svg)  cp "${FLAG_FILE}" "${FLAG_BUILD_SVG_FILE_PATH}" ;;
-        *)      echo "Unsupported format: ${FLAG_FILE}"; continue ;;
-    esac
+    source-to-svg "${FLAG_FILE}" "${FLAG_BUILD_SVG_FILE_PATH}"
 
-    # Render SVG → 128px PNG (main)
-    svg-to-png "${FLAG_BUILD_SVG_FILE_PATH}" "${FLAG_BUILD_MAIN_PNG_FILE_PATH}" 128
+    # Register the flag so the bevels can be batched after the parallel rasterisation
+    FLAG_KEYS+=("${CATEGORY_NAME}/${SOURCE_FILE_NAME}")
+    FLAG_MAIN_PNG_PATHS[${FLAG_KEY}]="${FLAG_BUILD_MAIN_PNG_FILE_PATH}"
+    FLAG_SMALL_PNG_PATHS[${FLAG_KEY}]="${FLAG_BUILD_SMALL_PNG_FILE_PATH}"
+    # ... map and DDS paths are registered the same way ...
 
-    # Apply gradient bevel to main
-    apply-gradient-bevel "${FLAG_BUILD_MAIN_PNG_FILE_PATH}" "${FLAG_BUILD_MAIN_BEVEL_PNG_FILE_PATH}"
+done
+```
 
-    # Export main PNG → DDS
-    png-to-dds "${FLAG_BUILD_MAIN_BEVEL_PNG_FILE_PATH}" "${FLAG_OUTPUT_MAIN_FILE_PATH}"
+The per-asset worker rasterises the main, map and small PNGs and exports all three DDS files:
 
-    # Render SVG → 256px PNG (map)
-    svg-to-png "${FLAG_BUILD_SVG_FILE_PATH}" "${FLAG_BUILD_MAP_PNG_FILE_PATH}" 256
+```bash
+(
+    FLAG_LOG_PATH="${BUILD_DIR_PATH}/${CATEGORY_NAME}-${SOURCE_FILE_NAME}.log"
 
-    # Export map PNG → DDS (no bevel)
-    png-to-dds "${FLAG_BUILD_MAP_PNG_FILE_PATH}" "${FLAG_OUTPUT_MAP_FILE_PATH}"
+    (
+        is-beveled-png "${FLAG_BUILD_MAIN_PNG_FILE_PATH}" || rasterise-bevel-png "${FLAG_BUILD_MAIN_PNG_FILE_PATH}"
+        is-beveled-png "${FLAG_BUILD_SMALL_PNG_FILE_PATH}" || rasterise-bevel-png "${FLAG_BUILD_SMALL_PNG_FILE_PATH}"
 
-    # Render SVG → 24px PNG (small)
-    svg-to-png "${FLAG_BUILD_SVG_FILE_PATH}" "${FLAG_BUILD_SMALL_PNG_FILE_PATH}" 24
+        if ! is-usable-png "${FLAG_BUILD_MAP_PNG_FILE_PATH}"; then
+            svg-to-png "${FLAG_BUILD_SVG_FILE_PATH}" "${FLAG_BUILD_MAP_PNG_FILE_PATH}" "256"
+        fi
 
-    # Apply gradient bevel to small
-    apply-gradient-bevel "${FLAG_BUILD_SMALL_PNG_FILE_PATH}" "${FLAG_BUILD_SMALL_BEVEL_PNG_FILE_PATH}"
+        # The map needs no bevel, so its DDS is exported now.
+        export-map-dds "${FLAG_BUILD_MAP_PNG_FILE_PATH}" "${FLAG_OUTPUT_MAP_FILE_PATH}"
+    ) > "${FLAG_LOG_PATH}" 2>&1
+) &
+```
 
-    # Export small PNG → DDS
-    png-to-dds "${FLAG_BUILD_SMALL_BEVEL_PNG_FILE_PATH}" "${FLAG_OUTPUT_SMALL_FILE_PATH}"
+Once every worker has finished, the bevels are batched into shared GIMP sessions, and the rounds
+retry whichever images a killed session left unmarked:
+
+```bash
+for BEVEL_ROUND_NUMBER in $(seq 1 "${VARIANT_ATTEMPT_COUNT}"); do
+    collect-unbeveled-pngs
+    [ "${#FLAG_BEVEL_PATHS[@]}" -eq 0 ] && break
+
+    bevel-pngs "${BEVEL_ROUND_NUMBER}" "${FLAG_BEVEL_PATHS[@]}"
+done
+```
+
+The beveled main and small PNGs are exported only after the rounds, so their DDS textures carry the
+bevel:
+
+```bash
+for FLAG_KEY in "${FLAG_KEYS[@]}"; do
+    while [ "$(jobs -rp | wc -l)" -ge "${FLAG_WORKER_COUNT}" ]; do
+        wait -n
+    done
+
+    (
+        export-beveled-dds \
+            "${FLAG_MAIN_PNG_PATHS[${FLAG_KEY}]}" "${FLAG_MAIN_DDS_PATHS[${FLAG_KEY}]}" \
+            "${FLAG_SMALL_PNG_PATHS[${FLAG_KEY}]}" "${FLAG_SMALL_DDS_PATHS[${FLAG_KEY}]}"
+    ) > "${BUILD_DIR_PATH}/${FLAG_KEY//\//-}.export.log" 2>&1 &
 done
 ```
 
@@ -409,14 +386,16 @@ SOURCE FORMAT          CONVERSION PATH                              OUTPUTS
 ─────────────────────────────────────────────────────────────────────────────
 .svg                   copy → SVG                                   → 128, 256, 24 PNG
 .png                   PNG → BMP → SVG                              → 128, 256, 24 PNG
-.xcf                   XCF → PNG → BMP → SVG                        → 128, 256, 24 PNG
-.ai                    AI → SVG                                     → 128, 256, 24 PNG
 .bmp                   BMP → SVG                                    → 128, 256, 24 PNG
 
 ALL FORMATS THEN:
-  128px PNG → gradient bevel → DDS (main flag)
-  256px PNG → DDS (map flag, NO bevel)
-  24px PNG  → gradient bevel → DDS (small flag)
+  128px PNG → rasterise → gradient bevel → DDS (main flag)
+  256px PNG → rasterise → DDS (map flag, NO bevel)
+  24px PNG  → rasterise → gradient bevel → DDS (small flag)
+
+EXPORT ORDER:
+  map DDS is exported by the worker, because it needs no bevel
+  main and small DDS are exported after the bevel rounds, from the beveled PNGs
 ```
 
 ## Incremental Build Logic
@@ -449,38 +428,41 @@ All tools validated at startup — fail fast if missing.
 
 ### Conversion Errors
 
-Individual asset failures logged but don't halt pipeline:
+Individual asset failures are logged per worker but do not halt the rasterisation and export stage:
 
 ```bash
-case "${FLAG_FILE}" in
-    *.bmp)  bmp-to-svg  ... || { echo "Failed: ${FLAG_FILE}"; continue; } ;;
-    # ...
-esac
+source-to-svg "${FLAG_FILE}" "${FLAG_BUILD_SVG_FILE_PATH}"
+...
+export-map-dds "${FLAG_BUILD_MAP_PNG_FILE_PATH}" "${FLAG_OUTPUT_MAP_FILE_PATH}"
 ```
+
+A bevel failure does not stop the batch, because an unmarked image is retried over the remaining
+rounds. A flag whose bevels are still missing once the rounds are exhausted is reported at the end
+of the build.
 
 ### Output Verification
 
-No explicit verification of DDS output validity — relies on the GIMP DDS exporter.
+The DDS export is verified by the existence of every expected file, and the bevels are verified by
+a completion marker written only after each bevel has been saved.
 
 ## Performance Characteristics
 
 | Aspect | Characteristic |
 |--------|----------------|
-| Parallelism | None (sequential) |
-| Tool startup | Per-asset (GIMP/Inkscape invoked per file) |
-| Incremental | File-existence based |
-| Typical full build | 5-15 minutes |
-| Typical incremental | <30 seconds |
-| Memory usage | Low (streaming) |
+| Parallelism | `FLAG_WORKER_COUNT` workers for rasterisation and export, `FLAG_GIMP_CONCURRENCY` GIMP sessions for the batched bevels |
+| Tool startup | Per session for GIMP (`FLAG_BEVEL_BATCH_SIZE` flags per start), per file for the plain tools |
+| Incremental | File-existence based, bevels cached per variant |
+| Typical full build | Dominated by the number of bevel sessions |
+| Typical incremental | Seconds when only new assets are added |
+| Memory usage | Bounded by the batch size each GIMP session holds |
 | Disk usage | ~2-3x source size (intermediates) |
 
 ## Extension Points
 
 ### Adding New Source Formats
 
-1. Add conversion function (e.g., `webp-to-svg`)
-2. Add case in main loop
-3. Ensure function produces SVG at `FLAG_BUILD_SVG_FILE_PATH`
+1. Add a branch to `source-to-svg` (e.g., `webp) webp-to-svg ... ;;`)
+2. Ensure the branch produces SVG at `FLAG_BUILD_SVG_FILE_PATH`
 
 ### Adding New Output Resolutions
 
@@ -491,6 +473,11 @@ No explicit verification of DDS output validity — relies on the GIMP DDS expor
 ### Modifying Bevel Parameters
 
 Edit `source/scripts/gradient_bevel.py` — no `build.sh` changes needed.
+
+### Tuning the Bevel Batching
+
+Change `FLAG_BEVEL_BATCH_SIZE` (flags per GIMP session) or `FLAG_GIMP_CONCURRENCY` (sessions at
+once) — no script changes needed.
 
 ### Changing Output Naming
 

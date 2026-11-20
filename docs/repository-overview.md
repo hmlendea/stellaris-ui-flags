@@ -4,7 +4,7 @@
 
 The Stellaris UI Flags repository provides a mod for the game Stellaris that adds hundreds of new flag designs matching the vanilla flag style. The repository encompasses:
 
-- **Source assets**: Flag designs authored in editable formats (SVG, AI, XCF, PNG, BMP) organised by thematic category
+- **Source assets**: Flag designs authored in editable formats (SVG, PNG, BMP) organised by thematic category
 - **Build pipeline**: A reproducible shell script (`build.sh`) that converts source assets to Stellaris-compatible DDS textures
 - **Output package**: A distributable mod directory conforming to Stellaris mod structure with descriptor files for Steam Workshop, Paradox Mods, and Nexus Mods
 
@@ -17,7 +17,7 @@ The repository owns:
 - Colour palette definition (`source/colours.txt`)
 - English localisation (`source/localisation.yml`)
 - Filename mapping (`source/names.txt`)
-- GIMP Python-Fu conversion scripts (`source/scripts/`)
+- Build scripts (`source/scripts/`)
 - Build orchestration script (`build.sh`)
 - GitHub Actions workflows for automated releases
 
@@ -25,7 +25,7 @@ The repository does not own:
 
 - The Stellaris game engine or its mod loading system
 - Distribution platforms (Steam Workshop, Paradox Mods, Nexus Mods)
-- External build tools (ImageMagick, Inkscape, GIMP, potrace)
+- External build tools (ImageMagick, librsvg, GIMP, potrace)
 - Player game saves or runtime state
 
 ## Entry Points
@@ -55,7 +55,7 @@ The built mod package in `out/ui-flags/` is consumed by:
 
 ## Principal Capabilities
 
-1. **Multi-format source support**: Accepts SVG, AI, XCF, PNG, BMP source formats
+1. **Multi-format source support**: Accepts SVG, PNG, BMP source formats
 2. **Three-resolution output**: Generates 128px (main), 256px (map), and 24px (small) DDS textures
 3. **Gradient bevel effect**: Applies signature bevel to main and small variants matching vanilla style
 4. **Category taxonomy**: 25+ thematic categories with localised names

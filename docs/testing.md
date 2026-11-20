@@ -14,7 +14,7 @@ There is **no automated test suite**. Validation is manual, at three levels:
 |--------|--------|
 | Content project | Output is data, not code — few unit-testable units |
 | Visual output | Correctness is "looks right in game" — hard to assert |
-| Tool dependence | Tests would need GIMP/Inkscape/potrace installed — same cost as building |
+| Tool dependence | Tests would need GIMP/potrace/ImageMagick installed — same cost as building |
 | Scale | Full build (5–15 min) is itself the integration test |
 
 The build script's functions are the closest thing to units; they can be exercised individually (see below).
@@ -157,35 +157,31 @@ For debugging, exercise build functions in isolation. Source the script function
 ### Test SVG → PNG
 
 ```bash
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test.svg" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.png" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
+rsvg-convert -w 128 -h 128 -b white -o /tmp/raw.png "/tmp/test.svg"
+magick identify /tmp/raw.png
 ```
 
-Verify `/tmp/test.png` exists and opens correctly.
+Verify `/tmp/raw.png` exists and opens correctly.
 
 ### Test Bevel
 
 ```bash
-env GIMP_SCRIPT_IMAGE_PATH="/tmp/test.png" \
+env GIMP_SCRIPT_IMAGE_PATHS="/tmp/test.png" \
     gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/gradient_bevel.py').read())" --quit
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/bevel_batch.py').read())" --quit
 ```
 
-Verify the bevel effect is visible.
+Verify the bevel effect is visible and `/tmp/test.png.beveled` exists.
 
 ### Test DDS Export
 
 ```bash
 env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.dds" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/png_to_dds.py').read())" --quit
+    python3 source/scripts/png_to_dds.py
 ```
 
-Verify `/tmp/test.dds` opens in GIMP or a DDS viewer.
+Verify `/tmp/test.dds` opens in a DDS viewer.
 
 ### Test Full Asset Path
 
@@ -197,7 +193,6 @@ Use simple, known-good test sources:
 
 - **SVG:** A basic shape (star, square) with transparent background
 - **PNG:** High-contrast black-on-white design (traces well via potrace)
-- **XCF:** Simple two-layer file
 
 Keep test sources out of `source/flags/` (they'd be built into the mod) — use `/tmp` or a scratch directory with a manual pipeline run.
 

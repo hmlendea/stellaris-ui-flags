@@ -63,10 +63,9 @@ The build parses contributor-supplied files with:
 
 | Tool | Parses | Attack Surface |
 |------|--------|----------------|
-| GIMP | SVG, XCF, PNG | Image format parsers (historically had CVEs) |
-| Inkscape | AI | Adobe Illustrator parser |
+| GIMP | PNG | Image format parsers (historically had CVEs) |
 | potrace | BMP | Bitmap parser |
-| ImageMagick | PNG | Image parsers (notorious CVE history) |
+| ImageMagick | PNG, SVG via rsvg | Image parsers (notorious CVE history) |
 
 **Current exposure:** Low — sources are maintainer-curated, not user-uploaded.
 

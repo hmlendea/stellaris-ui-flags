@@ -33,26 +33,68 @@ MOD_DESCRIPTOR_SECONDARY_FILE_PATH="${OUTPUT_MOD_DIR_PATH}/descriptor.mod"
 FLAG_NAMES_FILE_PATH="${SOURCE_DIR_PATH}/names.txt"
 THUMBNAIL_FILE_PATH="${SOURCE_DIR_PATH}/thumbnail.png"
 
-# Each variant is rendered in a separate GIMP process when the shared session is killed, so several
-# attempts cover machines whose memory is nearly exhausted by other applications.
-readonly VARIANT_ATTEMPT_COUNT=5
+# A GIMP session that is killed leaves every bevel it had not finished missing, so several rounds
+# cover machines whose memory is nearly exhausted by other applications. A long-lived GIMP session
+# can also crash partway, which leaves a truncated PNG behind.
+readonly VARIANT_ATTEMPT_COUNT=8
+
+# How many flags to rasterise and export at once. Both stages use plain tools, so the workers only
+# trade processor time; the GIMP bevels are batched separately and gated by FLAG_GIMP_CONCURRENCY.
+readonly FLAG_WORKER_COUNT="${FLAG_WORKER_COUNT:-4}"
+
+# How many GIMP sessions may run at once. Every instance needs a few hundred megabytes, so raising
+# this too far gets the bevels killed by the OOM killer, which silently leaves them unbeveled.
+readonly FLAG_GIMP_CONCURRENCY="${FLAG_GIMP_CONCURRENCY:-4}"
+
+# Estimate how many images a GIMP session can hold before the machine runs out of memory. Every
+# flag's working set inside a session is roughly 200 MiB, and FLAG_GIMP_CONCURRENCY sessions may run
+# at once, so the available memory is shared between them. The floor is deliberately above the point
+# where sessions would be started for almost every image, because the session start dominates the
+# per-image cost and a tiny batch multiplies both the starts and the number of kill-and-retry rounds.
+function bevel-batch-default {
+    local mem_kb="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)"
+    local budget=$((mem_kb / (200000 * FLAG_GIMP_CONCURRENCY)))
+
+    if [ "${budget}" -lt 4 ]; then
+        echo 4
+    elif [ "${budget}" -lt 8 ]; then
+        echo 6
+    else
+        echo 8
+    fi
+}
+
+# How many flags one GIMP session bevels before it is replaced. Starting GIMP costs a few seconds
+# while every further image in a running session costs a fraction of one, so a larger batch is
+# faster; however the memory a session holds also grows with the number of images it has processed,
+# so an oversized batch exhausts memory and is killed partway.
+# When the variable is unset the build autodetects a safe default from available memory; supply the
+# variable yourself (e.g. FLAG_BEVEL_BATCH_SIZE=12) only when you know your machine can keep every
+# session alive. Too small wastes session starts; too large leaves most flags unbeveled.
+readonly FLAG_BEVEL_BATCH_SIZE="${FLAG_BEVEL_BATCH_SIZE:-$(bevel-batch-default)}"
+readonly GIMP_SLOT_DIRECTORY_PATH="${BUILD_DIR_PATH}/gimp-slots"
+
+echo "Using a bevel batch size of ${FLAG_BEVEL_BATCH_SIZE} and ${FLAG_GIMP_CONCURRENCY} concurrent GIMP sessions."
 
 [ ! -d "${SOURCE_DIR_PATH}" ] && echo "MISSING SOURCE DIRECTORY" && exit -1
 [ ! -f "/usr/bin/convert" ] && echo "[ERROR] ImageMagick is not installed on this system" && exit 1
 [ ! -f "/usr/bin/potrace" ] && echo "[ERROR] potrace is not installed on this system" && exit 1
 
-function execute-inkscape {
-    local INKSCAPE_BINARY="/usr/bin/inkscape"
+PYTHON_BINARY="/usr/bin/python3"
+if [ ! -f "${PYTHON_BINARY}" ]; then
+    PYTHON_BINARY="$(command -v python3)"
+fi
+if [ ! -x "${PYTHON_BINARY}" ]; then
+    echo "[ERROR] Python 3 is not installed on this system" && exit 1
+fi
 
-    [ ! -f "${INKSCAPE_BINARY}" ] && INKSCAPE_BINARY="/var/lib/flatpak/exports/bin/org.inkscape.Inkscape"
-    [ ! -f "${INKSCAPE_BINARY}" ] && INKSCAPE_BINARY="${HOME}/.local/share/flatpak/exports/bin/org.inkscape.Inkscape"
-    if [ ! -f "${INKSCAPE_BINARY}" ]; then
-        echo "[ERROR] Inkscape is not installed on this system"
-        exit 1
-    fi
-
-    "${INKSCAPE_BINARY}" ${*}
-}
+RSVG_BINARY="/usr/bin/rsvg-convert"
+if [ ! -x "${RSVG_BINARY}" ]; then
+    RSVG_BINARY="$(command -v rsvg-convert)"
+fi
+if [ ! -x "${RSVG_BINARY}" ]; then
+    echo "[ERROR] rsvg-convert is not installed on this system" && exit 1
+fi
 
 function execute-gimp-script-file {
     local GIMP_SCRIPT_LABEL="${1}" && shift
@@ -84,35 +126,37 @@ function execute-gimp-script-file {
 
     local GIMP_BATCH_COMMAND="import sys; sys.path.insert(0, '${SOURCE_SCRIPTS_DIR_PATH}'); exec(open('${GIMP_SCRIPT_PATH}').read())"
 
+    # At most FLAG_GIMP_CONCURRENCY GIMP processes may run at once. A lock file per slot keeps the
+    # concurrency independent of how many workers the pipeline uses.
+    mkdir -p "${GIMP_SLOT_DIRECTORY_PATH}"
+    local GIMP_SLOT_PATH=""
+    local GIMP_SLOT_NUMBER=1
+    while [ -z "${GIMP_SLOT_PATH}" ]; do
+        local CANDIDATE_SLOT_PATH="${GIMP_SLOT_DIRECTORY_PATH}/slot-${GIMP_SLOT_NUMBER}.lock"
+        exec {GIMP_SLOT_FILE_DESCRIPTOR}>"${CANDIDATE_SLOT_PATH}"
+
+        if flock -n "${GIMP_SLOT_FILE_DESCRIPTOR}"; then
+            GIMP_SLOT_PATH="${CANDIDATE_SLOT_PATH}"
+        else
+            exec {GIMP_SLOT_FILE_DESCRIPTOR}>&-
+            GIMP_SLOT_NUMBER=$((GIMP_SLOT_NUMBER + 1))
+
+            if [ "${GIMP_SLOT_NUMBER}" -gt "${FLAG_GIMP_CONCURRENCY}" ]; then
+                GIMP_SLOT_NUMBER=1
+                sleep 1
+            fi
+        fi
+    done
+
     # A new instance is required so that consecutive invocations do not attach
     # to an instance that is still shutting down and discard the batch command.
     env "${GIMP_SCRIPT_ARGUMENTS[@]}" "${GIMP_BINARY}" --new-instance -i \
         --batch-interpreter=python-fu-eval -b "${GIMP_BATCH_COMMAND}" --quit
-}
+    local GIMP_EXIT_CODE=$?
 
-function xcf-to-png {
-    local INPUT_IMAGE_PATH="${1}"
-    local OUTPUT_IMAGE_PATH="${2}"
+    exec {GIMP_SLOT_FILE_DESCRIPTOR}>&-
 
-    echo -e "\e[36mConverting XCF to PNG for '${INPUT_IMAGE_PATH}'...\e[0m"
-
-    execute-gimp-script-file "xcf_to_png" \
-        INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
-        OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
-
-    if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
-        echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
-        exit 3
-    fi
-}
-
-function xcf-to-svg {
-    local INPUT_IMAGE_PATH="${1}"
-    local OUTPUT_IMAGE_PATH="${2}"
-    local OUTPUT_IMAGE_PATH_WITHOUT_EXTENSION="${OUTPUT_IMAGE_PATH%.*}"
-
-    xcf-to-png "${INPUT_IMAGE_PATH}" "${OUTPUT_IMAGE_PATH_WITHOUT_EXTENSION}.png"
-    png-to-svg "${OUTPUT_IMAGE_PATH_WITHOUT_EXTENSION}.png" "${OUTPUT_IMAGE_PATH}"
+    return "${GIMP_EXIT_CODE}"
 }
 
 function png-to-bmp {
@@ -145,13 +189,14 @@ function png-to-dds {
 
     echo -e "\e[36mConverting PNG to DDS for '${INPUT_IMAGE_PATH}'...\e[0m"
 
-    execute-gimp-script-file "png_to_dds" \
-        INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
-        OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}"
+    # The uncompressed DDS format is simple enough to write directly, which avoids a GIMP start.
+    env "GIMP_SCRIPT_INPUT_IMAGE_PATH=${INPUT_IMAGE_PATH}" \
+        "GIMP_SCRIPT_OUTPUT_IMAGE_PATH=${OUTPUT_IMAGE_PATH}" \
+        "${PYTHON_BINARY}" "${SOURCE_SCRIPTS_DIR_PATH}/png_to_dds.py" || true
 
     if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
         echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
-        exit 3
+        return 1
     fi
 }
 
@@ -169,20 +214,6 @@ function bmp-to-svg {
     fi
 }
 
-function ai-to-svg {
-    local INPUT_IMAGE_PATH="${1}"
-    local OUTPUT_IMAGE_PATH="${2}"
-
-    echo -e "\e[36mConverting AI to SVG for '${INPUT_IMAGE_PATH}'...\e[0m"
-
-    execute-inkscape -f "${INPUT_IMAGE_PATH}" -l "${OUTPUT_IMAGE_PATH}"
-
-    if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
-        echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
-        exit 3
-    fi
-}
-
 function svg-to-png {
     local INPUT_IMAGE_PATH="${1}"
     local OUTPUT_IMAGE_PATH="${2}"
@@ -190,10 +221,43 @@ function svg-to-png {
 
     echo -e "\e[36mConverting SVG to PNG for '${INPUT_IMAGE_PATH}'...\e[0m"
 
-    execute-gimp-script-file "svg_to_png" \
-        INPUT_IMAGE_PATH "${INPUT_IMAGE_PATH}" \
-        OUTPUT_IMAGE_PATH "${OUTPUT_IMAGE_PATH}" \
-        OUTPUT_IMAGE_SIZE "${OUTPUT_IMAGE_SIZE}"
+    # rsvg-convert rasterises the emblem over a flat background, and the emblem is simply the
+    # difference from that background colour, which becomes the alpha channel. This reproduces the
+    # GIMP pipeline pixel for pixel while costing milliseconds instead of a multi-second GIMP start.
+    # The temporary file must keep a .png extension because rsvg-convert infers the output format
+    # from it.
+    local RAW_PNG_PATH="${OUTPUT_IMAGE_PATH}.raw.png"
+
+    # The background must be white. SVGs traced from bitmaps draw black shapes without a background
+    # rectangle, so the default transparent background would render black on black and leave the
+    # emblem invisible.
+    "${RSVG_BINARY}" -w "${OUTPUT_IMAGE_SIZE}" -h "${OUTPUT_IMAGE_SIZE}" -b white \
+        -o "${RAW_PNG_PATH}" "${INPUT_IMAGE_PATH}"
+
+    if [ ! -f "${RAW_PNG_PATH}" ]; then
+        echo "[ERROR] Failure while rasterising '${INPUT_IMAGE_PATH}'!"
+        exit 3
+    fi
+
+    local BACKGROUND_COLOUR=$(magick "${RAW_PNG_PATH}" -format '%[pixel:p{3,0}]' info:)
+
+    # The emblem is everything that differs from the background colour, and that difference is the
+    # alpha channel. The base is a plain white image, because the pipeline expects the emblem to be
+    # white and to carry its shape in the alpha channel alone.
+    magick "${RAW_PNG_PATH}" \
+        \( +clone -fill "${BACKGROUND_COLOUR}" -colorize 100 \) \
+        -compose Difference -composite \
+        -colorspace Gray \
+        "${RAW_PNG_PATH}.alpha.png"
+
+    magick -size "${OUTPUT_IMAGE_SIZE}x${OUTPUT_IMAGE_SIZE}" xc:white \
+        "${RAW_PNG_PATH}.alpha.png" -alpha off \
+        -compose CopyOpacity -composite \
+        -type TrueColorAlpha \
+        -define png:color-type=6 \
+        "${OUTPUT_IMAGE_PATH}"
+
+    rm -f "${RAW_PNG_PATH}" "${RAW_PNG_PATH}.alpha.png"
 
     if [ ! -f "${OUTPUT_IMAGE_PATH}" ]; then
         echo "[ERROR] Failure while converting '${INPUT_IMAGE_PATH}' to '${OUTPUT_IMAGE_PATH}'!"
@@ -201,118 +265,198 @@ function svg-to-png {
     fi
 }
 
-function apply-gradient-bevel {
-    local IMAGE_PATH="${1}"
+function source-to-svg {
+    local SOURCE_PATH="${1}"
+    local OUTPUT_PATH="${2}"
 
-    echo -e "\e[36mApplying gradient bevel on '${IMAGE_PATH}'...\e[0m"
-
-    execute-gimp-script-file "gradient_bevel" IMAGE_PATH "${IMAGE_PATH}"
+    case "${SOURCE_PATH##*.}" in
+        bmp) bmp-to-svg "${SOURCE_PATH}" "${OUTPUT_PATH}" ;;
+        png) png-to-svg "${SOURCE_PATH}" "${OUTPUT_PATH}" ;;
+        svg) cp "${SOURCE_PATH}" "${OUTPUT_PATH}" ;;
+        *) echo "[WARNING] Unsupported source format for '${SOURCE_PATH}'!" >&2 ;;
+    esac
 }
 
-function render-flag {
-    local SOURCE_PATH="${1}"
-    local MAIN_PNG_PATH="${2}"
-    local MAIN_DDS_PATH="${3}"
-    local MAP_PNG_PATH="${4}"
-    local MAP_DDS_PATH="${5}"
-    local SMALL_PNG_PATH="${6}"
-    local SMALL_DDS_PATH="${7}"
+function export-map-dds {
+    local MAP_PNG_PATH="${1}"
+    local MAP_DDS_PATH="${2}"
 
-    echo -e "\e[36mRendering the flag variants for '${SOURCE_PATH}'...\e[0m"
+    png-to-dds "${MAP_PNG_PATH}" "${MAP_DDS_PATH}"
 
-    # All variants are rendered in a single GIMP session because each process costs about four seconds to start.
-    execute-gimp-script-file "render_flag_variants" \
-        SOURCE_PATH "${SOURCE_PATH}" \
-        MAIN_PNG_PATH "${MAIN_PNG_PATH}" \
-        MAIN_DDS_PATH "${MAIN_DDS_PATH}" \
-        MAP_PNG_PATH "${MAP_PNG_PATH}" \
-        MAP_DDS_PATH "${MAP_DDS_PATH}" \
-        SMALL_PNG_PATH "${SMALL_PNG_PATH}" \
-        SMALL_DDS_PATH "${SMALL_DDS_PATH}" \
-        MAIN_SIZE "128" \
-        MAP_SIZE "256" \
-        SMALL_SIZE "24"
-
-    # A memory-limited machine can terminate the shared session partway, so any variant that is still
-    # absent is rendered again through individual invocations, which each release their memory on exit.
-    ensure-beveled-variant "${SOURCE_PATH}" "${MAIN_PNG_PATH}" "${MAIN_DDS_PATH}" "128"
-    ensure-flat-variant "${SOURCE_PATH}" "${MAP_PNG_PATH}" "${MAP_DDS_PATH}" "256"
-    ensure-beveled-variant "${SOURCE_PATH}" "${SMALL_PNG_PATH}" "${SMALL_DDS_PATH}" "24"
-
-    local MISSING_OUTPUT_PATH=""
-    for OUTPUT_PATH in "${MAIN_DDS_PATH}" "${MAP_DDS_PATH}" "${SMALL_DDS_PATH}"; do
-        [ -f "${OUTPUT_PATH}" ] || MISSING_OUTPUT_PATH="${OUTPUT_PATH}"
-    done
-
-    if [ -n "${MISSING_OUTPUT_PATH}" ]; then
-        echo "[ERROR] Failure while rendering the flag variants for '${SOURCE_PATH}'!"
+    if [ ! -f "${MAP_DDS_PATH}" ]; then
+        echo "[ERROR] Failure while exporting '${MAP_DDS_PATH}'!"
         exit 3
     fi
 }
 
-function ensure-beveled-variant {
-    local SOURCE_PATH="${1}"
-    local PNG_PATH="${2}"
-    local DDS_PATH="${3}"
-    local IMAGE_SIZE="${4}"
-    local ATTEMPT_NUMBER=1
+function export-beveled-dds {
+    local MAIN_PNG_PATH="${1}"
+    local MAIN_DDS_PATH="${2}"
+    local SMALL_PNG_PATH="${3}"
+    local SMALL_DDS_PATH="${4}"
 
-    while [ ! -f "${DDS_PATH}" ] && [ "${ATTEMPT_NUMBER}" -le "${VARIANT_ATTEMPT_COUNT}" ]; do
-        echo -e "\e[33mRendering the ${IMAGE_SIZE}px variant of '${SOURCE_PATH}' on attempt ${ATTEMPT_NUMBER}...\e[0m"
-        render-beveled-variant "${SOURCE_PATH}" "${PNG_PATH}" "${DDS_PATH}" "${IMAGE_SIZE}"
-        ATTEMPT_NUMBER=$((ATTEMPT_NUMBER + 1))
+    png-to-dds "${MAIN_PNG_PATH}" "${MAIN_DDS_PATH}"
+    png-to-dds "${SMALL_PNG_PATH}" "${SMALL_DDS_PATH}"
+
+    local MISSING_OUTPUT_PATH=""
+    for OUTPUT_PATH in "${MAIN_DDS_PATH}" "${SMALL_DDS_PATH}"; do
+        [ -f "${OUTPUT_PATH}" ] || MISSING_OUTPUT_PATH="${OUTPUT_PATH}"
     done
-}
 
-function ensure-flat-variant {
-    local SOURCE_PATH="${1}"
-    local PNG_PATH="${2}"
-    local DDS_PATH="${3}"
-    local IMAGE_SIZE="${4}"
-    local ATTEMPT_NUMBER=1
-
-    while [ ! -f "${DDS_PATH}" ] && [ "${ATTEMPT_NUMBER}" -le "${VARIANT_ATTEMPT_COUNT}" ]; do
-        echo -e "\e[33mRendering the ${IMAGE_SIZE}px variant of '${SOURCE_PATH}' on attempt ${ATTEMPT_NUMBER}...\e[0m"
-        render-flat-variant "${SOURCE_PATH}" "${PNG_PATH}" "${DDS_PATH}" "${IMAGE_SIZE}"
-        ATTEMPT_NUMBER=$((ATTEMPT_NUMBER + 1))
-    done
-}
-
-function render-beveled-variant {
-    local SOURCE_PATH="${1}"
-    local PNG_PATH="${2}"
-    local DDS_PATH="${3}"
-    local IMAGE_SIZE="${4}"
-
-    execute-gimp-script-file "svg_to_png" \
-        INPUT_IMAGE_PATH "${SOURCE_PATH}" \
-        OUTPUT_IMAGE_PATH "${PNG_PATH}" \
-        OUTPUT_IMAGE_SIZE "${IMAGE_SIZE}"
-
-    if [ -f "${PNG_PATH}" ]; then
-        execute-gimp-script-file "gradient_bevel" IMAGE_PATH "${PNG_PATH}"
-        execute-gimp-script-file "png_to_dds" \
-            INPUT_IMAGE_PATH "${PNG_PATH}" \
-            OUTPUT_IMAGE_PATH "${DDS_PATH}"
+    if [ -n "${MISSING_OUTPUT_PATH}" ]; then
+        echo "[ERROR] Failure while exporting '${MISSING_OUTPUT_PATH}'!"
+        exit 3
     fi
 }
 
-function render-flat-variant {
-    local SOURCE_PATH="${1}"
-    local PNG_PATH="${2}"
-    local DDS_PATH="${3}"
-    local IMAGE_SIZE="${4}"
+function is-usable-png {
+    local PNG_PATH="${1}"
 
-    execute-gimp-script-file "svg_to_png" \
-        INPUT_IMAGE_PATH "${SOURCE_PATH}" \
-        OUTPUT_IMAGE_PATH "${PNG_PATH}" \
-        OUTPUT_IMAGE_SIZE "${IMAGE_SIZE}"
+    [ -s "${PNG_PATH}" ] || return 1
+    identify "${PNG_PATH}" >/dev/null 2>&1
+}
 
-    if [ -f "${PNG_PATH}" ]; then
-        execute-gimp-script-file "png_to_dds" \
-            INPUT_IMAGE_PATH "${PNG_PATH}" \
-            OUTPUT_IMAGE_PATH "${DDS_PATH}"
+function bevel-marker-path {
+    local PNG_PATH="${1}"
+
+    echo "${PNG_PATH}.beveled"
+}
+
+function is-beveled-png {
+    local PNG_PATH="${1}"
+
+    is-usable-png "${PNG_PATH}" && [ -f "$(bevel-marker-path "${PNG_PATH}")" ]
+}
+
+function collect-unbeveled-pngs {
+    FLAG_BEVEL_PATHS=()
+
+    for FLAG_KEY in "${FLAG_KEYS[@]}"; do
+        for PNG_PATH in "${FLAG_MAIN_PNG_PATHS[${FLAG_KEY}]}" "${FLAG_SMALL_PNG_PATHS[${FLAG_KEY}]}"; do
+            [ -n "${PNG_PATH}" ] || continue
+            is-beveled-png "${PNG_PATH}" && continue
+
+            FLAG_BEVEL_PATHS+=("${PNG_PATH}")
+        done
+    done
+}
+
+function rasterise-bevel-png {
+    local PNG_PATH="${1}"
+
+    rm -f "${PNG_PATH}"
+    svg-to-png "${FLAG_BEVEL_SVGS[${PNG_PATH}]}" "${PNG_PATH}" "${FLAG_BEVEL_SIZES[${PNG_PATH}]}"
+}
+
+function start-bevel-session {
+    local ROUND_NAME="${1}" && shift
+    local CHUNK_NUMBER="${1}" && shift
+
+    while [ "$(jobs -rp | wc -l)" -ge "${FLAG_GIMP_CONCURRENCY}" ]; do
+        wait -n
+    done
+
+    local BEVEL_LOG_PATH="${BUILD_DIR_PATH}/bevel-${ROUND_NAME}-${CHUNK_NUMBER}.log"
+
+    # The flag list and the exit code are recorded beside the log so a later round can explain
+    # exactly which flags a killed session failed to reach, and why it died.
+    printf '%s\n' "$@" > "${BEVEL_LOG_PATH}.flags"
+
+    (
+        execute-gimp-script-file "bevel_batch" IMAGE_PATHS "$(printf '%s\n' "$@")"
+        echo "$?" > "${BEVEL_LOG_PATH}.exit"
+    ) > "${BEVEL_LOG_PATH}" 2>&1 &
+}
+
+function bevel-pngs {
+    local ROUND_NAME="${1}" && shift
+
+    local -a CHUNK_PATHS=()
+    local CHUNK_NUMBER=0
+
+    for PNG_PATH in "$@"; do
+        is-usable-png "${PNG_PATH}" || continue
+
+        CHUNK_PATHS+=("${PNG_PATH}")
+
+        if [ "${#CHUNK_PATHS[@]}" -ge "${FLAG_BEVEL_BATCH_SIZE}" ]; then
+            start-bevel-session "${ROUND_NAME}" "${CHUNK_NUMBER}" "${CHUNK_PATHS[@]}"
+            CHUNK_PATHS=()
+            CHUNK_NUMBER=$((CHUNK_NUMBER + 1))
+        fi
+    done
+
+    if [ "${#CHUNK_PATHS[@]}" -gt 0 ]; then
+        start-bevel-session "${ROUND_NAME}" "${CHUNK_NUMBER}" "${CHUNK_PATHS[@]}"
     fi
+
+    wait
+}
+
+function describe-bevel-failure {
+    local PNG_PATH="${1}"
+
+    # Find the session that was handed this flag. Sessions record the flags they received, so the
+    # session's own fate is the root cause, whereas the state of the PNG is only the symptom.
+    local SESSION_LOG_PATH=""
+    local FLAG_LIST_PATH
+    for FLAG_LIST_PATH in "${BUILD_DIR_PATH}"/bevel-*.log.flags; do
+        [ -f "${FLAG_LIST_PATH}" ] || continue
+        if grep -Fxq "${PNG_PATH}" "${FLAG_LIST_PATH}"; then
+            SESSION_LOG_PATH="${FLAG_LIST_PATH%.flags}"
+        fi
+    done
+
+    if [ -n "${SESSION_LOG_PATH}" ]; then
+        local SESSION_NAME="$(basename "${SESSION_LOG_PATH}")"
+        local SESSION_EXIT_CODE="$(cat "${SESSION_LOG_PATH}.exit" 2>/dev/null || echo unknown)"
+        local IN_FLIGHT_FLAG="$(grep -F "[INFO] Beveling '" "${SESSION_LOG_PATH}" 2>/dev/null | tail -1 | sed "s/^\[INFO\] Beveling '//; s/'$//")"
+
+        local SESSION_FATE="ended with exit code ${SESSION_EXIT_CODE}"
+        if grep -qF "Segmentation fault" "${SESSION_LOG_PATH}" 2>/dev/null; then
+            SESSION_FATE="crashed (segmentation fault)"
+        elif [ "${SESSION_EXIT_CODE}" = "137" ]; then
+            SESSION_FATE="was killed by the OOM killer"
+        elif [ "${SESSION_EXIT_CODE}" = "0" ]; then
+            SESSION_FATE="finished without beveling it"
+        fi
+
+        # Distinguish the flag the session was processing when it died from the ones it never
+        # reached, because only the former is a candidate culprit.
+        if [ -z "${IN_FLIGHT_FLAG}" ]; then
+            echo "the GIMP session ${SESSION_NAME} ${SESSION_FATE} before it reported any progress"
+        elif [ "${IN_FLIGHT_FLAG}" = "${PNG_PATH}" ]; then
+            echo "the GIMP session ${SESSION_NAME} ${SESSION_FATE} while beveling this flag"
+        else
+            echo "the GIMP session ${SESSION_NAME} ${SESSION_FATE} while beveling '${IN_FLIGHT_FLAG}', before it reached this flag"
+        fi
+
+        return
+    fi
+
+    if [ ! -f "${PNG_PATH}" ]; then
+        echo "the flag was never handed to a GIMP session, and the intermediate PNG does not exist, so the rasterisation failed"
+
+        return
+    fi
+
+    if ! identify "${PNG_PATH}" >/dev/null 2>&1; then
+        echo "the flag was never handed to a GIMP session, and the intermediate PNG is truncated"
+
+        return
+    fi
+
+    echo "the flag was never handed to a GIMP session, so it was neither rasterised nor beveled"
+}
+
+function report-unbeveled-flags {
+    local UNBEVELED_PATH
+
+    for UNBEVELED_PATH in "${FLAG_BEVEL_PATHS[@]}"; do
+        echo "  - ${UNBEVELED_PATH}"
+        echo "    source: ${FLAG_BEVEL_SVGS[${UNBEVELED_PATH}]}"
+        echo "    reason: $(describe-bevel-failure "${UNBEVELED_PATH}")"
+    done
 }
 
 function get-flag-file-name {
@@ -341,6 +485,10 @@ function generate-mod-descriptor {
 }
 
 mkdir -p "${OUTPUT_BACKGROUNDS_DIR_PATH}"
+
+# Worker logs from a previous run would otherwise be summarised again at the end of this one. The
+# session metadata beside each log would otherwise describe stale sessions in the failure report.
+rm -f "${BUILD_DIR_PATH}"/*.log "${BUILD_DIR_PATH}"/*.log.flags "${BUILD_DIR_PATH}"/*.log.exit
 mkdir -p "${OUTPUT_LOCALISATIONS_DIR_PATH}"
 
 cp "${SOURCE_BACKGROUNDS_DIR_PATH}"/* "${OUTPUT_BACKGROUNDS_DIR_PATH}"
@@ -350,6 +498,16 @@ cp "${THUMBNAIL_FILE_PATH}" "${OUTPUT_MOD_DIR_PATH}"
 
 generate-mod-descriptor "${MOD_DESCRIPTOR_PRIMARY_FILE_PATH}"
 generate-mod-descriptor "${MOD_DESCRIPTOR_SECONDARY_FILE_PATH}"
+
+# Every flag that still needs work is registered here, so the bevels can be batched into shared
+# GIMP sessions after the parallel rasterisation has finished.
+declare -a FLAG_KEYS=()
+declare -A FLAG_MAIN_PNG_PATHS=()
+declare -A FLAG_SMALL_PNG_PATHS=()
+declare -A FLAG_MAIN_DDS_PATHS=()
+declare -A FLAG_SMALL_DDS_PATHS=()
+declare -A FLAG_BEVEL_SVGS=()
+declare -A FLAG_BEVEL_SIZES=()
 
 for CATEGORY_DIR in "${SOURCE_FLAGS_DIR_PATH}"/*; do
     [ -z "${CATEGORY_DIR}" ] && continue
@@ -385,7 +543,6 @@ for CATEGORY_DIR in "${SOURCE_FLAGS_DIR_PATH}"/*; do
 
         FLAG_FILE_NAME=$(get-flag-file-name "${FILE_NAME}")
 
-        FLAG_BMP_BUILD_FILE_PATH="${CATEGORY_BUILD_DIR_PATH}/${FLAG_FILE_NAME}.bmp"
         FLAG_PNG_BUILD_FILE_PATH="${CATEGORY_BUILD_DIR_PATH}/${FLAG_FILE_NAME}.png"
         FLAG_SVG_BUILD_FILE_PATH="${CATEGORY_BUILD_DIR_PATH}/${FLAG_FILE_NAME}.svg"
 
@@ -403,25 +560,118 @@ for CATEGORY_DIR in "${SOURCE_FLAGS_DIR_PATH}"/*; do
 
         echo "Processing ${FILE_NAME} (${FILE})..."
 
-        if [ "${FILE_EXTENSION}" == "bmp" ]; then
-            bmp-to-svg "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
-        elif [ "${FILE_EXTENSION}" == "xcf" ]; then
-            xcf-to-svg "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
-        elif [ "${FILE_EXTENSION}" == "png" ]; then
-            png-to-svg "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
-        elif [ "${FILE_EXTENSION}" == "ai" ]; then
-            ai-to-svg "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
-        elif [ "${FILE_EXTENSION}" == "svg" ]; then
-            cp "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
-        fi
+        source-to-svg "${FILE}" "${FLAG_SVG_BUILD_FILE_PATH}"
 
-        render-flag \
-            "${FLAG_SVG_BUILD_FILE_PATH}" \
-            "${FLAG_BUILD_MAIN_FILE_PATH}" \
-            "${FLAG_OUTPUT_MAIN_FILE_PATH}" \
-            "${FLAG_BUILD_MAP_FILE_PATH}" \
-            "${FLAG_OUTPUT_MAP_FILE_PATH}" \
-            "${FLAG_BUILD_SMALL_FILE_PATH}" \
-            "${FLAG_OUTPUT_SMALL_FILE_PATH}"
+        FLAG_KEY="${CATEGORY_NAME}/${FLAG_FILE_NAME}"
+        FLAG_KEYS+=("${FLAG_KEY}")
+        FLAG_MAIN_PNG_PATHS[${FLAG_KEY}]="${FLAG_BUILD_MAIN_FILE_PATH}"
+        FLAG_SMALL_PNG_PATHS[${FLAG_KEY}]="${FLAG_BUILD_SMALL_FILE_PATH}"
+        FLAG_MAIN_DDS_PATHS[${FLAG_KEY}]="${FLAG_OUTPUT_MAIN_FILE_PATH}"
+        FLAG_SMALL_DDS_PATHS[${FLAG_KEY}]="${FLAG_OUTPUT_SMALL_FILE_PATH}"
+
+        FLAG_BEVEL_SVGS[${FLAG_BUILD_MAIN_FILE_PATH}]="${FLAG_SVG_BUILD_FILE_PATH}"
+        FLAG_BEVEL_SIZES[${FLAG_BUILD_MAIN_FILE_PATH}]="128"
+        FLAG_BEVEL_SVGS[${FLAG_BUILD_SMALL_FILE_PATH}]="${FLAG_SVG_BUILD_FILE_PATH}"
+        FLAG_BEVEL_SIZES[${FLAG_BUILD_SMALL_FILE_PATH}]="24"
+
+        # The rasterisation is limited to FLAG_WORKER_COUNT concurrent workers. Each worker logs to
+        # its own file so that the output is not interleaved.
+        while [ "$(jobs -rp | wc -l)" -ge "${FLAG_WORKER_COUNT}" ]; do
+            wait -n
+        done
+
+        (
+            FLAG_LOG_PATH="${BUILD_DIR_PATH}/${CATEGORY_NAME}-${FLAG_FILE_NAME}.log"
+
+            (
+                is-beveled-png "${FLAG_BUILD_MAIN_FILE_PATH}" || rasterise-bevel-png "${FLAG_BUILD_MAIN_FILE_PATH}"
+                is-beveled-png "${FLAG_BUILD_SMALL_FILE_PATH}" || rasterise-bevel-png "${FLAG_BUILD_SMALL_FILE_PATH}"
+
+                if ! is-usable-png "${FLAG_BUILD_MAP_FILE_PATH}"; then
+                    svg-to-png "${FLAG_SVG_BUILD_FILE_PATH}" "${FLAG_BUILD_MAP_FILE_PATH}" "256"
+                fi
+
+                # The map needs no bevel, so its DDS is exported now. The main and small DDS are
+                # exported after the bevel rounds, from the beveled PNGs.
+                export-map-dds "${FLAG_BUILD_MAP_FILE_PATH}" "${FLAG_OUTPUT_MAP_FILE_PATH}"
+            ) > "${FLAG_LOG_PATH}" 2>&1
+        ) &
     done
 done
+
+wait
+
+# The bevels are batched, because starting GIMP costs a few seconds while every further image in a
+# running session costs a fraction of one. A session that is killed leaves the bevels it had not
+# reached unmarked, and those are retried over the remaining rounds.
+for BEVEL_ROUND_NUMBER in $(seq 1 "${VARIANT_ATTEMPT_COUNT}"); do
+    collect-unbeveled-pngs
+
+    [ "${#FLAG_BEVEL_PATHS[@]}" -eq 0 ] && break
+
+    if [ "${BEVEL_ROUND_NUMBER}" -gt 1 ]; then
+        echo -e "\e[33mBeveling ${#FLAG_BEVEL_PATHS[@]} flags again on attempt ${BEVEL_ROUND_NUMBER}...\e[0m"
+
+        for PNG_PATH in "${FLAG_BEVEL_PATHS[@]}"; do
+            rm -f "$(bevel-marker-path "${PNG_PATH}")"
+        done
+    fi
+
+    bevel-pngs "${BEVEL_ROUND_NUMBER}" "${FLAG_BEVEL_PATHS[@]}"
+
+    # A memory-limited machine can terminate a session partway, so every bevel that is still missing
+    # is rasterised again before the next round attempts it.
+    for PNG_PATH in "${FLAG_BEVEL_PATHS[@]}"; do
+        is-usable-png "${PNG_PATH}" || rasterise-bevel-png "${PNG_PATH}"
+    done
+done
+
+wait
+
+# The beveled main and small PNGs are exported only now, so their DDS textures carry the bevel. The
+# map DDS was already exported by the workers, because the map needs no bevel. The exports are
+# bounded by the same worker count as the rasterisation, so the process count stays in check.
+for FLAG_KEY in "${FLAG_KEYS[@]}"; do
+    while [ "$(jobs -rp | wc -l)" -ge "${FLAG_WORKER_COUNT}" ]; do
+        wait -n
+    done
+
+    FLAG_EXPORT_LOG_PATH="${BUILD_DIR_PATH}/${FLAG_KEY//\//-}.export.log"
+
+    (
+        export-beveled-dds \
+            "${FLAG_MAIN_PNG_PATHS[${FLAG_KEY}]}" \
+            "${FLAG_MAIN_DDS_PATHS[${FLAG_KEY}]}" \
+            "${FLAG_SMALL_PNG_PATHS[${FLAG_KEY}]}" \
+            "${FLAG_SMALL_DDS_PATHS[${FLAG_KEY}]}"
+    ) > "${FLAG_EXPORT_LOG_PATH}" 2>&1 &
+done
+
+wait
+
+for LOG_FILE_PATH in "${BUILD_DIR_PATH}"/*.log; do
+    [ -f "${LOG_FILE_PATH}" ] || continue
+    grep -E "\[(ERROR|WARNING)\]|on attempt|not beveled" "${LOG_FILE_PATH}"
+done
+
+MISSING_BEVEL_COUNT=0
+FLAG_BEVEL_PATHS=()
+
+for FLAG_KEY in "${FLAG_KEYS[@]}"; do
+    for PNG_PATH in "${FLAG_MAIN_PNG_PATHS[${FLAG_KEY}]}" "${FLAG_SMALL_PNG_PATHS[${FLAG_KEY}]}"; do
+        is-beveled-png "${PNG_PATH}" && continue
+
+        FLAG_BEVEL_PATHS+=("${PNG_PATH}")
+        MISSING_BEVEL_COUNT=$((MISSING_BEVEL_COUNT + 1))
+    done
+done
+
+if [ "${MISSING_BEVEL_COUNT}" -gt 0 ]; then
+    echo "[ERROR] ${MISSING_BEVEL_COUNT} flags were not beveled after ${VARIANT_ATTEMPT_COUNT} attempts:"
+    report-unbeveled-flags
+fi
+
+MISSING_OUTPUT_COUNT=$(find "${OUTPUT_FLAGS_DIR_PATH}" -name '*.dds' -not -path '*/backgrounds/*' | wc -l)
+EXPECTED_OUTPUT_COUNT=$(( $(find "${SOURCE_FLAGS_DIR_PATH}" -type f \( -name '*.svg' -o -name '*.png' -o -name '*.bmp' \) | wc -l) * 3 ))
+
+echo "Produced ${MISSING_OUTPUT_COUNT} of ${EXPECTED_OUTPUT_COUNT} flag DDS files."

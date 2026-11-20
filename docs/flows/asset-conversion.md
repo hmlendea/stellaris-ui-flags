@@ -14,45 +14,50 @@ SOURCE ASSET
 │ STAGE 1: SOURCE FORMAT → SVG                                                │
 │                                                                             │
 │   .svg  ──► COPY                                                            │
-│   .ai   ──► Inkscape ──► SVG                                                │
 │   .bmp  ──► potrace ──► SVG                                                 │
 │   .png  ──► ImageMagick ──► BMP ──► potrace ──► SVG                        │
-│   .xcf  ──► GIMP ──► PNG ──► ImageMagick ──► BMP ──► potrace ──► SVG       │
 │                                                                             │
 │   OUTPUT: build/<category>/<source_name>.svg                               │
 └─────────────────────────────────────────────────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ STAGE 2: SVG → THREE PNG RESOLUTIONS (parallel logical, sequential actual) │
+│ STAGE 2: SVG → THREE PNG RESOLUTIONS                                         │
 │                                                                             │
-│   SVG ──► GIMP (svg_to_png) ──► 128×128 PNG (main)                         │
-│   SVG ──► GIMP (svg_to_png) ──► 256×256 PNG (map)                          │
-│   SVG ──► GIMP (svg_to_png) ──►  24×24  PNG (small)                        │
+│   SVG ──► rsvg-convert + ImageMagick (svg-to-png) ──► 128×128 PNG (main)     │
+│   SVG ──► rsvg-convert + ImageMagick (svg-to-png) ──► 256×256 PNG (map)      │
+│   SVG ──► rsvg-convert + ImageMagick (svg-to-png) ──►  24×24  PNG (small)    │
 │                                                                             │
-│   Each invocation: independent GIMP process                                 │
+│   No GIMP session; about a hundred milliseconds for all three                 │
 └─────────────────────────────────────────────────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ STAGE 3: BEVEL APPLICATION (main & small only)                              │
+│ STAGE 3: BATCHED BEVEL (main & small only)                                  │
 │                                                                             │
-│   128px PNG ──► GIMP (gradient_bevel) ──► 128px PNG (beveled, in place)     │
-│    24px PNG ──► GIMP (gradient_bevel) ──►  24px PNG (beveled, in place)     │
-│   256px PNG ──► (NO BEVEL)                                                 │
+│   128px PNG ─┐                                                              │
+│              ├──► GIMP session (bevel_batch) ──► PNGs (beveled, in place)   │
+│    24px PNG ─┘                                                              │
+│   256px PNG ───► (NO BEVEL)                                                 │
 │                                                                             │
 │   Bevel: blurred silhouette emboss with gradient highlight/shadow           │
+│   FLAG_BEVEL_BATCH_SIZE flags per session, FLAG_GIMP_CONCURRENCY at once    │
 └─────────────────────────────────────────────────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ STAGE 4: PNG → DDS EXPORT                                                   │
 │                                                                             │
-│   128px beveled PNG ──► GIMP (png_to_dds) ──► out/.../main/<name>.dds       │
-│   256px flat PNG    ──► GIMP (png_to_dds) ──► out/.../map/<name>.dds        │
-│    24px beveled PNG ──► GIMP (png_to_dds) ──► out/.../small/<name>.dds      │
+│   256px flat PNG    ──► python (png_to_dds) ──► out/.../map/<name>.dds      │
 │                                                                             │
-│   DDS: uncompressed BGRA8, linear colour space                              │
+│   The map needs no bevel, so it is exported before the bevel stage. The     │
+│   beveled main and small PNGs are exported only after the bevel stage, so   │
+│   their textures carry the bevel:                                           │
+│   128px beveled PNG ──► python (png_to_dds) ──► out/.../main/<name>.dds     │
+│    24px beveled PNG ──► python (png_to_dds) ──► out/.../small/<name>.dds    │
+│                                                                             │
+│   DDS: uncompressed BGRA8, no mipmaps, GIMP-compatible header               │
+│   No GIMP session, so the stage costs a fraction of the others              │
 └─────────────────────────────────────────────────────────────────────────────┘
     │
     ▼
@@ -70,23 +75,6 @@ THREE OUTPUT DDS FILES
 **Conditions:** Source is already SVG — no conversion needed.
 
 **Advantages:** Fastest, preserves vector quality, no rasterisation artifacts.
-
-### AI (Adobe Illustrator)
-
-**Path:** `source/flags/<cat>/flag.ai` → `build/<cat>/flag.svg`
-
-**Tool:** Inkscape CLI
-
-**Command:**
-```bash
-inkscape "input.ai" --export-type=svg --export-filename="output.svg"
-```
-
-**Limitations:**
-- Inkscape's AI import is limited (AI is proprietary)
-- Complex gradients, meshes, effects may not convert
-- Text may not render if fonts missing
-- Best for simple vector artwork saved as AI
 
 ### BMP (Bitmap)
 
@@ -131,58 +119,27 @@ potrace "temp.bmp" -s -o "output.svg"
 
 **Best For:** Simple pixel art, high-contrast logos, solid shapes.
 
-### XCF (GIMP Native)
-
-**Path:** `source/flags/<cat>/flag.xcf` → `build/<cat>/flag.svg`
-
-**Pipeline:** XCF → PNG → BMP → SVG
-
-**Step 1: XCF → PNG (GIMP Python-Fu)**
-```bash
-execute-gimp-script-file "xcf_to_png" \
-    INPUT_IMAGE_PATH "input.xcf" \
-    OUTPUT_IMAGE_PATH "temp.png"
-```
-- Loads XCF, merges visible layers, saves PNG
-
-**Step 2: PNG → BMP (ImageMagick)**
-```bash
-convert "temp.png" "temp.bmp"
-```
-
-**Step 3: BMP → SVG (potrace)**
-```bash
-potrace "temp.bmp" -s -o "output.svg"
-```
-
-**Cleanup:** Temporary PNG and BMP removed.
-
-**Use Case:** Layered designs with effects that need GIMP to flatten.
-
-**Limitations:** Longest path, most quality loss (layer merge → raster → trace).
-
 ## Stage 2: SVG → PNG (Three Resolutions)
 
-### Common SVG Rendering (svg_to_png.py)
+### Common SVG Rendering (svg-to-png)
 
-**Function:** `render_flag(source_path, output_path, output_size)`
+**Location:** the `svg-to-png` function in `build.sh`
 
 **Process:**
-1. Load SVG directly through `file-svg-load` at the target size, disregarding the ratio
-2. Add a white background layer beneath the imported SVG; without it, SVGs that rely on stroked
-   paths with no fill are fully transparent, so the sampled corner colour is transparent and
-   removing it erases the whole emblem
-3. Merge the imported layers and the background into a single flag layer
-4. Sample the corner colour and remove it with colour to alpha
-5. Lock the alpha and repaint the opaque area white
-6. Merge visible layers
-7. Save PNG
+1. Rasterise the SVG with `rsvg-convert` at the target size over a white background
+2. Sample the background colour from the top-left corner
+3. Take the difference from that colour as the alpha channel
+4. Composite the alpha over an opaque white base, forcing PNG colour type 6
+
+The white background matters: SVGs traced from bitmaps draw black shapes with no background
+rectangle, so a transparent background renders black on black and the emblem disappears. Forcing the
+colour type matters too, because a greyscale PNG is read as the wrong channels by the DDS writer.
 
 ### Resolution-Specific Details
 
 #### Main Flag (128px)
 
-**Call:** `render_flag(svg, build_main.png, 128)`
+**Call:** `svg-to-png <svg> build_main.png 128`
 
 **Output:** `build/<cat>/<source>.png` (128×128)
 
@@ -297,20 +254,16 @@ OUTPUT: PNG with 3D bevel effect
 **Function:** `convert_image(source_path, output_path)`
 
 **Process:**
-1. Load PNG
-2. Call `file-dds-export` with `compression-format` set to `none`
-3. Save DDS
+1. Read the PNG dimensions with ImageMagick
+2. Read the BGRA pixel data from ImageMagick in one invocation
+3. Write the 128-byte `DDS ` header, then the pixels
 
 ### DDS Export Settings
 
 ```python
-export_dds(image, output_path)
-# Equivalent to:
-#   run_procedure('file-dds-export', {
-#       'image': image,
-#       'file': Gio.File.new_for_path(output_path),
-#       'compression-format': 'none',
-#   })
+convert_image(source_path, output_path)
+# Header: 128 bytes, byte-identical to file-dds-export with compression disabled
+# Body:   raw BGRA, no mipmaps
 ```
 
 ### Effective Settings
@@ -329,42 +282,36 @@ For 24×24 small flag: identical output size
 
 ## Conversion Quality Considerations
 
-### Vector → Raster → Vector → Raster (PNG/XCF/BMP sources)
+### Vector → Raster → Vector → Raster (PNG/BMP sources)
 
 **Quality Loss Points:**
 1. **Rasterisation** (SVG → PNG at target size) — minimal if SVG source
-2. **Potrace tracing** (PNG/BMP/XCF → SVG) — major loss for complex images
+2. **Potrace tracing** (PNG/BMP → SVG) — major loss for complex images
 3. **Re-rasterisation** (SVG → PNG) — minimal
 4. **Bevel** — adds effect, not loss
 5. **DDS export** — lossless (uncompressed BGRA8)
 
 **Best Quality Path:** SVG source → direct to all three PNG sizes → DDS
 
-**Worst Quality Path:** XCF → PNG → BMP → SVG → PNG → DDS (multiple raster/vector transitions)
+**Worst Quality Path:** PNG → BMP → SVG → PNG → DDS (multiple raster/vector transitions)
 
 ### Format Recommendations
 
 | Source Type | Recommended Format | Reason |
 |-------------|-------------------|--------|
 | New designs | SVG | Vector, scalable, single source |
-| Existing raster | PNG (clean, high-contrast) | Better than BMP/XCF for tracing |
-| Layered GIMP | XCF | Preserves layers for editing |
-| Legacy AI | AI | If SVG not available |
+| Existing raster | PNG (clean, high-contrast) | Better than BMP for tracing |
 | Simple bitmap | BMP | Direct to potrace |
 
 ## Per-Format Conversion Summary
 
-| Source | SVG Conversion | PNG Renders | Bevel | DDS Exports | GIMP Calls |
-|--------|----------------|-------------|-------|-------------|------------|
-| SVG | Copy (0) | 3 | 2 | 3 | 8 |
-| AI | Inkscape (1) | 3 | 2 | 3 | 8 |
-| BMP | Potrace (1) | 3 | 2 | 3 | 8 |
-| PNG | IM+Potrace (2) | 3 | 2 | 3 | 8 |
-| XCF | GIMP+IM+Potrace (3) | 3 | 2 | 3 | 8 |
+| Source | SVG Conversion | PNG Renders | Bevel | DDS Exports |
+|--------|----------------|-------------|-------|-------------|
+| SVG | Copy (0) | 3 | 2 | 3 |
+| BMP | Potrace (1) | 3 | 2 | 3 |
+| PNG | IM+Potrace (2) | 3 | 2 | 3 |
 
-**GIMP Calls per Asset:** Always 8 (3 svg_to_png + 2 gradient_bevel + 3 png_to_dds)
-
-**Additional Calls for XCF:** +1 (xcf_to_png in conversion stage)
+The bevels are batched, so a whole batch of images shares one GIMP session start.
 
 ## Intermediate File Locations
 
@@ -401,11 +348,8 @@ ls -la build/human/
 
 ```bash
 # Test SVG → PNG (128px)
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/human/flag.svg" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test_128.png" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
+rsvg-convert -w 128 -h 128 -b white -o /tmp/raw.png "build/human/flag.svg"
+magick identify /tmp/raw.png
 
 # Test bevel
 env GIMP_SCRIPT_IMAGE_PATH="/tmp/test_128.png" \
@@ -426,6 +370,6 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test_128.png" \
 | Flag invisible | Alpha channel lost | Verify PNG has transparency before bevel |
 | Bevel too strong/weak | Parameters | Adjust `BLUR_RADIUS`, `BUMP_DEPTH`, and `BUMP_ELEVATION` in gradient_bevel.py |
 | Map flag has bevel | Logic error | Verify map path skips bevel in build.sh |
-| DDS won't load | Export procedure | Verify GIMP reports `file-dds-export`; try opening the DDS in GIMP |
+| DDS won't load | Header fields | Compare the DDS header with a known-good file; the writer reproduces GIMP's exactly |
 | Colours wrong | Colour space | DDS saved linear, game expects sRGB? |
 | Jagged edges | Potrace tracing | Use SVG source instead of PNG/BMP |

@@ -178,9 +178,9 @@ fi
 | Script | Purpose | Key Parameters |
 |--------|---------|----------------|
 | `gradient_bevel.py` | Applies gradient bevel effect | `BLUR_RADIUS`, `BUMP_AZIMUTH`, `BUMP_ELEVATION`, `BUMP_DEPTH`, colours |
-| `png_to_dds.py` | Exports PNG to DDS | `DDS_COMPRESSION_FORMAT` in `gimp_image_operations.py` |
-| `svg_to_png.py` | Renders SVG to PNG | `OUTPUT_IMAGE_SIZE` argument, background handling |
-| `xcf_to_png.py` | Exports XCF to PNG | Layer merging |
+| `bevel_batch.py` | Bevels a batch in one GIMP session | `IMAGE_PATHS` |
+| `png_to_dds.py` | Exports PNG to DDS | Header fields in `build_header` |
+| `svg-to-png` (in `build.sh`) | Renders SVG to PNG | Background colour, output size |
 
 ### Modifying Gradient Bevel
 
@@ -203,13 +203,8 @@ COLOUR_GRADIENT_END = '#715209'    # Dark gold shadow
 
 ### Modifying DDS Export
 
-Edit `source/scripts/gimp_image_operations.py`:
-
-```python
-DDS_COMPRESSION_FORMAT = 'none'
-```
-
-The `export_dds` function passes this value as the `compression-format` export property. See the GIMP DDS export documentation for the accepted formats.
+Edit `source/scripts/png_to_dds.py`. The header fields live in `build_header`, and the pixel
+format is read by `read_bgra_data`. No GIMP settings apply, because the file is written directly.
 
 ## Stellaris Version Compatibility
 
@@ -229,6 +224,37 @@ The `export_dds` function passes this value as the `compression-format` export p
 - Range not supported — single pattern only
 
 ## Environment-Specific Configuration
+
+### Build Concurrency
+
+The `FLAG_WORKER_COUNT` environment variable sets how many flags are rasterised and exported
+concurrently. Each worker uses plain tools, so the setting only trades processor utilisation.
+
+```bash
+FLAG_WORKER_COUNT=4 ./build.sh 2.3.1
+```
+
+The `FLAG_GIMP_CONCURRENCY` environment variable sets how many GIMP sessions may run at once. Each
+session reserves its own tile cache, so the setting trades processor utilisation against memory.
+
+```bash
+FLAG_GIMP_CONCURRENCY=4 ./build.sh 2.3.1
+```
+
+The `FLAG_BEVEL_BATCH_SIZE` environment variable sets how many flags one GIMP session bevels before
+it is replaced. Starting GIMP costs a few seconds while every further image in a running session
+costs a fraction of one, so a larger batch is faster; the memory a session holds also grows with the
+number of images it has processed, and a session that exhausts it is killed partway.
+
+When the variable is unset, the build derives a default from the available memory at start, because
+a batch that is too large leaves most flags unbeveled (the retry rounds then dominate the build),
+and a batch that is far too small pays the GIMP start for almost every image. The derived values are
+`4`, `6`, or `8`, and the chosen value is printed in the first line of the build output. Any bevel a
+killed session leaves unmarked is retried over the remaining rounds.
+
+```bash
+FLAG_BEVEL_BATCH_SIZE=12 ./build.sh 2.3.1
+```
 
 ### Local Development
 
@@ -256,7 +282,7 @@ The build script validates:
 
 1. **Version argument provided:** `if [ -z "${MOD_VERSION}" ]`
 2. **Source directory exists:** `[ ! -d "${SOURCE_DIR_PATH}" ]`
-3. **Required tools available:** Checks for `convert`, `potrace`, Inkscape, GIMP
+3. **Required tools available:** Checks for `magick`, `rsvg-convert`, `potrace`, `gimp`, and `python3`
 4. **Output file creation:** Verifies each conversion step produces output
 
 ### Manual Validation

@@ -2,16 +2,15 @@
 
 ## Overview
 
-The build pipeline uses four GIMP Python-Fu scripts for image processing operations that require GIMP's advanced capabilities. Each script is invoked as a GIMP batch command that evaluates the script file, passing its parameters through environment variables.
+The build pipeline uses two GIMP Python-Fu scripts for image processing operations that require GIMP's advanced capabilities, plus a wrapper that batches the bevels into shared sessions. Each script is invoked as a GIMP batch command that evaluates the script file, passing its parameters through environment variables.
 
 ## Script Inventory
 
 | Script | Purpose | Invoked By | Input | Output |
 |--------|---------|------------|-------|--------|
-| `gradient_bevel.py` | Applies 3D gradient bevel effect | `apply-gradient-bevel` | PNG | PNG (with bevel) |
+| `bevel_batch.py` | Bevels every image of a batch in one GIMP session | `bevel-pngs` | newline-separated PNG paths | PNGs (with bevel) |
+| `gradient_bevel.py` | Applies 3D gradient bevel effect | `bevel_batch.py` | PNG | PNG (with bevel) |
 | `png_to_dds.py` | Exports PNG to DDS format | `png-to-dds` | PNG | DDS |
-| `svg_to_png.py` | Renders SVG to PNG at specified size | `svg-to-png` | SVG | PNG |
-| `xcf_to_png.py` | Exports XCF (GIMP native) to PNG | `xcf-to-png` / `xcf-to-svg` | XCF | PNG |
 
 ## Shared Modules
 
@@ -23,6 +22,38 @@ The build pipeline uses four GIMP Python-Fu scripts for image processing operati
 | `gimp_image_operations.py` | Image, layer, selection, filter, and export operations |
 
 ## Script Details
+
+### bevel_batch.py
+
+**Purpose:** Applies the gradient bevel to every image of a batch inside one GIMP session, so the
+per-invocation start-up cost is paid once per batch instead of once per image.
+
+**Location:** `source/scripts/bevel_batch.py`
+
+**Function Signatures:**
+```python
+read_image_paths()
+bevel_images(image_paths)
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `IMAGE_PATHS` | string | Newline-separated paths of the PNG files, each rewritten in place |
+
+**Algorithm:**
+
+```
+1. Split the newline-separated IMAGE_PATHS argument into paths
+2. Apply the gradient bevel to each path in turn
+3. Write the completion marker only after each bevel has been saved
+4. Report every path that failed, and continue with the remaining ones
+```
+
+**Note:** A failure on one image does not stop the batch, because an unmarked image is retried over
+the remaining rounds. The caller keeps the batch bounded, because the memory a session holds grows
+with the number of images it has processed.
 
 ### gradient_bevel.py
 
@@ -119,6 +150,11 @@ BEVEL_INDENT_OFFSET = 12        # Bevel left inset in px
 
 **Purpose:** Exports a PNG image to DDS format with Stellaris-compatible settings.
 
+This script does not use GIMP at all. It writes the 128-byte `DDS ` header itself, byte-identical
+to the one `file-dds-export` produces with compression disabled, followed by raw BGRA pixels with no
+mipmaps. Avoiding the GIMP start makes the export effectively free, because that start dominates
+every other stage.
+
 **Location:** `source/scripts/png_to_dds.py`
 
 **Function Signature:**
@@ -133,9 +169,10 @@ convert_image(source_path, output_path)
 | `source_path` | string | Path to input PNG file |
 | `output_path` | string | Path for output DDS file |
 
-**Export Settings (in `gimp_image_operations.export_dds`):**
-```python
-'compression-format': 'none',
+**Export Settings:**
+```
+Header: 128 bytes, byte-identical to GIMP's file-dds-export with compression disabled
+Body:   raw BGRA pixels, no mipmaps
 ```
 
 **Effective Settings:**
@@ -143,95 +180,51 @@ convert_image(source_path, output_path)
 - **Mipmaps:** None
 - **Colour Space:** Linear (no sRGB conversion)
 
-**Note:** The uncompressed format matches the DDS textures previously produced by the GIMP 2.10 build.
-
-**GIMP PDB Functions Used:**
-- `gimp-file-load` — Load PNG
-- `file-dds-export` — Save DDS
+**Note:** The header matches the DDS textures previously produced by the GIMP 2.10 build, so the
+output is byte-compatible while skipping the GIMP process entirely.
 
 **Modification Points:**
-- Compression format: Change `DDS_COMPRESSION_FORMAT`
-- Mipmap generation: Add a `mipmaps` export property
+- Header fields: Edit `build_header`
+- Image extraction: Edit `read_bgra_data`
 
-### svg_to_png.py
+### svg-to-png
 
-**Purpose:** Renders an SVG file to a PNG at a specified pixel size, removing the flat background colour.
+**Purpose:** Renders an SVG file to a PNG at a specified pixel size, removing the flat background
+colour.
 
-**Location:** `source/scripts/svg_to_png.py`
+**Location:** the `svg-to-png` function in `build.sh`
 
-**Function Signature:**
-```python
-render_flag(source_path, output_path, output_size)
-```
+**Tooling:** `rsvg-convert` and ImageMagick. This stage no longer uses GIMP: rasterising through
+`rsvg-convert` and deriving the alpha with ImageMagick reproduces the former GIMP pipeline exactly
+while costing milliseconds instead of a multi-second GIMP start.
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `source_path` | string | Path to input SVG file |
-| `output_path` | string | Path for output PNG file |
-| `output_size` | integer | Target dimension in pixels (square: width = height) |
+| `input_image_path` | string | Path to input SVG file |
+| `output_image_path` | string | Path for output PNG file |
+| `output_image_size` | integer | Target dimension in pixels (square: width = height) |
 
 **Algorithm:**
 ```
-1. Load SVG directly at the target output size (square)
-2. Merge the imported layers into a single flag layer
-3. Sample the corner colour, then remove it with colour to alpha
-4. Lock the alpha and repaint the opaque area white
-5. Merge visible layers
-6. Save as PNG
+1. Rasterise the SVG at the target size over a white background
+2. Sample the background colour from the top-left corner
+3. Take the difference from that colour as the alpha channel
+4. Composite that alpha over an opaque white base
+5. Save as a truecolour PNG with alpha
 ```
 
 **Key Operations:**
-- **SVG Import:** `file-svg-load` renders the SVG at the requested size with the ratio disregarded
-- **Background Removal:** `gegl:color-to-alpha` on the sampled corner colour
-- **Repaint:** The alpha lock keeps the shape while every opaque pixel becomes white
-
-**GIMP PDB Functions Used:**
-- `file-svg-load` — Load SVG at a target size
-- `gimp-image-merge-visible-layers` — Flatten
-- `gimp-image-pick-color` — Sample the corner colour
-- `gegl:color-to-alpha` — Remove the flat background
-- `gimp-layer-set-lock-alpha` — Restrict the repaint to the shape
-- `file-png-export` — Save PNG
+- **Rasterisation:** `rsvg-convert -w N -h N -b white`. The white background is essential; SVGs traced from bitmaps draw black shapes with no background rectangle, so a transparent background would render black on black and leave the emblem invisible.
+- **Alpha:** the emblem is whatever differs from the sampled background colour, and that difference becomes the alpha channel.
+- **Base:** an explicit white image, because the pipeline expects the emblem to be white with the shape in the alpha channel alone.
+- **Colour type:** the output must be forced to PNG colour type 6. ImageMagick otherwise emits a greyscale image, which the DDS writer reads as the wrong channels.
 
 **Modification Points:**
 - Output size: Passed as parameter (128, 256, or 24)
-- Background removal: Modify the sampled position or the colour threshold
-
-### xcf_to_png.py
-
-**Purpose:** Exports a GIMP XCF file (native format with layers) to a flat PNG.
-
-**Location:** `source/scripts/xcf_to_png.py`
-
-**Function Signature:**
-```python
-convert_image(source_path, output_path)
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `source_path` | string | Path to input XCF file |
-| `output_path` | string | Path for output PNG file |
-
-**Algorithm:**
-```
-1. Load XCF file (preserves all layers)
-2. Merge all visible layers (flatten)
-3. Save as PNG
-```
-
-**GIMP PDB Functions Used:**
-- `gimp-file-load` — Load XCF (native loader)
-- `gimp-image-merge-visible-layers` — Flatten (EXPAND-AS-NECESSARY)
-- `file-png-export` — Save PNG
-
-**Modification Points:**
-- Layer merge mode: Change `merge_visible_layers` to use a different `Gimp.MergeType`
-- Output format: Replace `export_png` with another export helper
+- Background colour: Change the `-b` argument
+- Alpha derivation: Modify the difference composite
 
 ## Invocation Pattern
 
@@ -248,7 +241,7 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="in.svg" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="out.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
     "${GIMP_TOOL_PATH}" -i --batch-interpreter=python-fu-eval \
-    -b "exec(open('source/scripts/svg_to_png.py').read())" --quit
+    -b "exec(open('source/scripts/gradient_bevel.py').read())" --quit
 ```
 
 **Flags:**
@@ -271,7 +264,6 @@ GIMP 3 bundles every required plug-in.
 | SVG import | `file-svg-load` | Load SVG files |
 | PNG import | `file-png-load` | Load PNG files |
 | PNG export | `file-png-export` | Write PNG files |
-| DDS export | `file-dds-export` | Write DDS textures |
 | Colour to Alpha | `gegl:color-to-alpha` | Remove solid backgrounds |
 | Gaussian Blur | `gegl:gaussian-blur` | Relief silhouette smoothing |
 | Bump Map | `gegl:bump-map` | Bevel embossing |
@@ -292,9 +284,7 @@ Scripts work with Flatpak GIMP (`org.gimp.GIMP`) when invoked via the detected F
 | Script | Failure Cause | Symptom |
 |--------|---------------|---------|
 | gradient_bevel | Unsupported GEGL operation | GIMP error, no output |
-| png_to_dds | DDS export procedure missing | "Unknown file format" |
-| svg_to_png | Invalid SVG | Import fails, empty image |
-| xcf_to_png | Corrupt XCF | Load fails |
+| bevel_batch | GIMP session killed | The image is left with no completion marker and retried |
 
 ### Debugging
 Run the script directly through GIMP batch mode with the parameters supplied as environment variables, and inspect the GIMP console output.

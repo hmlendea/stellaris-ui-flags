@@ -10,9 +10,10 @@ This document records areas where the project's behaviour is ambiguous, undocume
 
 **Question:** Does the Flatpak GIMP (`org.gimp.GIMP`) include the DDS export plug-in?
 
-**Context:** Tool detection supports Flatpak GIMP (D11). GIMP 3 bundles the DDS export plug-in (`file-dds-export`), so no separate package is required.
+**Context:** Tool detection supports Flatpak GIMP (D11). The build no longer exports DDS through
+GIMP; `png_to_dds.py` writes the uncompressed format directly, so no DDS plug-in is required.
 
-**Impact:** None for GIMP 3. Builds fail at the PNG→DDS stage only on systems running GIMP older than 3.0.
+**Impact:** None. GIMP is only needed for SVG rasterisation and the bevel effect.
 
 **Resolution Path:** Resolved — GIMP 3 bundles the plug-in. Residual risk: a custom GIMP build without the plug-in.
 
@@ -30,25 +31,13 @@ This document records areas where the project's behaviour is ambiguous, undocume
 
 ---
 
-### A3: Inkscape AI Import Fidelity
-
-**Question:** How well does Inkscape 1.x import modern Adobe Illustrator files?
-
-**Context:** AI format has evolved (CC versions use different internal structures). Inkscape's import filter has known limitations with complex AI features (gradients, meshes, effects).
-
-**Impact:** AI-sourced flags may convert with lost detail. Current AI sources in the repository convert acceptably (observed), but new AI files may behave differently.
-
-**Resolution Path:** Prefer SVG exports from source tools; document AI limitations for contributors.
-
----
-
 ### A4: potrace Tracing Quality Threshold
 
 **Question:** What source characteristics make potrace tracing unacceptable?
 
 **Context:** potrace traces single-colour bitmaps. Sources with gradients, soft edges, or fine detail produce poor SVGs. The boundary between "acceptable" and "unacceptable" is subjective.
 
-**Impact:** Raster-sourced flags may lose detail. PNG/XCF sources in the repository were accepted at some quality level, but the threshold is undocumented.
+**Impact:** Raster-sourced flags may lose detail. PNG sources in the repository were accepted at some quality level, but the threshold is undocumented.
 
 **Resolution Path:** Document source preparation guidelines; consider a quality checklist for raster sources.
 
@@ -134,7 +123,7 @@ This document records areas where the project's behaviour is ambiguous, undocume
 
 **Question:** Should CI build the mod?
 
-**Context:** Workflows only download the Release asset (D13). Building in CI would require installing GIMP, Inkscape, potrace, ImageMagick on runners — feasible but adds workflow complexity.
+**Context:** Workflows only download the Release asset (D13). Building in CI would require installing GIMP, potrace, ImageMagick on runners — feasible but adds workflow complexity.
 
 **Impact:** Release artefact depends on maintainer's local environment; reproducibility not guaranteed.
 

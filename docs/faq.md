@@ -33,7 +33,7 @@ GNU GPL v3.0 — see [LICENSE](../LICENSE).
 
 ### Why does the build take so long?
 
-Each asset requires 8 GIMP invocations (3 renders, 2 bevels, 3 DDS exports), each with ~0.5–1s startup overhead. 300+ assets × 8 calls = 5–15 minutes total.
+Each asset needs two bevels, and the bevels are batched into shared GIMP sessions. Starting GIMP costs a few seconds, while every further image inside a running session costs a fraction of one, so the cost is dominated by the number of sessions rather than the number of flags. The SVG rasterisation and the DDS export use plain tools and are effectively free.
 
 ### Can I speed up the build?
 
@@ -45,9 +45,9 @@ Each asset requires 8 GIMP invocations (3 renders, 2 bevels, 3 DDS exports), eac
 
 Incremental builds skip assets when all three output DDS files exist — source modifications are not detected. Remove the specific outputs or do a full rebuild (`rm -rf build out`).
 
-### Do I need all four tools?
+### Do I need all three tools?
 
-Yes — ImageMagick, potrace, Inkscape, and GIMP are all validated at startup. Even if your sources are all SVG (Inkscape only used for AI), the build aborts if any tool is missing.
+Yes — ImageMagick, `rsvg-convert`, potrace, and GIMP are all validated at startup. Even if your sources are all SVG, the build aborts if any tool is missing.
 
 ### Does Flatpak GIMP work?
 
@@ -70,10 +70,8 @@ Theoretically yes (bash script, tools available via Homebrew), but untested. Too
 | Format | Conversion Path |
 |--------|-----------------|
 | `.svg` | Direct (best quality) |
-| `.ai` | Inkscape → SVG |
 | `.bmp` | potrace → SVG |
 | `.png` | ImageMagick → BMP → potrace → SVG |
-| `.xcf` | GIMP → PNG → BMP → potrace → SVG |
 **SVG is strongly recommended** — other formats pass through lossy raster→vector tracing.
 
 ### Why does my PNG flag look different after conversion?

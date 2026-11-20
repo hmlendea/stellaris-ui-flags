@@ -5,7 +5,7 @@
 There is **no logging framework**. The build produces:
 
 1. **Progress messages** — `echo` statements in `build.sh`
-2. **Tool output** — stdout/stderr from GIMP, Inkscape, potrace, ImageMagick
+2. **Tool output** — stdout/stderr from GIMP, potrace, ImageMagick, `rsvg-convert`
 3. **No log files** — everything goes to the terminal
 
 ## Build Script Output
@@ -47,16 +47,11 @@ GIMP batch mode prints to stderr:
 |--------|---------|
 | `batch command experienced an execution error` | Python-Fu failure — check arguments and input file |
 | `batch command executed successfully` | Operation completed |
+| `[INFO] Beveling '<path>'` | The bevel started on that image (one line per image) |
+| `[WARNING] Failure while beveling '<path>': <reason>` | The bevel script raised an error on that image |
 | Plug-in warnings | Non-fatal; usually ignorable |
 
 GIMP startup also prints version/warning noise to stderr on each invocation — this is normal and not an error indicator.
-
-### Inkscape
-
-| Output | Meaning |
-|--------|---------|
-| `WARNING **: Cannot open file` | Source AI file unreadable |
-| Nothing | Success |
 
 ### potrace
 
@@ -89,6 +84,20 @@ GIMP startup also prints version/warning noise to stderr on each invocation — 
 ./build.sh <version> 2>&1 | tee build.log | grep -iE "error|fail|warning"
 ```
 
+### Bevel Session Logs
+
+Each GIMP bevel session writes three files under `build/`:
+
+| File | Contents |
+|------|----------|
+| `bevel-<round>-<chunk>.log` | GIMP output, including one `[INFO] Beveling '<path>'` line per image |
+| `bevel-<round>-<chunk>.log.flags` | The flags that session was given |
+| `bevel-<round>-<chunk>.log.exit` | The session's exit code |
+
+The last `[INFO] Beveling` line in a log identifies the image the session was working on when it
+died, which is what the end-of-build report uses to explain each unbeveled flag. All three files are
+deleted at the start of the next build.
+
 ### Debug Tracing
 
 ```bash
@@ -108,7 +117,7 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="/path/to/input.svg" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/path/to/output.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
     gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/gradient_bevel.py').read())" --quit
 ```
 
 - Errors print directly to terminal
@@ -118,9 +127,7 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="/path/to/input.svg" \
 
 | Missing | Consequence |
 |---------|-------------|
-| Failed asset list | Skipped assets invisible; must count outputs manually |
 | Per-asset timing | Performance analysis requires manual timing |
-| Build summary (counts) | No quick verification of completeness |
 | Tool versions used | Reproducibility requires manual capture |
 | Timestamps | Cannot correlate output to time |
 

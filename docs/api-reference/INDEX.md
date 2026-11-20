@@ -116,49 +116,9 @@ png-to-svg <input_file_path> <output_file_path>
 
 ---
 
-### `xcf-to-svg`
-
-Converts XCF (GIMP native) to SVG via PNG → BMP intermediates.
-
-```bash
-xcf-to-svg <input_file_path> <output_file_path>
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `input_file_path` | string | Path to input XCF file |
-| `output_file_path` | string | Path for output SVG file |
-
-**Pipeline:** XCF → PNG (GIMP) → BMP (ImageMagick) → SVG (potrace)
-
-**Side Effects:** Creates and removes temporary PNG and BMP files.
-
----
-
-### `ai-to-svg`
-
-Converts Adobe Illustrator AI to SVG via Inkscape.
-
-```bash
-ai-to-svg <input_file_path> <output_file_path>
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `input_file_path` | string | Path to input AI file |
-| `output_file_path` | string | Path for output SVG file |
-
-**Tool:** Inkscape CLI (`--export-type=svg`)
-
----
-
 ### `svg-to-png`
 
-Renders SVG to PNG at specified size using GIMP Python-Fu.
+Renders SVG to PNG at specified size with `rsvg-convert` and ImageMagick.
 
 ```bash
 svg-to-png <input_file_path> <output_file_path> <output_image_size>
@@ -172,7 +132,7 @@ svg-to-png <input_file_path> <output_file_path> <output_image_size>
 | `output_file_path` | string | Path for output PNG file |
 | `output_image_size` | integer | Target dimension in pixels (square) |
 
-**Tool:** GIMP batch mode with `svg_to_png.py`
+**Tool:** `rsvg-convert` and ImageMagick, through the `svg-to-png` function in `build.sh`
 
 **Sizes Used:** 128 (main), 256 (map), 24 (small)
 
@@ -180,7 +140,7 @@ svg-to-png <input_file_path> <output_file_path> <output_image_size>
 
 ### `png-to-dds`
 
-Exports PNG to DDS using GIMP Python-Fu.
+Exports PNG to DDS with the plain Python writer.
 
 ```bash
 png-to-dds <input_file_path> <output_file_path>
@@ -193,44 +153,46 @@ png-to-dds <input_file_path> <output_file_path>
 | `input_file_path` | string | Path to input PNG file |
 | `output_file_path` | string | Path for output DDS file |
 
-**Tool:** GIMP batch mode with `png_to_dds.py`
+**Tool:** Python 3 with `png_to_dds.py`, which writes the uncompressed format directly instead of
+starting GIMP
 
 ---
 
-### `apply-gradient-bevel`
+### `bevel-pngs`
 
-Applies gradient bevel effect to PNG using GIMP Python-Fu.
+Applies the gradient bevel to a list of PNGs, batching them into shared GIMP sessions.
 
 ```bash
-apply-gradient-bevel <image_path>
+bevel-pngs <round_name> <png_path>...
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `image_path` | string | Path to the PNG file, rewritten in place |
+| `round_name` | string | Name of the retry round, used for the session log file names |
+| `png_path` | list | Paths of the PNG files, each rewritten in place |
 
-**Tool:** GIMP batch mode with `gradient_bevel.py`
+**Behaviour:** Chunks the paths by `FLAG_BEVEL_BATCH_SIZE`, runs at most `FLAG_GIMP_CONCURRENCY`
+sessions at once, and writes a completion marker per image only after its bevel has been saved.
+
+**Tool:** GIMP batch mode with `bevel_batch.py`
 
 ---
 
-### `xcf-to-png`
+### `collect-unbeveled-pngs`
 
-Exports XCF to PNG using GIMP Python-Fu.
+Fills `FLAG_BEVEL_PATHS` with every registered flag PNG that is not beveled, so the retry rounds can
+attempt exactly the images a killed session left behind.
 
 ```bash
-xcf-to-png <input_file_path> <output_file_path>
+collect-unbeveled-pngs
 ```
 
-**Parameters:**
+**Tool:** None, file-system checks only
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `input_file_path` | string | Path to input XCF file |
-| `output_file_path` | string | Path for output PNG file |
+---
 
-**Tool:** GIMP batch mode with `xcf_to_png.py`
 ## GIMP Python-Fu Functions
 
 ### `apply_gradient_bevel` (gradient_bevel.py)
@@ -263,6 +225,9 @@ BUMP_DEPTH = 5          # Bump-map depth
 
 Exports PNG to DDS format.
 
+The 128-byte header is byte-identical to the one GIMP's `file-dds-export` writes with compression
+disabled; only the pixel data follows it, as raw BGRA.
+
 ```python
 convert_image(source_path, output_path)
 ```
@@ -274,17 +239,15 @@ convert_image(source_path, output_path)
 | `source_path` | string | Path to input PNG file |
 | `output_path` | string | Path for output DDS file |
 
-**Behaviour:** Loads PNG and exports it as an uncompressed DDS texture.
+**Behaviour:** Reads the PNG dimensions and the BGRA pixel data from ImageMagick in one invocation
+each, then writes a 128-byte DDS header followed by the raw pixels.
 
 ---
 
-### `render_flag` (svg_to_png.py)
+### `svg-to-png` internals
 
-Renders SVG to PNG at specified size.
-
-```python
-render_flag(source_path, output_path, output_size)
-```
+The stage is implemented by the `svg-to-png` function in `build.sh`, which invokes `rsvg-convert`
+and then ImageMagick for the alpha channel.
 
 **Parameters:**
 
@@ -295,25 +258,6 @@ render_flag(source_path, output_path, output_size)
 | `output_size` | integer | Target dimension (square) |
 
 **Behaviour:** Loads SVG at the target size, removes the flat background colour, repaints the opaque area white, and saves the PNG.
-
----
-
-### `convert_image` (xcf_to_png.py)
-
-Exports XCF to flat PNG.
-
-```python
-convert_image(source_path, output_path)
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `source_path` | string | Path to input XCF file |
-| `output_path` | string | Path for output PNG file |
-
-**Behaviour:** Loads XCF, merges visible layers, saves PNG.
 
 ## Content Interfaces (Stellaris Mod Formats)
 
@@ -432,24 +376,18 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.svg" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
     gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/svg_to_png.py').read())" --quit
-
-# Apply bevel (in place)
-env GIMP_SCRIPT_IMAGE_PATH="input.png" \
-    gimp -i --batch-interpreter=python-fu-eval \
     -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/gradient_bevel.py').read())" --quit
+
+# Apply bevel (in place, batched)
+env GIMP_SCRIPT_IMAGE_PATHS="input_a.png
+input_b.png" \
+    gimp -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/bevel_batch.py').read())" --quit
 
 # Export to DDS
 env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.dds" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/png_to_dds.py').read())" --quit
-
-# Export XCF to PNG
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.xcf" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/xcf_to_png.py').read())" --quit
+    python3 "${GIMP_SCRIPTS_DIRECTORY_PATH}/png_to_dds.py"
 ```
 
 ### Adding a New Flag
@@ -483,7 +421,6 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.xcf" \
 | `MISSING SOURCE DIRECTORY` | `source/` not found (wrong working directory?) |
 | `ImageMagick is not installed` | `convert` not in PATH or Flatpak |
 | `potrace is not installed` | `potrace` not in PATH |
-| `Inkscape is not installed` | Inkscape not found (system or Flatpak) |
 | `GIMP is not installed` | GIMP not found (system or Flatpak) |
 | `Unsupported format: <file>` | Source file has unsupported extension |
 

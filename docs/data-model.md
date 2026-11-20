@@ -233,12 +233,12 @@ Generated every build (overwritten) → read by Stellaris launcher
 | File | Produced By | Consumed By |
 |------|-------------|-------------|
 | `<name>.svg` | Format conversion (any source) | svg-to-png (×3 sizes) |
-| `<name>.png` | svg-to-png (128px) | apply-gradient-bevel |
+| `<name>.png` | svg-to-png (128px) | bevel-pngs |
 | `<name>_map.png` | svg-to-png (256px) | png-to-dds |
-| `<name>_small.png` | svg-to-png (24px) | apply-gradient-bevel |
-| `<name>_beveled.png` | apply-gradient-bevel | png-to-dds |
-| `<name>_small_beveled.png` | apply-gradient-bevel | png-to-dds |
-| `<name>.bmp` | convert (PNG/XCF paths) | potrace |
+| `<name>_small.png` | svg-to-png (24px) | bevel-pngs |
+| `<name>.png.beveled` | bevel-pngs | Incremental check |
+| `<name>_small.png.beveled` | bevel-pngs | Incremental check |
+| `<name>.bmp` | convert (PNG path) | potrace |
 
 **Lifecycle:**
 ```
@@ -257,9 +257,12 @@ source/flags/<cat>/<src>.<ext>
         ▼
 build/<cat>/<src>.svg                    (format conversion)
         │
-        ├─→ build/<cat>/<src>.png ──bevel──→ <src>_beveled.png ──→ out/.../<out>.dds (main)
-        ├─→ build/<cat>/<src>_map.png ─────────────────────────────→ out/.../map/<out>.dds
-        └─→ build/<cat>/<src>_small.png ─bevel──→ ..._small_beveled.png → out/.../small/<out>.dds
+        ├─→ build/<cat>/<src>.png ────────→ out/.../<out>.dds (main)
+        ├─→ build/<cat>/<src>_map.png ─────→ out/.../map/<out>.dds
+        └─→ build/<cat>/<src>_small.png ──→ out/.../small/<out>.dds
+
+build/<cat>/<src>.png and build/<cat>/<src>_small.png are beveled in place by a
+shared GIMP session (bevel_batch.py) before the DDS export; the map PNG is not.
 ```
 
 ## Static vs Dynamic Data

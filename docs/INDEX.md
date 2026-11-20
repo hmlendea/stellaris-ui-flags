@@ -2,7 +2,7 @@
 
 ## Repository Summary
 
-Stellaris UI Flags is a mod for the game Stellaris that adds hundreds of new flag designs matching the vanilla flag style. The repository contains source assets in editable formats (SVG, AI, XCF, PNG, BMP) and a reproducible build pipeline that converts these assets into Stellaris-compatible DDS textures at three resolutions (128px main, 256px map, 24px small) with gradient bevel effects.
+Stellaris UI Flags is a mod for the game Stellaris that adds hundreds of new flag designs matching the vanilla flag style. The repository contains source assets in editable formats (SVG, PNG, BMP) and a reproducible build pipeline that converts these assets into Stellaris-compatible DDS textures at three resolutions (128px main, 256px map, 24px small) with gradient bevel effects.
 
 ## Root Document Map
 

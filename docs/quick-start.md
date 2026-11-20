@@ -8,25 +8,26 @@
 |------|---------|---------|-------------------------|
 | Bash | 4.0+ | Build script execution | Pre-installed |
 | ImageMagick | 6.0+ | PNG/BMP conversion | `sudo apt install imagemagick` |
+| librsvg | 2.40+ | SVG rasterisation | `sudo apt install librsvg2-bin` |
 | potrace | 1.0+ | Raster → vector tracing | `sudo apt install potrace` |
-| Inkscape | 1.0+ | SVG rendering, AI import | `sudo apt install inkscape` |
-| GIMP | 3.0+ | Python-Fu batch, XCF, DDS export | `sudo apt install gimp` |
+| GIMP | 3.0+ | Python-Fu batch, gradient bevel | `sudo apt install gimp` |
+| Python | 3.x | DDS export | Pre-installed |
 
 **Flatpak alternative** (auto-detected by build script):
 ```bash
-flatpak install flathub org.inkscape.Inkscape
 flatpak install flathub org.gimp.GIMP
 ```
 
-**Note:** GIMP 3 bundles the DDS export plug-in and the GEGL operations used by the build; no extra plug-in package is required.
+**Note:** GIMP 3 bundles the GEGL operations used by the bevel; no extra plug-in package is required.
 
 ### Verify Installation
 
 ```bash
-convert --version
+magick --version
+rsvg-convert --version
 potrace --version
-inkscape --version
 gimp --version
+python3 --version
 ```
 
 ## Build the Mod
@@ -109,7 +110,7 @@ Preferred format: **SVG** (vector, best quality)
 cp my-flag-design.svg source/flags/my-category/
 ```
 
-Supported formats: `.svg`, `.png`, `.xcf`, `.ai`, `.bmp`
+Supported formats: `.svg`, `.png`, `.bmp`
 
 ### 3. Optional: Custom Output Name
 

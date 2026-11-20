@@ -184,7 +184,7 @@ jobs:
 
 ### What CI Does NOT Do
 
-- ❌ Build the mod (no GIMP/Inkscape/potrace on runners)
+- ❌ Build the mod (no GIMP/potrace/ImageMagick on runners)
 - ❌ Run tests (none exist)
 - ❌ Validate the package
 - ✅ Only download and upload the pre-built artefact

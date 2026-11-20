@@ -82,34 +82,6 @@ potrace --version
 
 ---
 
-### Inkscape Not Found
-
-**Symptom:**
-```
-Inkscape is not installed
-```
-
-**Cause:** Inkscape not in PATH, and Flatpak exports not detected.
-
-**Fix:**
-```bash
-# System install
-sudo apt install inkscape
-
-# Or Flatpak
-flatpak install flathub org.inkscape.Inkscape
-
-# Verify Flatpak export exists
-ls /var/lib/flatpak/exports/bin/org.inkscape.Inkscape 2>/dev/null
-ls ~/.local/share/flatpak/exports/bin/org.inkscape.Inkscape 2>/dev/null
-```
-
-**If Flatpak installed but not detected:** Ensure the export path matches exactly. The build script checks:
-- `/var/lib/flatpak/exports/bin/org.inkscape.Inkscape`
-- `~/.local/share/flatpak/exports/bin/org.inkscape.Inkscape`
-
----
-
 ### GIMP Not Found
 
 **Symptom:**
@@ -126,28 +98,26 @@ sudo apt install gimp
 flatpak install flathub org.gimp.GIMP
 ```
 
-**Important:** GIMP 2.10 is end of life and is not supported. The scripts require GIMP 3.0 or later, which bundles the DDS export plug-in.
+**Important:** GIMP 2.10 is end of life and is not supported. The scripts require GIMP 3.0 or later.
+The DDS export no longer runs inside GIMP at all, so it does not depend on any GIMP plug-in.
 
 ---
 
-### DDS Export Unavailable
+### DDS Conversion Fails
 
-**Symptom:** GIMP runs but DDS export fails; error mentions `file-dds-export` or unknown format.
+**Symptom:** `Failure while converting '…png' to '…dds'`.
 
-**Cause:** GIMP older than 3.0, or a build without the DDS plug-in.
+**Cause:** The intermediate PNG is missing, empty or truncated, which happens when a long-lived
+GIMP session crashes while writing it. The conversion itself has no external dependencies beyond
+ImageMagick.
 
-**Fix:**
-```bash
-# Verify the GIMP version
-gimp --version
-```
+**Fix:** Re-run the build. The retry loop discards an unusable PNG and renders it again.
 
-**Verify the plug-in:**
+**Verify the conversion on a known-good PNG:**
 ```bash
 env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.dds" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/png_to_dds.py').read())" --quit
+    python3 source/scripts/png_to_dds.py
 # Should produce /tmp/test.dds without error
 ```
 
@@ -162,7 +132,7 @@ Unsupported format: source/flags/human/somefile.txt
 
 **Cause:** File in category directory with unsupported extension.
 
-**Supported Formats:** `.svg`, `.png`, `.xcf`, `.ai`, `.bmp`
+**Supported Formats:** `.svg`, `.png`, `.bmp`
 
 **Fix:** Remove or move the file out of the category directory. Note: `usage.txt` files are handled specially and copied, not converted.
 
@@ -183,18 +153,13 @@ file source/flags/<category>/<flag>.*
 # Verify format matches extension
 
 # Run conversion manually
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/<cat>/<flag>.svg" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.png" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
+rsvg-convert -w 128 -h 128 -b white -o /tmp/raw.png "build/<cat>/<flag>.svg"
+magick identify /tmp/raw.png
 ```
 
 **Common Causes:**
 - Corrupt source file
 - SVG with unsupported features (external references, animations)
-- XCF with unsupported layer modes
-- AI version not supported by Inkscape
 - PNG with complex gradients (potrace produces poor/empty trace)
 
 ---
@@ -216,9 +181,10 @@ gimp build/<category>/<flag>_bevel.png
 ```
 
 **Fix:**
-- Ensure source SVG has transparent background (not white)
+- Ensure the SVG renders the emblem in a colour that differs from the background; the alpha channel is that difference
+- Traced SVGs draw black shapes with no background rectangle, so the stage renders them over white
 - If PNG source: ensure background is a solid colour (colour-to-alpha can remove it)
-- Check the background removal logic in `source/scripts/svg_to_png.py`
+- Check the background removal logic in the `svg-to-png` function in `build.sh`
 
 ---
 
@@ -226,7 +192,7 @@ gimp build/<category>/<flag>_bevel.png
 
 **Symptom:** Flag shows white or coloured square behind emblem.
 
-**Cause:** `svg_to_png.py` failed to remove the solid background.
+**Cause:** the `svg-to-png` stage failed to remove the solid background.
 
 **Fix:**
 - Edit source SVG: remove background rect, keep only emblem
@@ -251,15 +217,65 @@ BUMP_ELEVATION = 40.0   # Increase for a higher light angle
 
 ---
 
+### Some Flags Were Not Beveled
+
+**Symptom:**
+```
+[ERROR] 2 flags were not beveled after 8 attempts:
+  - build/corporate/ui_bitcoin.png
+    source: build/corporate/ui_bitcoin.svg
+    reason: the GIMP session bevel-8-0.log crashed (segmentation fault) while beveling this flag
+  - build/corporate/small/ui_bitcoin.png
+    source: build/corporate/ui_bitcoin.svg
+    reason: the GIMP session bevel-8-0.log crashed (segmentation fault) while beveling 'build/corporate/ui_bitcoin.png', before it reached this flag
+```
+
+**Cause:** A GIMP session was killed or crashed before it reached every image it was given. The usual
+causes are memory exhaustion (the OOM killer reports exit code `137`) and a GIMP segmentation fault.
+
+**How to read the report:** The final error lists every unbeveled image with three lines each:
+
+| Line | Meaning |
+|------|---------|
+| `- <png>` | The intermediate PNG that has no completion marker |
+| `source:` | The SVG it was rasterised from |
+| `reason:` | The root cause, taken from the session the flag was handed to |
+
+The reported reasons are:
+
+| Reason | Meaning | Fix |
+|--------|---------|-----|
+| `killed by the OOM killer` | The session ran out of memory | Lower `FLAG_BEVEL_BATCH_SIZE`, or lower `FLAG_GIMP_CONCURRENCY` |
+| `crashed (segmentation fault)` | GIMP itself crashed | Retry; if persistent, lower the batch size |
+| `finished without beveling it` | The script raised an error on that image | Read the session log for the accompanying `[WARNING]` line |
+| `while beveling this flag` | The session died on this very image | This image is the likely culprit |
+| `before it reached this flag` | The session died on an earlier image in the same batch | Not this flag's fault; it was simply never attempted |
+| `never reported any progress` | The session died before it started any image | Lower the batch size or concurrency |
+| `never handed to a GIMP session` | The image was never submitted | Check the source SVG; re-run |
+
+**Diagnostic artefacts:** Each session writes three files under `build/`:
+
+| File | Contents |
+|------|----------|
+| `bevel-<round>-<chunk>.log` | GIMP output, including one `[INFO] Beveling '<path>'` line per image |
+| `bevel-<round>-<chunk>.log.flags` | The flags that session was given |
+| `bevel-<round>-<chunk>.log.exit` | The session's exit code |
+
+The last `[INFO] Beveling` line in a log identifies the image the session was working on when it
+died. These files are deleted at the start of the next build.
+
+---
+
 ### Map Flag Has Bevel
 
 **Symptom:** Map (256px) flag shows bevel effect.
 
 **Cause:** Logic error in build script — map path should skip bevel.
 
-**Fix:** Verify `build.sh` map processing:
+**Fix:** Verify that the map PNG is never registered for beveling in `build.sh`:
 ```bash
-# Should be: svg-to-png → png-to-dds (NO apply-gradient-bevel)
+# The map PNG is rasterised and exported directly; only the main and small PNGs
+# are added to FLAG_MAIN_PNG_PATHS and FLAG_SMALL_PNG_PATHS, which feed the bevel rounds.
 ```
 
 ---
@@ -434,20 +450,23 @@ rm -rf build out
 **Expected:** 5–15 minutes full build; <30s incremental.
 
 **Causes of Slowness:**
-- Very complex SVGs (slow GIMP import)
-- XCF sources (longest conversion path)
+- A very small `FLAG_BEVEL_BATCH_SIZE`, which multiplies the GIMP session starts
+- Too few GIMP sessions (`FLAG_GIMP_CONCURRENCY`) on a machine with spare memory
+- Very complex SVGs (slow rasterisation)
 - Slow disk (intermediates on network storage)
 
 **Optimisations:**
 - Use SVG sources (fastest path)
+- Raise `FLAG_BEVEL_BATCH_SIZE` while memory allows
 - Keep incremental builds where possible
 - Ensure `build/` and `out/` on local disk
 
-### GIMP Startup Overhead
+### GIMP Session Startup
 
-**Cause:** 8 GIMP invocations per asset (~0.5–1s each).
+**Cause:** One GIMP start per bevel batch; the session's cost is dominated by its start-up.
 
-**Mitigation:** None currently — architecture invokes GIMP per operation. Batch processing would require script refactoring.
+**Mitigation:** Raise `FLAG_BEVEL_BATCH_SIZE` so fewer sessions are needed, up to the point where
+the session memory grows enough to risk being killed.
 
 ## Distribution Issues
 
@@ -507,29 +526,20 @@ gimp build/<category>/small/<flag>.png
 The scripts read their parameters from `GIMP_SCRIPT_*` environment variables.
 
 ```bash
-# svg_to_png
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.svg" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/svg_to_png.py').read())" --quit
+# svg-to-png (no GIMP)
+rsvg-convert -w 128 -h 128 -b white -o /tmp/raw.png "input.svg"
+magick identify /tmp/raw.png
 
-# gradient_bevel
-env GIMP_SCRIPT_IMAGE_PATH="input.png" \
+# bevel_batch (batched, one session for the whole list)
+env GIMP_SCRIPT_IMAGE_PATHS="input_a.png
+input_b.png" \
     gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/gradient_bevel.py').read())" --quit
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/bevel_batch.py').read())" --quit
 
 # png_to_dds
 env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.dds" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/png_to_dds.py').read())" --quit
-
-# xcf_to_png
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.xcf" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/xcf_to_png.py').read())" --quit
+    python3 source/scripts/png_to_dds.py
 ```
 
 ### Interactive Debugging

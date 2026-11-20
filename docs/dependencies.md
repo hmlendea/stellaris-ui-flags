@@ -24,7 +24,28 @@ There are no runtime dependencies — the output is a pure content mod consumed 
 | Install (Arch) | `sudo pacman -S imagemagick` |
 | Flatpak | N/A (system tool) |
 
-**Used by:** `png-to-svg`, `xcf-to-svg`
+**Used by:** `png-to-svg`
+
+---
+
+### librsvg (`rsvg-convert`)
+
+| Property | Value |
+|----------|-------|
+| Minimum version | 2.40 |
+| Command used | `rsvg-convert` |
+| Purpose | SVG rasterisation to PNG |
+| Install (Debian/Ubuntu) | `sudo apt install librsvg2-bin` |
+| Install (Fedora) | `sudo dnf install librsvg2-tools` |
+| Install (Arch) | `sudo pacman -S librsvg` |
+| Flatpak | N/A (system tool) |
+
+**Used by:** `svg-to-png`
+
+**Flags used:** `-w`, `-h` (output size), `-b white` (background), `-o` (output file)
+
+The `-b white` background is required. SVGs traced from bitmaps draw black shapes with no background
+rectangle, so a transparent background would render black on black and the emblem would be invisible.
 
 ---
 
@@ -39,30 +60,9 @@ There are no runtime dependencies — the output is a pure content mod consumed 
 | Install (Fedora) | `sudo dnf install potrace` |
 | Flatpak | N/A (system tool) |
 
-**Used by:** `bmp-to-svg`, `png-to-svg`, `xcf-to-svg`
+**Used by:** `bmp-to-svg`, `png-to-svg`
 
 **Flags used:** `-s` (SVG output), `-o` (output file)
-
----
-
-### Inkscape
-
-| Property | Value |
-|----------|-------|
-| Minimum version | 1.0 |
-| Command used | `inkscape` |
-| Purpose | AI → SVG conversion |
-| Install (Debian/Ubuntu) | `sudo apt install inkscape` |
-| Flatpak ID | `org.inkscape.Inkscape` |
-
-**Used by:** `ai-to-svg`
-
-**Flags used:** `--export-type=svg`, `--export-filename=<path>`
-
-**Detection paths (in order):**
-1. System PATH (`which inkscape`)
-2. `/var/lib/flatpak/exports/bin/org.inkscape.Inkscape`
-3. `~/.local/share/flatpak/exports/bin/org.inkscape.Inkscape`
 
 ---
 
@@ -72,11 +72,11 @@ There are no runtime dependencies — the output is a pure content mod consumed 
 |----------|-------|
 | Minimum version | 3.0 |
 | Command used | `gimp` |
-| Purpose | Python-Fu execution: SVG→PNG, XCF→PNG, bevel, DDS export |
+| Purpose | Python-Fu execution: gradient bevel |
 | Install (Debian/Ubuntu) | `sudo apt install gimp` |
 | Flatpak ID | `org.gimp.GIMP` |
 
-**Used by:** `svg-to-png`, `png-to-dds`, `apply-gradient-bevel`, `xcf-to-png`
+**Used by:** `bevel-pngs`
 
 **Flags used:** `-i` (no interface), `--batch-interpreter=python-fu-eval`, `-b` (batch command), `--quit`
 
@@ -87,16 +87,15 @@ There are no runtime dependencies — the output is a pure content mod consumed 
 
 ## GIMP Plug-ins
 
-GIMP 3 bundles every plug-in the build requires, including DDS export (`file-dds-export`) and the GEGL operations used by the bevel effect. No separate plug-in package is needed.
+GIMP 3 bundles every plug-in the build requires, including the GEGL operations used by the bevel
+effect. No separate plug-in package is needed.
 
 ### Built-in Plug-ins (bundled with GIMP)
 
 | Plug-in | PDB Function | Purpose |
 |---------|--------------|---------|
-| SVG import | `file-svg-load` | Load SVG files at a target size |
 | PNG import | `file-png-load` | Load PNG files |
 | PNG export | `file-png-export` | Write PNG files |
-| DDS export | `file-dds-export` | Write DDS textures |
 | Colour to Alpha | `gegl:color-to-alpha` | Remove solid backgrounds |
 | Gaussian Blur | `gegl:gaussian-blur` | Bump map smoothing |
 | Bump Map | `gegl:bump-map` | Bevel embossing |
@@ -136,25 +135,25 @@ Stellaris consumes these directly — no external libraries, frameworks, or code
 
 ```
 build.sh
-├── ImageMagick (convert)
-│   └── Used by: png-to-svg, xcf-to-svg
+├── ImageMagick (magick)
+│   └── Used by: png-to-svg, svg-to-png, png-to-dds
+├── rsvg-convert
+│   └── Used by: svg-to-png
+├── Python 3
+│   └── Used by: png-to-dds
 ├── potrace
-│   └── Used by: bmp-to-svg, png-to-svg, xcf-to-svg
-├── Inkscape
-│   └── Used by: ai-to-svg
+│   └── Used by: bmp-to-svg, png-to-svg
 └── GIMP
-    ├── SVG import (file-svg-load)
-    │   └── Used by: svg-to-png
+    ├── PNG import (gimp-file-load)
+    │   └── Used by: gradient-bevel
     ├── PNG export (file-png-export)
-    │   └── Used by: svg-to-png, gradient-bevel, xcf-to-png
-    ├── DDS export (file-dds-export)
-    │   └── Used by: png-to-dds
-    ├── Colour to Alpha (gegl:color-to-alpha)
-    │   └── Used by: svg-to-png
+    │   └── Used by: gradient-bevel
     ├── Gaussian Blur (gegl:gaussian-blur)
     │   └── Used by: gradient-bevel
     └── Bump Map (gegl:bump-map)
         └── Used by: gradient-bevel
+
+The SVG rasterisation and the DDS export no longer use GIMP, so each flag needs only the bevels.
 ```
 
 ## Version Compatibility
@@ -162,7 +161,8 @@ build.sh
 | Tool | Tested Versions | Notes |
 |------|-----------------|-------|
 | GIMP | 3.0.x, 3.2.x | Primary target |
-| Inkscape | 1.x | CLI flags stable since 1.0 |
+| librsvg | 2.6x | `rsvg-convert` for SVG rasterisation |
+| Python | 3.x | Writes the DDS directly |
 | ImageMagick | 6.x, 7.x | `convert` deprecated in 7.x but still works |
 | potrace | 1.x | Stable API |
 
@@ -175,30 +175,30 @@ build.sh
 ### Debian/Ubuntu
 
 ```bash
-sudo apt install imagemagick potrace inkscape gimp
+sudo apt install imagemagick librsvg2-bin potrace gimp
 ```
 
 ### Fedora
 
 ```bash
-sudo dnf install ImageMagick potrace inkscape gimp
+sudo dnf install ImageMagick librsvg2-tools potrace gimp
 ```
 
-### Flatpak (tools only)
+### Flatpak (GIMP only)
 
 ```bash
-flatpak install flathub org.inkscape.Inkscape
 flatpak install flathub org.gimp.GIMP
-# ImageMagick and potrace must be system packages
+# ImageMagick, rsvg-convert, potrace and Python must be system packages
 ```
 
 ### Verification
 
 ```bash
-convert --version
+magick --version
+rsvg-convert --version
 potrace --version
-inkscape --version
 gimp --version
+python3 --version
 ```
 
 ## Known Issues
@@ -206,5 +206,4 @@ gimp --version
 | Issue | Impact | Workaround |
 |-------|--------|------------|
 | ImageMagick 7 `convert` deprecation | Warning messages | Ignore warnings; function unchanged |
-| Inkscape AI import limitations | Complex AI files convert poorly | Export SVG from Illustrator instead |
 | potrace single-colour tracing | Gradients lost in PNG/BMP sources | Use SVG sources |

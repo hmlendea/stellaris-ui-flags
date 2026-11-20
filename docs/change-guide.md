@@ -26,7 +26,7 @@ This guide covers the common modification scenarios: adding content, changing pr
 
 1. **Prepare source file**
    - Preferred: SVG with transparent background
-   - Acceptable: PNG, BMP, XCF, AI (see format trade-offs in `source-assets.md`)
+   - Acceptable: PNG, BMP (see format trade-offs in `source-assets.md`)
    - Design on transparent or solid-removable background (INV-14)
 
 2. **Place in category directory**
@@ -222,7 +222,7 @@ rm -rf build out
 
 ### Procedure
 
-1. Edit `DDS_COMPRESSION_FORMAT` in `png_to_dds.py`'s shared module
+1. Edit `build_header` in `png_to_dds.py`
 2. Full rebuild (see above)
 3. Verify: flags load in game without texture errors; check the DDS header
 

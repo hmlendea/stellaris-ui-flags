@@ -22,9 +22,9 @@ Mod for Stellaris that adds hundreds of new flag designs matching the vanilla fl
 ## ✨ Capabilities
 
 - Hundreds of new flag designs across multiple thematic categories (aquatic, blocky, corporate, domination, fire, human, mechanical, ornate, pirate, plantoid, pointy, spherical, toxoid, and media-inspired categories)
-- Flags authored in editable formats (SVG, AI, XCF, PNG, BMP) and converted through a reproducible build pipeline
+- Flags authored in editable formats (SVG, PNG, BMP) and converted through a reproducible build pipeline
 - Three resolution variants per flag (128px main, 256px map, 24px small) with gradient bevel effect on main and small variants
-- Stellaris-compatible DDS output (uncompressed BGRA8) generated via GIMP
+- Stellaris-compatible DDS output (uncompressed BGRA8) written directly by the build
 - Localisation support for English flag names
 - Custom colour palette and background textures
 - Automated mod descriptor generation for Steam Workshop, Paradox Mods, and Nexus Mods
@@ -38,17 +38,18 @@ Build the mod package locally:
 ```
 
 The command requires a version argument (e.g., `1.0.0`). The build pipeline:
-1. Validates required tools (ImageMagick, Inkscape, GIMP, potrace)
+1. Validates required tools (ImageMagick, librsvg, GIMP, potrace)
 2. Copies static assets (backgrounds, colours, localisation, thumbnail)
 3. Generates `.mod` descriptor files
-4. Processes each flag category: converts source formats to SVG, renders PNG at three sizes, applies gradient bevel, exports DDS
+4. Processes each flag category: converts source formats to SVG, renders PNG at three sizes, batches the gradient bevels, exports DDS
 5. Outputs the complete mod package to `out/ui-flags/`
 
 Required tools:
-- ImageMagick (`convert`)
-- Inkscape
+- ImageMagick (`magick`)
+- librsvg (`rsvg-convert`)
 - GIMP 3.0+
 - potrace
+- Python 3
 
 ## 📦 Installation
 
