@@ -32,6 +32,12 @@ def bevel_images(image_paths):
     failed_image_paths = []
 
     for image_path in image_paths:
+        # The progress line is written before the bevel starts, so a session that is killed partway
+        # still leaves behind which flag it was working on. The build reads these lines to explain
+        # which flags ended up unbeveled and why. It is flushed explicitly, because a killed session
+        # never flushes its buffered output and the line would otherwise be lost with it.
+        print(f"[INFO] Beveling '{image_path}'", flush=True)
+
         try:
             apply_gradient_bevel(image_path)
 

@@ -217,6 +217,55 @@ BUMP_ELEVATION = 40.0   # Increase for a higher light angle
 
 ---
 
+### Some Flags Were Not Beveled
+
+**Symptom:**
+```
+[ERROR] 2 flags were not beveled after 8 attempts:
+  - build/corporate/ui_bitcoin.png
+    source: build/corporate/ui_bitcoin.svg
+    reason: the GIMP session bevel-8-0.log crashed (segmentation fault) while beveling this flag
+  - build/corporate/small/ui_bitcoin.png
+    source: build/corporate/ui_bitcoin.svg
+    reason: the GIMP session bevel-8-0.log crashed (segmentation fault) while beveling 'build/corporate/ui_bitcoin.png', before it reached this flag
+```
+
+**Cause:** A GIMP session was killed or crashed before it reached every image it was given. The usual
+causes are memory exhaustion (the OOM killer reports exit code `137`) and a GIMP segmentation fault.
+
+**How to read the report:** The final error lists every unbeveled image with three lines each:
+
+| Line | Meaning |
+|------|---------|
+| `- <png>` | The intermediate PNG that has no completion marker |
+| `source:` | The SVG it was rasterised from |
+| `reason:` | The root cause, taken from the session the flag was handed to |
+
+The reported reasons are:
+
+| Reason | Meaning | Fix |
+|--------|---------|-----|
+| `killed by the OOM killer` | The session ran out of memory | Lower `FLAG_BEVEL_BATCH_SIZE`, or lower `FLAG_GIMP_CONCURRENCY` |
+| `crashed (segmentation fault)` | GIMP itself crashed | Retry; if persistent, lower the batch size |
+| `finished without beveling it` | The script raised an error on that image | Read the session log for the accompanying `[WARNING]` line |
+| `while beveling this flag` | The session died on this very image | This image is the likely culprit |
+| `before it reached this flag` | The session died on an earlier image in the same batch | Not this flag's fault; it was simply never attempted |
+| `never reported any progress` | The session died before it started any image | Lower the batch size or concurrency |
+| `never handed to a GIMP session` | The image was never submitted | Check the source SVG; re-run |
+
+**Diagnostic artefacts:** Each session writes three files under `build/`:
+
+| File | Contents |
+|------|----------|
+| `bevel-<round>-<chunk>.log` | GIMP output, including one `[INFO] Beveling '<path>'` line per image |
+| `bevel-<round>-<chunk>.log.flags` | The flags that session was given |
+| `bevel-<round>-<chunk>.log.exit` | The session's exit code |
+
+The last `[INFO] Beveling` line in a log identifies the image the session was working on when it
+died. These files are deleted at the start of the next build.
+
+---
+
 ### Map Flag Has Bevel
 
 **Symptom:** Map (256px) flag shows bevel effect.

@@ -358,8 +358,13 @@ function start-bevel-session {
 
     local BEVEL_LOG_PATH="${BUILD_DIR_PATH}/bevel-${ROUND_NAME}-${CHUNK_NUMBER}.log"
 
+    # The flag list and the exit code are recorded beside the log so a later round can explain
+    # exactly which flags a killed session failed to reach, and why it died.
+    printf '%s\n' "$@" > "${BEVEL_LOG_PATH}.flags"
+
     (
         execute-gimp-script-file "bevel_batch" IMAGE_PATHS "$(printf '%s\n' "$@")"
+        echo "$?" > "${BEVEL_LOG_PATH}.exit"
     ) > "${BEVEL_LOG_PATH}" 2>&1 &
 }
 
@@ -386,6 +391,72 @@ function bevel-pngs {
     fi
 
     wait
+}
+
+function describe-bevel-failure {
+    local PNG_PATH="${1}"
+
+    # Find the session that was handed this flag. Sessions record the flags they received, so the
+    # session's own fate is the root cause, whereas the state of the PNG is only the symptom.
+    local SESSION_LOG_PATH=""
+    local FLAG_LIST_PATH
+    for FLAG_LIST_PATH in "${BUILD_DIR_PATH}"/bevel-*.log.flags; do
+        [ -f "${FLAG_LIST_PATH}" ] || continue
+        if grep -Fxq "${PNG_PATH}" "${FLAG_LIST_PATH}"; then
+            SESSION_LOG_PATH="${FLAG_LIST_PATH%.flags}"
+        fi
+    done
+
+    if [ -n "${SESSION_LOG_PATH}" ]; then
+        local SESSION_NAME="$(basename "${SESSION_LOG_PATH}")"
+        local SESSION_EXIT_CODE="$(cat "${SESSION_LOG_PATH}.exit" 2>/dev/null || echo unknown)"
+        local IN_FLIGHT_FLAG="$(grep -F "[INFO] Beveling '" "${SESSION_LOG_PATH}" 2>/dev/null | tail -1 | sed "s/^\[INFO\] Beveling '//; s/'$//")"
+
+        local SESSION_FATE="ended with exit code ${SESSION_EXIT_CODE}"
+        if grep -qF "Segmentation fault" "${SESSION_LOG_PATH}" 2>/dev/null; then
+            SESSION_FATE="crashed (segmentation fault)"
+        elif [ "${SESSION_EXIT_CODE}" = "137" ]; then
+            SESSION_FATE="was killed by the OOM killer"
+        elif [ "${SESSION_EXIT_CODE}" = "0" ]; then
+            SESSION_FATE="finished without beveling it"
+        fi
+
+        # Distinguish the flag the session was processing when it died from the ones it never
+        # reached, because only the former is a candidate culprit.
+        if [ -z "${IN_FLIGHT_FLAG}" ]; then
+            echo "the GIMP session ${SESSION_NAME} ${SESSION_FATE} before it reported any progress"
+        elif [ "${IN_FLIGHT_FLAG}" = "${PNG_PATH}" ]; then
+            echo "the GIMP session ${SESSION_NAME} ${SESSION_FATE} while beveling this flag"
+        else
+            echo "the GIMP session ${SESSION_NAME} ${SESSION_FATE} while beveling '${IN_FLIGHT_FLAG}', before it reached this flag"
+        fi
+
+        return
+    fi
+
+    if [ ! -f "${PNG_PATH}" ]; then
+        echo "the flag was never handed to a GIMP session, and the intermediate PNG does not exist, so the rasterisation failed"
+
+        return
+    fi
+
+    if ! identify "${PNG_PATH}" >/dev/null 2>&1; then
+        echo "the flag was never handed to a GIMP session, and the intermediate PNG is truncated"
+
+        return
+    fi
+
+    echo "the flag was never handed to a GIMP session, so it was neither rasterised nor beveled"
+}
+
+function report-unbeveled-flags {
+    local UNBEVELED_PATH
+
+    for UNBEVELED_PATH in "${FLAG_BEVEL_PATHS[@]}"; do
+        echo "  - ${UNBEVELED_PATH}"
+        echo "    source: ${FLAG_BEVEL_SVGS[${UNBEVELED_PATH}]}"
+        echo "    reason: $(describe-bevel-failure "${UNBEVELED_PATH}")"
+    done
 }
 
 function get-flag-file-name {
@@ -415,8 +486,9 @@ function generate-mod-descriptor {
 
 mkdir -p "${OUTPUT_BACKGROUNDS_DIR_PATH}"
 
-# Worker logs from a previous run would otherwise be summarised again at the end of this one.
-rm -f "${BUILD_DIR_PATH}"/*.log
+# Worker logs from a previous run would otherwise be summarised again at the end of this one. The
+# session metadata beside each log would otherwise describe stale sessions in the failure report.
+rm -f "${BUILD_DIR_PATH}"/*.log "${BUILD_DIR_PATH}"/*.log.flags "${BUILD_DIR_PATH}"/*.log.exit
 mkdir -p "${OUTPUT_LOCALISATIONS_DIR_PATH}"
 
 cp "${SOURCE_BACKGROUNDS_DIR_PATH}"/* "${OUTPUT_BACKGROUNDS_DIR_PATH}"
@@ -583,14 +655,20 @@ for LOG_FILE_PATH in "${BUILD_DIR_PATH}"/*.log; do
 done
 
 MISSING_BEVEL_COUNT=0
+FLAG_BEVEL_PATHS=()
 
 for FLAG_KEY in "${FLAG_KEYS[@]}"; do
-    is-beveled-png "${FLAG_MAIN_PNG_PATHS[${FLAG_KEY}]}" || MISSING_BEVEL_COUNT=$((MISSING_BEVEL_COUNT + 1))
-    is-beveled-png "${FLAG_SMALL_PNG_PATHS[${FLAG_KEY}]}" || MISSING_BEVEL_COUNT=$((MISSING_BEVEL_COUNT + 1))
+    for PNG_PATH in "${FLAG_MAIN_PNG_PATHS[${FLAG_KEY}]}" "${FLAG_SMALL_PNG_PATHS[${FLAG_KEY}]}"; do
+        is-beveled-png "${PNG_PATH}" && continue
+
+        FLAG_BEVEL_PATHS+=("${PNG_PATH}")
+        MISSING_BEVEL_COUNT=$((MISSING_BEVEL_COUNT + 1))
+    done
 done
 
 if [ "${MISSING_BEVEL_COUNT}" -gt 0 ]; then
-    echo "[ERROR] ${MISSING_BEVEL_COUNT} flags were not beveled after ${VARIANT_ATTEMPT_COUNT} attempts!"
+    echo "[ERROR] ${MISSING_BEVEL_COUNT} flags were not beveled after ${VARIANT_ATTEMPT_COUNT} attempts:"
+    report-unbeveled-flags
 fi
 
 MISSING_OUTPUT_COUNT=$(find "${OUTPUT_FLAGS_DIR_PATH}" -name '*.dds' -not -path '*/backgrounds/*' | wc -l)
