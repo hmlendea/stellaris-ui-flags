@@ -12,7 +12,7 @@ The Stellaris UI Flags repository provides a mod for the game Stellaris that add
 
 The repository owns:
 
-- Source flag assets under `source/flags/` organised into 25+ thematic categories
+- Source flag assets under `source/flags/` organised into 27 thematic categories
 - Background textures under `source/backgrounds/`
 - Colour palette definition (`source/colours.txt`)
 - English localisation (`source/localisation.yml`)
@@ -25,7 +25,7 @@ The repository does not own:
 
 - The Stellaris game engine or its mod loading system
 - Distribution platforms (Steam Workshop, Paradox Mods, Nexus Mods)
-- External build tools (ImageMagick, librsvg, GIMP, potrace)
+- External build tools (ImageMagick, librsvg, GIMP, potrace, Python 3)
 - Player game saves or runtime state
 
 ## Entry Points
@@ -58,8 +58,8 @@ The built mod package in `out/ui-flags/` is consumed by:
 1. **Multi-format source support**: Accepts SVG, PNG, BMP source formats
 2. **Three-resolution output**: Generates 128px (main), 256px (map), and 24px (small) DDS textures
 3. **Gradient bevel effect**: Applies signature bevel to main and small variants matching vanilla style
-4. **Category taxonomy**: 25+ thematic categories with localised names
-5. **Custom colour palette**: 30+ colours with HSV/RGB definitions for flag, map, and ship contexts
+4. **Category taxonomy**: 27 thematic categories with localised names
+5. **Custom colour palette**: 26 colours with HSV/RGB definitions for flag, map, and ship contexts
 6. **Localisation support**: English category names via YAML localisation
 7. **Filename mapping**: `names.txt` maps source filenames to output filenames
 8. **Automated mod descriptors**: Generates `.mod` files for all distribution platforms

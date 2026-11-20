@@ -13,7 +13,7 @@ out/ui-flags/
 │   ├── backgrounds/            # Background textures (DDS)
 │   │   ├── ui_checkboard.dds
 │   │   ├── ui_circle_bicolour.dds
-│   │   └── ... (40+ files)
+│   │   └── ... (59 files)
 │   ├── colors.txt              # Colour palette (copied from source)
 │   ├── aquatic/
 │   │   ├── map/                # 256px DDS files
@@ -29,7 +29,7 @@ out/ui-flags/
 │   │   ├── map/
 │   │   ├── small/
 │   │   └── *.dds
-│   └── ... (25+ categories)
+│   └── ... (27 categories)
 ├── localisation/
 │   └── ui-flags_l_english.yml  # Localisation (copied from source)
 └── thumbnail.png               # Mod thumbnail (copied from source)
@@ -40,13 +40,13 @@ out/ui-flags/
 **File:** `out/ui-flags.mod` (in `out/`, not inside package)
 
 ```ini
+version="1.0"
 name="Universum Infinitum: Flags"
 path="mod/ui-flags"
-supported_version="v4.5.*"
 tags={
-    "Graphics"
+	"Graphics"
 }
-picture="thumbnail.png"
+supported_version="v4.5.*"
 ```
 
 **Purpose:** Primary descriptor read by Stellaris launcher when mod is in `Documents/Paradox Interactive/Stellaris/mod/`.
@@ -54,29 +54,31 @@ picture="thumbnail.png"
 **Fields:**
 | Field | Value | Source |
 |-------|-------|--------|
+| `version` | Build argument | `$1` |
 | `name` | `MOD_NAME` constant | `build.sh` |
-| `path` | `mod/ui-flags` | Relative to mod root |
+| `path` | `mod/ui-flags` | `build.sh` (`MOD_ID`) |
 | `supported_version` | `STELLARIS_VERSION` constant | `build.sh` |
 | `tags` | `{"Graphics"}` | Hardcoded |
-| `picture` | `thumbnail.png` | Copied from source |
+
+There is no `picture` field.
 
 ## Secondary Descriptor
 
 **File:** `out/ui-flags/descriptor.mod`
 
 ```ini
+version="1.0"
 name="Universum Infinitum: Flags"
-path="."
-supported_version="v4.5.*"
+path="mod/ui-flags"
 tags={
-    "Graphics"
+	"Graphics"
 }
-picture="thumbnail.png"
+supported_version="v4.5.*"
 ```
 
 **Purpose:** Descriptor inside the mod package itself. Used when mod is loaded from `mod/ui-flags/` directory.
 
-**Difference from root:** `path="."` (current directory) vs `path="mod/ui-flags"`.
+**Relationship to root:** The two descriptors are written by the same `generate-mod-descriptor` call with the same content, so **both carry `path="mod/ui-flags"`**. The secondary descriptor differs only in its location, not in the `path` value.
 
 ## Flags Directory
 
@@ -86,13 +88,12 @@ picture="thumbnail.png"
 
 **Contents:** All DDS files from `source/backgrounds/` copied verbatim.
 
-**Count:** 40+ files
+**Count:** 59 files
 
 **Format Requirements:**
-- DDS without mipmaps
+- DDS without mipmaps (matching the generated flag textures)
 - Uncompressed BGRA8
-- Square dimensions (typically 400x400)
-- No alpha channel required for opaque backgrounds
+- Square dimensions
 
 ### Colours
 
@@ -245,7 +246,7 @@ ui-flags_1.0.0.zip
 ### Pre-Release Validation
 
 - [ ] `out/ui-flags.mod` exists with correct version, name, path
-- [ ] `out/ui-flags/descriptor.mod` exists with `path="."`
+- [ ] `out/ui-flags/descriptor.mod` exists with the same content and `path="mod/ui-flags"`
 - [ ] `out/ui-flags/flags/colors.txt` matches `source/colours.txt`
 - [ ] `out/ui-flags/localisation/ui-flags_l_english.yml` matches source
 - [ ] `out/ui-flags/thumbnail.png` exists and is valid PNG
@@ -270,8 +271,8 @@ ui-flags_1.0.0.zip
 
 | Issue | Cause | Resolution |
 |-------|-------|------------|
-| Mod not appearing | Descriptor path mismatch | Verify `path` in `.mod` matches directory name |
-| Flags missing | DDS format invalid | Re-export with GIMP 3, verify the DDS export procedure succeeds |
+| Mod not appearing | Descriptor path mismatch | Verify `path` in `.mod` matches the installed directory (`mod/ui-flags`) |
+| Flags missing | DDS format invalid | Open the DDS in GIMP to confirm the header; rebuild that asset |
 | Colours wrong | HSV values incorrect | Verify `colors.txt` HSV ranges (0-1 for H,S; V can exceed 1) |
 | Categories missing | Localisation key mismatch | Verify `FLAG_CATEGORY_<dir>` matches directory name exactly |
 | Map flags wrong size | Wrong resolution | Ensure map output is 256px, not 128px |

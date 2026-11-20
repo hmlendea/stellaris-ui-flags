@@ -10,24 +10,25 @@ This document records areas where the project's behaviour is ambiguous, undocume
 
 **Question:** Does the Flatpak GIMP (`org.gimp.GIMP`) include the DDS export plug-in?
 
-**Context:** Tool detection supports Flatpak GIMP (D11). The build no longer exports DDS through
-GIMP; `png_to_dds.py` writes the uncompressed format directly, so no DDS plug-in is required.
+**Context:** Tool detection supports Flatpak GIMP (D11). The build does not export DDS through GIMP
+at all; `png_to_dds.py` writes the uncompressed format directly, so no DDS plug-in is required. The
+only GIMP operations used are PNG load/export, Gaussian blur, and bump map.
 
-**Impact:** None. GIMP is only needed for SVG rasterisation and the bevel effect.
+**Impact:** None. GIMP is needed only for the batched gradient bevel.
 
-**Resolution Path:** Resolved — GIMP 3 bundles the plug-in. Residual risk: a custom GIMP build without the plug-in.
+**Resolution Path:** Resolved — GIMP 3 bundles every operation the bevel requires. Residual risk: a custom GIMP build without those filters.
 
 ---
 
-### A2: ImageMagick 7 `convert` Deprecation
+### A2: ImageMagick Command Coverage
 
-**Question:** How long will `convert` remain available in ImageMagick 7?
+**Question:** Which ImageMagick command names does the build depend upon?
 
-**Context:** IM7 replaced `convert` with `magick`, keeping `convert` as a legacy alias. Some distributions may drop the alias.
+**Context:** The build uses `convert` for the raster flattening step (checked at `/usr/bin/convert`) and `magick` for the SVG alpha derivation and the DDS pixel extraction. IM7 keeps `convert` as a legacy alias; some distributions may drop it.
 
-**Impact:** Build breaks on systems without the alias.
+**Impact:** The build aborts at start-up if `/usr/bin/convert` is absent, even though `magick` exists.
 
-**Resolution Path:** Detect `magick` as fallback; or require IM6. Low priority — most distros still ship the alias.
+**Resolution Path:** Resolve the flattening step to `magick` when `/usr/bin/convert` is missing. Low priority — most distributions still ship the alias.
 
 ---
 

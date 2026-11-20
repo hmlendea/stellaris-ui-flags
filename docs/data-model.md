@@ -36,7 +36,7 @@ The project has no database or in-memory data structures. The "data model" is th
 |-----------|------|-------------|
 | category | string | Parent directory name; becomes game category |
 | source_name | string | Filename without extension |
-| ext | enum | `svg`, `ai`, `xcf`, `png`, `bmp` |
+| ext | enum | `svg`, `png`, `bmp` |
 | output_name | string | Resolved via names.txt or `ui_<source_name>` |
 
 **Lifecycle:**
@@ -158,7 +158,7 @@ Authored → copied verbatim every build → parsed by game
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | name | string | Filename base |
-| format | DDS | BC1/BC3 with mipmaps |
+| format | DDS | Copied verbatim from source |
 
 **Lifecycle:**
 ```
@@ -169,11 +169,14 @@ Authored (external tool) → copied verbatim → displayed in game
 - Valid DDS (INV-13, manual)
 - No transformation by build
 
+The generated flag textures are uncompressed BGRA8 without mipmaps; the shipped backgrounds are
+copied verbatim and are not validated by the build.
+
 ---
 
 ### 7. Localisation Entry
 
-**Location:** `source/localisation.yml` → `out/ui-flags/ui-flags_l_english.yml`
+**Location:** `source/localisation.yml` → `out/ui-flags/localisation/ui-flags_l_english.yml`
 
 **Format:**
 ```yaml
@@ -206,7 +209,9 @@ Authored → renamed on copy → parsed by game
 | Instance | Location | `path` value |
 |----------|----------|--------------|
 | Root | `out/ui-flags.mod` | `mod/ui-flags` |
-| Package | `out/ui-flags/descriptor.mod` | `.` |
+| Package | `out/ui-flags/descriptor.mod` | `mod/ui-flags` |
+
+Both descriptors are written by the same function and are therefore identical apart from location.
 
 **Attributes:**
 
@@ -233,12 +238,13 @@ Generated every build (overwritten) → read by Stellaris launcher
 | File | Produced By | Consumed By |
 |------|-------------|-------------|
 | `<name>.svg` | Format conversion (any source) | svg-to-png (×3 sizes) |
-| `<name>.png` | svg-to-png (128px) | bevel-pngs |
-| `<name>_map.png` | svg-to-png (256px) | png-to-dds |
-| `<name>_small.png` | svg-to-png (24px) | bevel-pngs |
-| `<name>.png.beveled` | bevel-pngs | Incremental check |
-| `<name>_small.png.beveled` | bevel-pngs | Incremental check |
-| `<name>.bmp` | convert (PNG path) | potrace |
+| `<name>.png` | svg-to-png (128px) | bevel-pngs, then export |
+| `map/<name>.png` | svg-to-png (256px) | export-map-dds |
+| `small/<name>.png` | svg-to-png (24px) | bevel-pngs, then export |
+| `<name>.png.beveled` | bevel-pngs | Incremental bevel check |
+| `small/<name>.png.beveled` | bevel-pngs | Incremental bevel check |
+| `<name>.bmp` | png-to-bmp (PNG path) | bmp-to-svg |
+| `bevel-<round>-<chunk>.log[.flags|.exit]` | bevel round | `report-unbeveled-flags` |
 
 **Lifecycle:**
 ```
@@ -258,10 +264,10 @@ source/flags/<cat>/<src>.<ext>
 build/<cat>/<src>.svg                    (format conversion)
         │
         ├─→ build/<cat>/<src>.png ────────→ out/.../<out>.dds (main)
-        ├─→ build/<cat>/<src>_map.png ─────→ out/.../map/<out>.dds
-        └─→ build/<cat>/<src>_small.png ──→ out/.../small/<out>.dds
+        ├─→ build/<cat>/map/<src>.png ────→ out/.../map/<out>.dds
+        └─→ build/<cat>/small/<src>.png ──→ out/.../small/<out>.dds
 
-build/<cat>/<src>.png and build/<cat>/<src>_small.png are beveled in place by a
+build/<cat>/<src>.png and build/<cat>/small/<src>.png are beveled in place by a
 shared GIMP session (bevel_batch.py) before the DDS export; the map PNG is not.
 ```
 

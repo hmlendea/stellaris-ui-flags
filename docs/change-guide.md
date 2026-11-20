@@ -14,7 +14,7 @@ This guide covers the common modification scenarios: adding content, changing pr
 | Add a colour | `source/colours.txt` | Any build (static copy) |
 | Modify a flag | Source file + delete outputs | Full or per-asset |
 | Change bevel | `source/scripts/gradient_bevel.py` | Full rebuild |
-| Change DDS settings | `source/scripts/gimp_image_operations.py` | Full rebuild |
+| Change DDS header | `source/scripts/png_to_dds.py` | Full rebuild |
 | Change version constant | `build.sh` | Rebuild |
 | Add distribution platform | `.github/workflows/` | None |
 
@@ -98,8 +98,8 @@ This guide covers the common modification scenarios: adding content, changing pr
 ### Steps
 
 1. **Prepare DDS file**
-   - Valid DDS with mipmaps, power-of-two dimensions
-   - BC1 (opaque) or BC3 (alpha) compression
+   - Valid DDS without mipmaps, square dimensions
+   - Uncompressed BGRA8, matching the generated flag textures
    - Place in `source/backgrounds/<name>.dds`
 
 2. **Build** (any build — static copy refreshes every run)
@@ -116,12 +116,12 @@ This guide covers the common modification scenarios: adding content, changing pr
 
 ### Steps
 
-1. **Edit `source/colours.txt`** — add entry to the `colors = { ... }` block:
+1. **Edit `source/colours.txt`** — add a colour entry inside the `colors = { ... }` block:
    ```
-   my_colour = { hsv = { 0.5 0.8 0.9 } use_as_border_color = randomizable_combo = yes }
+   my_colour = { flag = hsv { 0.5 0.8 0.9 } map = hsv { 0.5 0.8 0.9 } ship = hsv { 0.5 0.8 0.9 } use_as_border_color = yes }
    ```
-   - Set `use_as_border_color` if the colour should appear in border context
-   - Set `randomizable_combo` if it should appear in random empire generation
+   - Each colour is a single line with `flag`, `map` and `ship` values and a `use_as_border_color` flag
+   - Set `use_as_border_color = no` for neutrals that should not appear as borders
 
 2. **Build** (any build — static copy refreshes)
 
@@ -202,7 +202,7 @@ rm -rf build out
 ### Caution
 
 - Bevel applies to main (128px) and small (24px) only — do not add it to the map path
-- Extreme values distort small flags (24px has little room for a 22px bevel)
+- Extreme values distort small flags (24px has little room for the bevel geometry)
 
 ---
 
@@ -210,7 +210,7 @@ rm -rf build out
 
 ### Files
 
-- `source/scripts/gimp_image_operations.py` — compression, mipmaps, linearity
+- `source/scripts/png_to_dds.py` — the 128-byte header, pixel extraction
 
 ### Current Settings
 
@@ -222,7 +222,7 @@ rm -rf build out
 
 ### Procedure
 
-1. Edit `build_header` in `png_to_dds.py`
+1. Edit `build_header` (and `read_bgra_data`) in `png_to_dds.py`
 2. Full rebuild (see above)
 3. Verify: flags load in game without texture errors; check the DDS header
 

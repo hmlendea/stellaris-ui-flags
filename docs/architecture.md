@@ -45,7 +45,7 @@ flowchart LR
 - `source/localisation.yml` — English localisation copied to `localisation/ui-flags_l_english.yml`
 - `source/names.txt` — Mapping from source filename (without extension) to output filename
 - `source/thumbnail.png` — Mod thumbnail copied to output root
-- `source/scripts/` — Python scripts for DDS export, SVG→PNG, the batched gradient bevel
+- `source/scripts/` — Python scripts for the DDS export and the batched gradient bevel
 
 **Responsibilities:**
 - Provide authoring formats and taxonomic organisation for flag designs
@@ -61,13 +61,13 @@ flowchart LR
 
 **Paths:**
 - `build.sh` — Top-level orchestration, tool detection, directory management, conversion loop
-- `source/scripts/*.py` — GIMP Python-Fu implementations for format conversions and effects
+- `source/scripts/*.py` — Python implementations of the DDS export and the GIMP Python-Fu gradient bevel
 
 **Responsibilities:**
 - Detect and validate external tool dependencies
 - Manage intermediate (`build/`) and final (`out/`) directory trees
 - Execute conversion pipeline per asset: source → SVG → PNG (multiple sizes) → DDS
-- Apply gradient bevel effect to main and small variants
+- Apply the gradient bevel to main and small variants through batched GIMP sessions
 - Generate Stellaris mod descriptor files
 
 **Boundary Rules:**
@@ -129,10 +129,10 @@ flowchart TD
 
 ### Principal Runtime Sequence
 
-1. **Initialisation**: Validate required tools (ImageMagick, librsvg, GIMP, potrace), verify source directory exists, parse version argument
+1. **Initialisation**: Validate the required tools at start-up (ImageMagick, librsvg, potrace, Python 3), verify the source directory exists, parse the version argument
 2. **Static asset staging**: Copy backgrounds, colours.txt, localisation.yml, thumbnail.png to output layout; generate primary and secondary `.mod` descriptor files
-3. **Category iteration**: For each subdirectory under `source/flags/`, create build and output subdirectories (main, map, small)
-4. **Asset conversion**: For each asset file, resolve final filename via `names.txt`, convert source format to SVG, then render three PNG sizes (128px main, 256px map, 24px small), apply gradient bevel to main and small, export all three to DDS
+3. **Category iteration**: For each subdirectory under `source/flags/`, create build and output subdirectories (main, map, small), skipping empty directories
+4. **Asset conversion**: For each asset file, resolve the final filename via `names.txt`, convert the source format to SVG, then rasterise the three PNG sizes in workers, export the map DDS (no bevel), batch the main and small PNGs through GIMP bevel rounds, and export the beveled main and small DDS
 5. **Completion**: Mod package resides in `out/ui-flags/` with descriptor files in `out/`
 
 ## Data Architecture
@@ -168,10 +168,12 @@ flowchart TD
 
 | Tool | Purpose | Invocation | Failure Mode |
 |------|---------|------------|--------------|
-| `magick` (ImageMagick) | PNG → BMP flattening, pixel data reads | `magick -background "#000" -flatten` | Exit code ≠ 0 |
+| `convert` (ImageMagick) | PNG → BMP flattening | `convert -background "#000" -flatten` | Exit code ≠ 0 |
+| `magick` (ImageMagick) | Alpha derivation, DDS pixel reads | `magick ... -compose Difference -composite` | Exit code ≠ 0 |
 | `rsvg-convert` (librsvg) | SVG → PNG rasterisation | `rsvg-convert -w N -h N -b white -o out in` | Exit code ≠ 0 |
-| `gimp` | Python-Fu execution | `gimp -i --batch-interpreter=python-fu-eval -b "exec(...)" --quit` | Exit code ≠ 0 |
+| `gimp` | Python-Fu execution (batched bevel) | `gimp --new-instance -i --batch-interpreter=python-fu-eval -b "exec(...)" --quit` | Exit code ≠ 0 |
 | `potrace` | BMP → SVG vectorisation | `potrace --opaque -s input -o output` | Exit code ≠ 0 |
+| `python3` | PNG → DDS export | `python3 source/scripts/png_to_dds.py` | Exit code ≠ 0 |
 
 ### Distribution Platform Interface
 
@@ -207,9 +209,9 @@ Source Assets → Build Pipeline → Output Package
 
 | Tool | Minimum Version | Purpose | Installation |
 |------|----------------|---------|--------------|
-| ImageMagick | 6.x/7.x | PNG → BMP conversion, pixel reads | System package manager |
+| ImageMagick | 6.x/7.x | PNG → BMP flattening, alpha derivation, pixel reads | System package manager |
 | librsvg | 2.6x | SVG → PNG rasterisation | System package manager |
-| GIMP | 3.0+ | Python-Fu execution, gradient bevel | System package manager / Flatpak |
+| GIMP | 3.0+ | Python-Fu execution, batched gradient bevel (validated lazily) | System package manager / Flatpak |
 | potrace | 1.x | BMP → SVG vectorisation | System package manager |
 | Python | 3.x | DDS export | System package manager |
 
@@ -231,7 +233,7 @@ Source Assets → Build Pipeline → Output Package
 ```
 
 **Preconditions:**
-- All required tools installed and in PATH or Flatpak locations
+- All required tools installed at their detected locations (system paths or Flatpak for GIMP)
 - Source directory exists with expected structure
 - Version argument provided (semantic versioning)
 
@@ -246,7 +248,7 @@ Source Assets → Build Pipeline → Output Package
 2. GitHub Actions workflows trigger automatically
 3. Workflows download release asset from GitHub Releases
 4. Upload to Steam Workshop and Nexus Mods
-4. Paradox Mods updated manually
+5. Paradox Mods updated manually
 
 ### Environments
 
@@ -263,10 +265,10 @@ Source Assets → Build Pipeline → Output Package
 The output package must conform to:
 
 - Directory structure: `flags/`, `localisation/`, `thumbnail.png`, `descriptor.mod`
-- DDS format: BC1/BC3 compression with mipmaps
+- DDS format: uncompressed BGRA8, no mipmaps, matching the shipped background textures
 - Colour format: HSV/RGB definitions in `colors.txt`
 - Localisation format: YAML with `l_english:` prefix
-- Descriptor format: Key-value pairs with `version`, `name`, `path`, `tags`, `supported_version`
+- Descriptor format: key-value pairs with `version`, `name`, `path`, `tags`, `supported_version`
 
 ### Source Format Compatibility
 
@@ -302,11 +304,11 @@ The output package must conform to:
 
 ### Technical Constraints
 
-1. **DDS format requirement**: Stellaris requires BC1/BC3 DDS with mipmaps
+1. **DDS format requirement**: The output is uncompressed BGRA8 DDS, written by `png_to_dds.py` to match the shipped backgrounds
 2. **Three resolutions mandatory**: 128px, 256px, 24px for main/map/small
 3. **Gradient bevel signature**: Main and small variants must have bevel effect
-4. **Tool availability**: Build requires specific external tools
-5. **Flatpak support**: Tools may be installed via Flatpak on Linux
+4. **Tool availability**: Build requires specific external tools; GIMP is validated lazily at the first bevel
+5. **Flatpak support**: GIMP may be installed via Flatpak on Linux
 
 ### Organisational Constraints
 
@@ -333,7 +335,7 @@ The output package must conform to:
 ### Adding New Source Formats
 
 1. Add conversion function to `build.sh` (e.g., `webp-to-svg`)
-2. Add format detection in main loop
+2. Add a branch to `source-to-svg` in `build.sh`
 3. Ensure conversion produces valid SVG
 
 ### Modifying Colour Palette
@@ -354,6 +356,7 @@ The output package must conform to:
 | Build orchestration | `build.sh` | [build-pipeline.md](./components/build-pipeline.md) |
 | Format conversions | `build.sh` functions | [build-pipeline.md](./components/build-pipeline.md) |
 | GIMP Python-Fu scripts | `source/scripts/*.py` | [gimp-scripts.md](./components/gimp-scripts.md) |
+| SVG rasterisation & DDS writer | `build.sh` (`svg-to-png`), `source/scripts/png_to_dds.py` | [build-pipeline.md](./components/build-pipeline.md) |
 | Source asset taxonomy | `source/flags/` | [source-assets.md](./components/source-assets.md) |
 | Output packaging | `build.sh` main loop | [output-package.md](./components/output-package.md) |
 | CI/CD workflows | `.github/workflows/*.yml` | [build-and-deployment.md](./build-and-deployment.md) |

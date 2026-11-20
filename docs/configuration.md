@@ -91,13 +91,17 @@ l_english:
 
 ### Category ID Mapping
 
-Category IDs are derived from directory names under `source/flags/` with special handling:
+Category IDs are derived from directory names under `source/flags/` verbatim:
 
 | Directory Name | Category ID | Example |
 |----------------|-------------|---------|
-| `aquatic` | `aquatic` | `FLAG_CATEGORY_aquatic` |
-| `ui_elder-scrolls` | `ui_elder-scrolls` | `FLAG_CATEGORY_ui_elder-scrolls` |
-| `ui_starcraft` | `ui_starcraft` | `FLAG_CATEGORY_ui_starcraft` |
+| `aquatic` | `aquatic` | `FLAG_CATEGORY_aquatic` (base-game key, provided by Stellaris) |
+| `ui_elder-scrolls` | `ui_elder-scrolls` | `FLAG_CATEGORY_ui_elder-scrolls` (mod key) |
+| `ui_starcraft` | `ui_starcraft` | `FLAG_CATEGORY_ui_starcraft` (mod key) |
+
+Base-game categories (`aquatic`, `blocky`, `corporate`, `domination`, `human`, `ornate`, `pirate`,
+`plantoid`, `pointy`, `spherical`, `toxoid`, `zoological`) reuse the `FLAG_CATEGORY_*` keys that ship
+with Stellaris, so `source/localisation.yml` only carries the mod-specific keys.
 
 ### Adding New Categories
 
@@ -146,7 +150,7 @@ fi
 
 **Format:** DDS files copied verbatim to `out/ui-flags/flags/backgrounds/`
 
-**Current Assets:** 40+ background textures including:
+**Current Assets:** 59 background textures including:
 - Geometric patterns (checkerboard, circles, diamonds, hexagons)
 - Stripes and gradients (diagonal, horizontal, vertical)
 - Shapes (stars, crosses, cog, house, hills)
@@ -205,7 +209,6 @@ COLOUR_GRADIENT_END = '#715209'    # Dark gold shadow
 
 Edit `source/scripts/png_to_dds.py`. The header fields live in `build_header`, and the pixel
 format is read by `read_bgra_data`. No GIMP settings apply, because the file is written directly.
-
 ## Stellaris Version Compatibility
 
 **Constant:** `STELLARIS_VERSION="v4.5.*"` in `build.sh`
@@ -266,11 +269,11 @@ Secrets configured in repository settings:
 
 | Secret | Used By | Purpose |
 |--------|---------|---------|
-| `STEAM_USERNAME` | steam-workshop.yml | Steam account |
-| `STEAM_PASSWORD` | steam-workshop.yml | Steam account |
-| `STEAM_2FASEED` | steam-workshop.yml | Steam 2FA |
+| `STEAM_USERNAME` | steam-workshop.yml | Steam account login |
+| `STEAM_PASSWORD` | steam-workshop.yml | Steam account password |
+| `STEAM_2FASEED` | steam-workshop.yml | Steam 2FA seed for TOTP |
 | `NEXUS_UPLOADER_USERNAME` | nexus-mods.yml | Nexus Mods account |
-| `NEXUS_UPLOADER_PASSWORD` | nexus-mods.yml | Nexus Mods account |
+| `NEXUS_UPLOADER_PASSWORD` | nexus-mods.yml | Nexus Mods password |
 
 No build-time configuration in workflows — they download pre-built release assets.
 
@@ -281,9 +284,10 @@ No build-time configuration in workflows — they download pre-built release ass
 The build script validates:
 
 1. **Version argument provided:** `if [ -z "${MOD_VERSION}" ]`
-2. **Source directory exists:** `[ ! -d "${SOURCE_DIR_PATH}" ]`
-3. **Required tools available:** Checks for `magick`, `rsvg-convert`, `potrace`, `gimp`, and `python3`
-4. **Output file creation:** Verifies each conversion step produces output
+2. **Source directory exists:** `[ ! -d "${SOURCE_DIR_PATH}" ]` (exit 255)
+3. **Start-up tools present:** ImageMagick (`/usr/bin/convert`), potrace (`/usr/bin/potrace`), Python 3, and `rsvg-convert`
+4. **Output file creation:** Each conversion helper verifies its output exists (exit 3 on failure)
+5. **GIMP availability:** Deferred until the first bevel session
 
 ### Manual Validation
 

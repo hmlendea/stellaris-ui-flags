@@ -16,7 +16,7 @@ source/
 │   ├── ui_checkboard.dds
 │   ├── ui_circle_bicolour.dds
 │   ├── ui_diagonal_stripe.dds
-│   └── ... (40+ files)
+│   └── ... (59 files)
 ├── flags/                   # Flag designs by category
 │   ├── aquatic/
 │   ├── blocky/
@@ -62,9 +62,11 @@ source/
 | Format | Extension | Source Location | Conversion Path |
 |--------|-----------|-----------------|-----------------|
 | SVG | `.svg` | `source/flags/*/` | Direct → PNG → DDS |
-| PNG | `.png` | `source/flags/*/` | PNG → BMP → SVG → PNG → DDS |
+| PNG | `.png` | `source/flags/*/` | PNG → BMP (flattened) → SVG → PNG → DDS |
 | BMP | `.bmp` | `source/flags/*/` | BMP → SVG → PNG → DDS |
 | DDS | `.dds` | `source/backgrounds/` | Copied verbatim |
+
+Source extensions other than these are warned about and skipped.
 
 ### By Category Type
 
@@ -110,7 +112,7 @@ source/flags/<category>/
 
 ### PNG (Raster Source)
 
-**Conversion:** PNG → BMP (ImageMagick) → SVG (potrace) → PNG (`rsvg-convert`) → DDS
+**Conversion:** PNG → BMP (flattened onto black) → SVG (potrace) → PNG (`rsvg-convert`) → DDS
 
 **Limitations:**
 - Raster-to-vector tracing (potrace) may lose detail
@@ -139,7 +141,7 @@ source/flags/<category>/
 **Requirements:**
 - Valid DDS without mipmaps
 - Uncompressed BGRA8
-- Power-of-two dimensions
+- Square dimensions
 
 ## Category Reference
 
@@ -184,7 +186,7 @@ source/flags/<category>/
 
 **Location:** `source/backgrounds/`
 
-**Count:** 40+ files
+**Count:** 59 files
 
 **Categories:**
 
@@ -221,28 +223,36 @@ colors = {
 randomizable_combo = { colour1 colour2 colour3 }
 ```
 
-**Current Colours:** 30+ defined colours including:
-- Standard: `white`, `black`, `grey`, `red`, `blue`, `green`, `yellow`, `orange`, `purple`, `pink`, `brown`
-- Metallic: `gold`, `silver`, `bronze`, `copper`, `steel`, `iron`
-- Special: `emerald`, `ruby`, `sapphire`, `amethyst`, `obsidian`, `pearl`
-- Sci-fi: `plasma`, `void`, `neon`, `cyber`, `hologram`
+**Current Colours:** 26 defined colours:
+- Browns and yellows: `dark_brown`, `brown`, `beige`, `yellow`
+- Oranges and reds: `light_orange`, `orange`, `red_orange`, `red`, `burgundy`, `pink`
+- Purples and blues: `purple`, `dark_purple`, `indigo`, `dark_blue`, `blue`, `light_blue`
+- Teals and greens: `turquoise`, `dark_teal`, `teal`, `light_green`, `green`, `dark_green`
+- Neutrals: `black`, `dark_grey`, `grey`, `ui_white`
 
-**Randomizable Combos:** Pre-defined triads for random empire generation.
+Each colour is defined on a single line with `flag`, `map` and `ship` values (HSV or RGB) plus a
+`use_as_border_color` flag. `black`, `dark_grey`, `grey` and `ui_white` set `use_as_border_color = no`.
+
+**Randomizable Combos:** Pre-defined colour triads used for random empire generation.
 
 ## Localisation
 
 **File:** `source/localisation.yml`
 
-**Format:**
+**Example:**
 ```yaml
 l_english:
  FLAG_CATEGORY_aquatic:0 "Aquatic"
  FLAG_CATEGORY_blocky:0 "Blocky"
  FLAG_CATEGORY_ui_starwars:0 "Star Wars"
- # ... 25+ entries
+ # ... 15 mod-specific entries
 ```
 
 **Key Pattern:** `FLAG_CATEGORY_<directory_name>:0 "Display Name"`
+
+The mod supplies only the keys for its own categories. Base-game categories such as `aquatic`,
+`blocky`, `human`, `ornate`, `pirate`, `plantoid`, `spherical`, `toxoid`, and `zoological` reuse the
+`FLAG_CATEGORY_*` keys that already ship with Stellaris.
 
 **Language Support:** English only (`l_english`). Additional languages would require new `l_<language>:` sections.
 
@@ -259,7 +269,7 @@ source_filename=output_filename
 ```txt
 mighty-spanner=ui_mechanical_1
 eye-target=ui_mechanical_2
-imperial-eagle=ui_domination_1
+virtual-marker=ui_blocky_1
 ```
 
 **Resolution Logic:**
@@ -286,7 +296,11 @@ imperial-eagle=ui_domination_1
 |--------|---------|------------|
 | `bevel_batch.py` | Bevels every image of a batch in one GIMP session | `bevel-pngs` function |
 | `gradient_bevel.py` | Applies 3D bevel effect with gradient shading | `bevel_batch.py` |
-| `png_to_dds.py` | Exports PNG to DDS with game-compatible settings | `png-to-dds` function |
+| `png_to_dds.py` | Exports PNG to DDS with game-compatible settings | `png-to-dds` function (plain Python, no GIMP) |
+
+Shared modules used by the GIMP scripts: `gimp_image_operations.py`, `gimp_procedures.py`,
+`gimp_script_arguments.py`, and `gimp_script_errors.py`. SVG rasterisation lives in the `svg-to-png`
+function in `build.sh`, not in a script file.
 
 See [GIMP Scripts Component](../components/gimp-scripts.md) for detailed documentation.
 
@@ -311,7 +325,7 @@ See [GIMP Scripts Component](../components/gimp-scripts.md) for detailed documen
 
 ### Adding a Background Texture
 
-1. **Create DDS file** with the proper format (uncompressed BGRA8, square)
+1. **Create DDS file** with the proper format (uncompressed BGRA8, square dimensions, no mipmaps)
 2. **Place in:** `source/backgrounds/my-background.dds`
 3. **Run build** — auto-copied to output
 
@@ -367,10 +381,10 @@ See [GIMP Scripts Component](../components/gimp-scripts.md) for detailed documen
 
 | Asset Type | Count |
 |------------|-------|
-| Flag designs (all categories) | 300+ |
-| Background textures | 40+ |
-| Colours defined | 30+ |
-| Categories | 25+ |
-| GIMP scripts | 4 |
-| Localisation entries | 25+ |
+| Flag designs (all categories) | 378 |
+| Background textures | 59 |
+| Colours defined | 26 |
+| Categories | 27 |
+| Python scripts | 7 |
+| Localisation entries (mod-specific) | 15 |
 | Filename mappings | 100+ |

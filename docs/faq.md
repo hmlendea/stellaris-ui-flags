@@ -4,7 +4,7 @@
 
 ### What is this mod?
 
-**Universum Infinitum: Flags** is a Stellaris graphics mod that adds 300+ flag designs across 25+ categories, 40+ background textures, and 30+ colours for empire customisation.
+**Universum Infinitum: Flags** is a Stellaris graphics mod that adds 378 flag designs across 27 categories, 59 background textures, and 26 colours for empire customisation.
 
 ### Where can I get it?
 
@@ -45,13 +45,17 @@ Each asset needs two bevels, and the bevels are batched into shared GIMP session
 
 Incremental builds skip assets when all three output DDS files exist — source modifications are not detected. Remove the specific outputs or do a full rebuild (`rm -rf build out`).
 
-### Do I need all three tools?
+### Do I need all the tools?
 
-Yes — ImageMagick, `rsvg-convert`, potrace, and GIMP are all validated at startup. Even if your sources are all SVG, the build aborts if any tool is missing.
+ImageMagick, `rsvg-convert`, potrace, and Python 3 are validated at startup; the build aborts if any
+of them is missing, even if your sources are all SVG. GIMP is checked lazily, only when the first
+bevel session starts, so a build in which every flag is already processed never requires GIMP.
 
 ### Does Flatpak GIMP work?
 
-Yes, the build script auto-detects Flatpak exports. GIMP 3 bundles the DDS export plug-in, so no manual plug-in installation is needed.
+Yes, the build script auto-detects Flatpak GIMP (system and user exports) when a bevel session is
+started. GIMP 3 bundles every operation the bevel needs, so no manual plug-in installation is
+required.
 
 ### Can I build on Windows?
 
@@ -151,15 +155,18 @@ Most common: GitHub Release asset missing. The workflows download the release zi
 
 ### The build says a tool is missing but it's installed
 
-The detection checks system PATH and two Flatpak export paths. If your tool is elsewhere (Snap, custom location), it won't be found. Install via detected methods or adjust the detection logic in `build.sh`.
+ImageMagick and potrace are checked at the fixed paths `/usr/bin/convert` and `/usr/bin/potrace`,
+and GIMP is checked at `/usr/bin/gimp` plus the two Flatpak export paths. A tool installed elsewhere
+(e.g. via Snap or a custom prefix) will not be found. Install it via a detected method, symlink it
+into a detected path, or adjust the detection logic in `build.sh`.
 
 ### My flag is invisible in game
 
-Alpha channel lost during processing. Check intermediate PNGs in `build/<category>/` — the source SVG likely has an opaque background that wasn't removed.
+Alpha channel lost during processing. Check the intermediate PNGs in `build/<category>/` — the source SVG likely has an opaque background that was not removed.
 
 ### DDS files won't open
 
-GIMP DDS plug-in missing or wrong format. Verify with `gimp <file>.dds` locally.
+The DDS header may be wrong, or the file may be truncated. Verify it loads with an image viewer that supports DDS: `gimp <file>.dds`.
 
 More: [Troubleshooting](troubleshooting.md).
 

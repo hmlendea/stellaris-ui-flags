@@ -81,6 +81,6 @@ Stellaris UI Flags is a mod for the game Stellaris that adds hundreds of new fla
 
 ## Maintenance Metadata
 
-- Last reviewed: 2026-11-05
+- Last reviewed: 2026-11-20
 - Owner: Repository maintainers
-- Coverage status: Initial generation — comprehensive coverage of build pipeline, asset organisation, and output packaging
+- Coverage status: Refreshed against the current parallel-worker, batched-bevel build pipeline

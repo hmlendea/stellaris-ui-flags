@@ -76,10 +76,13 @@ The build parses contributor-supplied files with:
 GIMP batch parameters are passed through environment variables, and the script path is interpolated into the batch expression:
 
 ```bash
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="${INPUT_PATH}" "${GIMP_TOOL_PATH}" -i \
-    --batch-interpreter=python-fu-eval \
-    -b "exec(open('${GIMP_SCRIPT_PATH}').read())" --quit
+local GIMP_BATCH_COMMAND="import sys; sys.path.insert(0, '${SOURCE_SCRIPTS_DIR_PATH}'); exec(open('${GIMP_SCRIPT_PATH}').read())"
+env GIMP_SCRIPT_IMAGE_PATHS="${INPUT_PATHS}" "${GIMP_BINARY}" --new-instance -i \
+    --batch-interpreter=python-fu-eval -b "${GIMP_BATCH_COMMAND}" --quit
 ```
+
+The script path is resolved from `SOURCE_SCRIPTS_DIR_PATH`, which is derived from the repository
+root, not from contributor input.
 
 - The script path and directory are interpolated into the batch expression, so a path containing `'` could alter it
 - Parameters are passed as environment values, not as code, so filenames cannot inject Python

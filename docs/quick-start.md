@@ -18,7 +18,7 @@
 flatpak install flathub org.gimp.GIMP
 ```
 
-**Note:** GIMP 3 bundles the GEGL operations used by the bevel; no extra plug-in package is required.
+**Note:** GIMP 3 bundles the operations used by the bevel; no extra plug-in package is required. GIMP is checked lazily, only when the first bevel session starts.
 
 ### Verify Installation
 
@@ -47,7 +47,8 @@ cd stellaris-ui-flags
 
 **Argument:** Version string (e.g., `1.0.0`, `2.3.1`)
 
-**Duration:** 5–15 minutes for full build (300+ assets).
+**Duration:** Several minutes for a full build; bounded by the number of GIMP bevel sessions rather
+than the number of flags.
 
 ### 3. Verify Output
 
@@ -145,7 +146,7 @@ ls out/ui-flags/flags/my-category/
 
 ## Add a Background Texture
 
-1. Create DDS file (BC1/BC3 compression, mipmaps, power-of-two dimensions)
+1. Create DDS file (uncompressed BGRA8, square dimensions, no mipmaps — matching the generated flags)
 2. Place in `source/backgrounds/`
 3. Rebuild: `./build.sh <version>`
 
@@ -182,10 +183,10 @@ rm -rf build out
 | Problem | Solution |
 |---------|----------|
 | `MISSING SOURCE DIRECTORY` | Run from repository root |
-| Tool not found | Install tool or verify Flatpak export path |
+| Tool not found | Install at the detected path (`/usr/bin/...`) or via Flatpak for GIMP |
 | Flags missing from output | Check source file format is supported |
-| Mod not in launcher | Verify descriptor `path` matches directory name |
-| Categories show raw keys | Add localisation entry for category |
+| Mod not in launcher | Verify descriptor `path="mod/ui-flags"` matches the installed directory |
+| Categories show raw keys | Add localisation entry for the category |
 
 See [Troubleshooting](troubleshooting.md) for details.
 

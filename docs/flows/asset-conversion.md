@@ -84,7 +84,7 @@ THREE OUTPUT DDS FILES
 
 **Command:**
 ```bash
-potrace "input.bmp" -s -o "output.svg"
+potrace --opaque -s "input.bmp" -o "output.svg"
 ```
 
 **Algorithm:** Potrace traces bitmap edges to vector paths.
@@ -94,6 +94,7 @@ potrace "input.bmp" -s -o "output.svg"
 **Poor For:** Anti-aliased edges, gradients, photographic content, fine detail.
 
 **Parameters:**
+- `--opaque` — treat the background as opaque
 - `-s` — SVG output format
 - Default: black-on-white tracing, single colour
 
@@ -105,12 +106,12 @@ potrace "input.bmp" -s -o "output.svg"
 
 **Step 1: PNG → BMP (ImageMagick)**
 ```bash
-convert "input.png" "temp.bmp"
+convert -background "#000" -flatten "input.png" "temp.bmp"
 ```
 
 **Step 2: BMP → SVG (potrace)**
 ```bash
-potrace "temp.bmp" -s -o "output.svg"
+potrace --opaque -s "temp.bmp" -o "output.svg"
 ```
 
 **Cleanup:** Temporary BMP removed after conversion.
@@ -149,7 +150,7 @@ colour type matters too, because a greyscale PNG is read as the wrong channels b
 
 #### Map Flag (256px)
 
-**Call:** `render_flag(svg, build_map.png, 256)`
+**Call:** `svg-to-png <svg> build/map/<source>.png 256`
 
 **Output:** `build/<cat>/map/<source>.png` (256×256)
 
@@ -159,7 +160,7 @@ colour type matters too, because a greyscale PNG is read as the wrong channels b
 
 #### Small Flag (24px)
 
-**Call:** `render_flag(svg, build_small.png, 24)`
+**Call:** `svg-to-png <svg> build/small/<source>.png 24`
 
 **Output:** `build/<cat>/small/<source>.png` (24×24)
 
@@ -182,20 +183,22 @@ colour type matters too, because a greyscale PNG is read as the wrong channels b
 
 ### Background Handling
 
-The script removes the flat background colour that SVG exports usually bake in:
+The `svg-to-png` function samples the flat background colour baked into an SVG export and turns the
+difference from it into the alpha channel:
 
-```python
-background_colour = pick_colour(image, flag_layer, 3.0, 0.0)
-remove_colour(flag_layer, background_colour)
+```bash
+BACKGROUND_COLOUR=$(magick "${RAW_PNG_PATH}" -format '%[pixel:p{3,0}]' info:)
 ```
 
-**Assumption:** Flag emblem on a solid background (usually black or white).
+**Assumption:** The emblem is drawn over a solid, uniform background (the sample is taken at pixel
+`3,0`). SVG sources exported from raster tracings draw black shapes with no background rectangle, so
+`rsvg-convert` renders them over a forced white background.
 
-**Failure Mode:** Complex backgrounds not removed — may show in output.
+**Failure Mode:** A gradient or non-uniform background yields a poor alpha channel and may show in output.
 
 ## Stage 3: Gradient Bevel Application
 
-### Algorithm (gradient_bevel.py)
+**Algorithm (gradient_bevel.py):**
 
 ```
 INPUT: PNG with alpha channel (flag emblem on transparent)
@@ -209,10 +212,12 @@ OUTPUT: PNG with 3D bevel effect
 6. Apply Bump Map to the flag using the Blur layer as the height map
 7. Offset, invert and dim the Blur layer to 50% opacity, then remove it
 8. Create a "Colour" layer with a radial gold gradient, blended with Grain Merge and clipped to the flag shape
-9. Keep the flag as the base layer
-10. Merge visible layers
-11. Save PNG
+9. Merge visible layers
+10. Save PNG
 ```
+
+**Note:** The flag is deliberately not re-clipped to the silhouette after the bump map; the legacy
+bump map colours pixels outside the silhouette and clipping would thin the emblem edges.
 
 ### Bevel Parameters (Defaults)
 
@@ -276,9 +281,7 @@ convert_image(source_path, output_path)
 | Alpha | Straight | Not premultiplied |
 | Normal Map | No | Standard texture |
 
-**Note:** The 59 background textures under `source/backgrounds/` are also uncompressed BGRA8 DDS files, so the generated flags match the shipped format.
-
-For 24×24 small flag: identical output size
+**Note:** The 59 background textures under `source/backgrounds/` are uncompressed BGRA8 DDS files, matching the generated flags.
 
 ## Conversion Quality Considerations
 
@@ -319,18 +322,19 @@ The bevels are batched, so a whole batch of images shares one GIMP session start
 build/<category>/
 ├── <source_name>.svg              # Stage 1 output
 ├── <source_name>.png              # Stage 2 main (128px), bevel applied in place
+├── <source_name>.png.beveled      # Bevel completion marker
 ├── map/
-│   ├── <source_name>.png          # Stage 2 map (256px)
-│   └── (no bevel)
+│   └── <source_name>.png          # Stage 2 map (256px), no bevel
 └── small/
-    └── <source_name>.png          # Stage 2 small (24px), bevel applied in place
+    ├── <source_name>.png          # Stage 2 small (24px), bevel applied in place
+    └── <source_name>.png.beveled  # Bevel completion marker
 ```
 
 ## Cleanup
 
-**Automatic:** Temporary files (BMP, intermediate PNG) removed after each conversion function.
+**Automatic:** The temporary BMP from the PNG path is removed by the conversion itself.
 
-**Persistent:** `build/` directory retains all intermediates for incremental builds.
+**Persistent:** `build/` directory retains all intermediates for subsequent builds.
 
 **Full Clean:** `rm -rf build out` removes all generated files.
 
@@ -341,7 +345,7 @@ build/<category>/
 ```bash
 # After build, inspect build/<category>/
 ls -la build/human/
-# Should see: flag.svg, flag.png, map/flag.png, small/flag.png
+# Should see: <source>.svg, <source>.png (+ .beveled), map/<source>.png, small/<source>.png (+ .beveled)
 ```
 
 ### Test Individual Stages
@@ -351,23 +355,22 @@ ls -la build/human/
 rsvg-convert -w 128 -h 128 -b white -o /tmp/raw.png "build/human/flag.svg"
 magick identify /tmp/raw.png
 
-# Test bevel
+# Test bevel (single image, isolated session)
 env GIMP_SCRIPT_IMAGE_PATH="/tmp/test_128.png" \
-    gimp -i --batch-interpreter=python-fu-eval \
+    gimp --new-instance -i --batch-interpreter=python-fu-eval \
     -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/gradient_bevel.py').read())" --quit
 
-# Test DDS export
+# Test DDS export (plain Python, no GIMP)
 env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test_128.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/tmp/test.dds" \
-    gimp -i --batch-interpreter=python-fu-eval \
-    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/png_to_dds.py').read())" --quit
+    python3 source/scripts/png_to_dds.py
 ```
 
 ### Common Issues
 
 | Symptom | Likely Cause | Check |
 |---------|--------------|-------|
-| Flag invisible | Alpha channel lost | Verify PNG has transparency before bevel |
+| Flag invisible | Alpha channel lost | Inspect `build/<cat>/<name>.png` for an alpha channel |
 | Bevel too strong/weak | Parameters | Adjust `BLUR_RADIUS`, `BUMP_DEPTH`, and `BUMP_ELEVATION` in gradient_bevel.py |
 | Map flag has bevel | Logic error | Verify map path skips bevel in build.sh |
 | DDS won't load | Header fields | Compare the DDS header with a known-good file; the writer reproduces GIMP's exactly |

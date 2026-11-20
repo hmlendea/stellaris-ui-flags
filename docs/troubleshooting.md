@@ -6,7 +6,7 @@
 
 **Symptom:**
 ```
-Usage: ./build.sh <version>
+Please specify a version!
 ```
 
 **Cause:** No version argument provided.
@@ -25,7 +25,7 @@ Usage: ./build.sh <version>
 MISSING SOURCE DIRECTORY
 ```
 
-**Cause:** `source/` directory not found — wrong working directory.
+**Cause:** `source/` directory not found — wrong working directory. The script exits with code 255 (`-1`).
 
 **Fix:**
 ```bash
@@ -39,10 +39,10 @@ cd /path/to/stellaris-ui-flags
 
 **Symptom:**
 ```
-ImageMagick is not installed
+[ERROR] ImageMagick is not installed on this system
 ```
 
-**Cause:** `convert` command not found in PATH or Flatpak exports.
+**Cause:** `/usr/bin/convert` not present. The start-up check tests that exact path, not the system PATH.
 
 **Fix:**
 ```bash
@@ -56,7 +56,7 @@ sudo dnf install ImageMagick
 sudo pacman -S imagemagick
 
 # Verify
-convert --version
+/usr/bin/convert --version
 ```
 
 ---
@@ -65,8 +65,10 @@ convert --version
 
 **Symptom:**
 ```
-potrace is not installed
+[ERROR] potrace is not installed on this system
 ```
+
+**Cause:** `/usr/bin/potrace` not present.
 
 **Fix:**
 ```bash
@@ -77,8 +79,22 @@ sudo apt install potrace
 sudo dnf install potrace
 
 # Verify
-potrace --version
+/usr/bin/potrace --version
 ```
+
+---
+
+### Python 3 or rsvg-convert Not Installed
+
+**Symptom:**
+```
+[ERROR] Python 3 is not installed on this system
+[ERROR] rsvg-convert is not installed on this system
+```
+
+**Cause:** The tool is neither at `/usr/bin/…` nor on the PATH (`command -v` fallback).
+
+**Fix:** Install `python3` and `librsvg2-bin` (`rsvg-convert`).
 
 ---
 
@@ -86,8 +102,10 @@ potrace --version
 
 **Symptom:**
 ```
-GIMP is not installed
+[ERROR] GIMP is not installed on this system
 ```
+
+**Cause:** No GIMP binary at `/usr/bin/gimp`, the Flatpak system export, or the Flatpak user export.
 
 **Fix:**
 ```bash
@@ -99,7 +117,9 @@ flatpak install flathub org.gimp.GIMP
 ```
 
 **Important:** GIMP 2.10 is end of life and is not supported. The scripts require GIMP 3.0 or later.
-The DDS export no longer runs inside GIMP at all, so it does not depend on any GIMP plug-in.
+GIMP is resolved **lazily**, only when a bevel session starts, so this error appears only if at least
+one flag actually needs beveling. The DDS export and SVG rasterisation no longer run inside GIMP,
+so neither depends on any GIMP plug-in.
 
 ---
 
@@ -127,7 +147,7 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="/tmp/test.png" \
 
 **Symptom:**
 ```
-Unsupported format: source/flags/human/somefile.txt
+[WARNING] Unsupported source format for 'source/flags/human/somefile.txt'!
 ```
 
 **Cause:** File in category directory with unsupported extension.
@@ -172,18 +192,19 @@ magick identify /tmp/raw.png
 
 **Diagnosis:**
 ```bash
-# Check intermediate PNG
-gimp build/<category>/<flag>.png
-# Verify has transparency (alpha channel)
+# Check intermediate PNGs
+magick identify build/<category>/<flag>.png
+# The bevel rewrites the main and small PNGs in place; the map PNG is left flat
 
-# Check bevel output
-gimp build/<category>/<flag>_bevel.png
+# Confirm the bevel marker was written beside the main and small PNGs
+ls build/<category>/<flag>.png.beveled
+ls build/<category>/small/<flag>.png.beveled
 ```
 
 **Fix:**
 - Ensure the SVG renders the emblem in a colour that differs from the background; the alpha channel is that difference
 - Traced SVGs draw black shapes with no background rectangle, so the stage renders them over white
-- If PNG source: ensure background is a solid colour (colour-to-alpha can remove it)
+- If PNG source: ensure background is a solid colour, because `png-to-bmp` flattens the PNG onto black before tracing
 - Check the background removal logic in the `svg-to-png` function in `build.sh`
 
 ---
@@ -447,7 +468,8 @@ rm -rf build out
 
 ### Build Too Slow
 
-**Expected:** 5–15 minutes full build; <30s incremental.
+**Expected:** A full build is bounded by the number of GIMP bevel sessions (roughly one session start
+per `FLAG_BEVEL_BATCH_SIZE` images); an incremental build that adds a few assets takes seconds.
 
 **Causes of Slowness:**
 - A very small `FLAG_BEVEL_BATCH_SIZE`, which multiplies the GIMP session starts
@@ -533,7 +555,7 @@ magick identify /tmp/raw.png
 # bevel_batch (batched, one session for the whole list)
 env GIMP_SCRIPT_IMAGE_PATHS="input_a.png
 input_b.png" \
-    gimp -i --batch-interpreter=python-fu-eval \
+    gimp --new-instance -i --batch-interpreter=python-fu-eval \
     -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/bevel_batch.py').read())" --quit
 
 # png_to_dds

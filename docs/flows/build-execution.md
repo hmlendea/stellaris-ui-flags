@@ -32,13 +32,13 @@ START
   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ 3. TOOL DETECTION & VALIDATION                                              │
-│    ├── FOR each tool in [magick, rsvg-convert, potrace, gimp, python3]:    │
-│    │   ├── CHECK system PATH                                                │
-│    │   ├── CHECK Flatpak system export                                      │
-│    │   ├── CHECK Flatpak user export                                        │
-│    │   ├── IF not found: PRINT "X is not installed", EXIT 1                │
-│    │   └── USE the resolved path in the tool call                           │
-│    └── ALL tools found: CONTINUE                                            │
+│    ├── ImageMagick: CHECK /usr/bin/convert                                 │
+│    ├── potrace: CHECK /usr/bin/potrace                                     │
+│    ├── Python 3: CHECK /usr/bin/python3, else `command -v python3`          │
+│    ├── rsvg-convert: CHECK /usr/bin/rsvg-convert, else `command -v`         │
+│    ├── IF missing: PRINT "[ERROR] X is not installed on this system", EXIT 1 │
+│    ├── GIMP: NOT checked here — resolved lazily at the first bevel session   │
+│    └── ALL found: CONTINUE                                                  │
 └─────────────────────────────────────────────────────────────────────────────┘
   │
   ▼
@@ -58,7 +58,8 @@ START
   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ 5. CATEGORY DISCOVERY & ITERATION                                           │
-│    ├── GLOB source/flags/*/ → category directories                          │
+│    ├── GLOB source/flags/* → category entries                              │
+│    ├── SKIP empty directories and non-directories                            │
 │    ├── FOR each category directory:                                         │
 │    │   ├── EXTRACT category name (basename)                                 │
 │    │   ├── CREATE build/<category>/map/                                     │
@@ -75,6 +76,7 @@ START
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ 6. PER-ASSET PROCESSING (nested in category loop)                           │
 │    ├── GLOB source/flags/<category>/* → asset files                         │
+│    ├── SKIP usage.txt and non-regular files                                 │
 │    ├── FOR each asset file:                                                 │
 │    │   ├── SKIP if not regular file                                         │
 │    │   ├── EXTRACT source filename (basename without extension)            │
@@ -91,9 +93,11 @@ START
 │    │   │   └── ELSE: PROCEED                                                │
 │    │   ├── CONSTRUCT build intermediate paths                               │
 │    │   ├── FORMAT CONVERSION (step 7)                                       │
-│    │   ├── RENDER & BEVEL (steps 8-10)                                      │
+│    │   ├── RASTERISE & EXPORT MAP, REGISTER FOR BEVEL (step 8)              │
 │    │   └── LOOP to next asset                                               │
 │    └── ALL assets processed: CONTINUE to next category                      │
+│ 8b. AFTER ALL WORKERS: BATCHED BEVEL ROUNDS (step 9)                        │
+│ 8c. AFTER BEVEL ROUNDS: EXPORT BEVELED MAIN & SMALL DDS (step 10)          │
 └─────────────────────────────────────────────────────────────────────────────┘
   │
   ▼
@@ -109,7 +113,7 @@ START
   │
   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 8. SVG → 128px PNG (MAIN), 256px PNG (MAP), 24px PNG (SMALL)                │
+│ 8. RASTERISE PNGs (MAIN 128px, MAP 256px, SMALL 24px); EXPORT MAP DDS      │
 │    ├── svg-to-png(build SVG, build MAIN PNG, 128)                          │
 │    │   └── rsvg-convert + ImageMagick, no GIMP session                      │
 │    ├── svg-to-png(build SVG, build MAP PNG, 256)                           │
@@ -145,8 +149,9 @@ START
 │ 11. COMPLETION                                                              │
 │    ├── All categories processed                                             │
 │    ├── All assets processed                                                 │
-│    ├── Output package ready at out/ui-flags/                                │
-│    └── EXIT 0                                                               │
+│    ├── Unbeveled flags reported (if any) before the final count            │
+│    ├── Final line: Produced <n> of <n> flag DDS files.                     │
+│    └── Output package ready at out/ui-flags/                                │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -160,12 +165,12 @@ START
 ```bash
 MOD_VERSION="${1}"
 if [ -z "${MOD_VERSION}" ]; then
-    echo "Usage: ./build.sh <version>"
+    echo "Please specify a version!"
     exit 1
 fi
 ```
 
-**Failure Mode:** Missing argument → immediate exit with usage message.
+**Failure Mode:** Missing argument → immediate exit with `Please specify a version!`.
 
 **Success:** `MOD_VERSION` set, proceed to step 2.
 
@@ -173,35 +178,32 @@ fi
 
 **Logic:**
 ```bash
-if [ ! -d "${SOURCE_DIR_PATH}" ]; then
-    echo "MISSING SOURCE DIRECTORY"
-    exit 1
-fi
+[ ! -d "${SOURCE_DIR_PATH}" ] && echo "MISSING SOURCE DIRECTORY" && exit -1
 ```
 
-**Failure Mode:** `source/` not found → exit. Usually means wrong working directory.
+**Failure Mode:** `source/` not found → exit with code 255 (`-1`). Usually means wrong working directory.
 
 **Success:** Source directory confirmed, proceed to step 3.
 
 ### Step 3: Tool Detection & Validation
 
 **Detection Order (per tool):**
-1. `which tool` — system PATH
-2. `/var/lib/flatpak/exports/bin/org.tool.Tool` — Flatpak system
-3. `~/.local/share/flatpak/exports/bin/org.tool.Tool` — Flatpak user
+- ImageMagick and potrace: fixed `/usr/bin` paths
+- Python 3 and `rsvg-convert`: `/usr/bin` path, then `command -v` fallback
+- GIMP: `/usr/bin/gimp`, then the Flatpak system export, then the Flatpak user export — evaluated lazily at the first bevel session, not at start-up
 
-**Tools Checked:**
-| Tool | Command | Flatpak ID |
-|------|---------|------------|
-| ImageMagick | `magick` | N/A |
-| librsvg | `rsvg-convert` | N/A |
-| potrace | `potrace` | N/A |
-| GIMP | `gimp` | `org.gimp.GIMP` |
-| Python | `python3` | N/A |
+**Tools Checked at Start-up:**
+| Tool | Command | Checked at start-up |
+|------|---------|---------------------|
+| ImageMagick | `/usr/bin/convert` | Yes |
+| potrace | `/usr/bin/potrace` | Yes |
+| Python 3 | `python3` | Yes |
+| librsvg | `rsvg-convert` | Yes |
+| GIMP | `gimp` | **No** — lazily at the first bevel session |
 
-**Failure Mode:** Any tool missing → print message, exit 1.
+**Failure Mode:** A tool missing at start-up → print `[ERROR] X is not installed on this system`, exit 1. A missing GIMP only fails once a bevel is actually required.
 
-**Success:** All tool paths stored in variables, proceed to step 4.
+**Success:** Tool paths stored in variables, proceed to step 4.
 
 ### Step 4: Static Asset Staging
 
@@ -216,11 +218,11 @@ fi
 
 **Descriptor Generation:**
 ```bash
-generate-mod-descriptor "${OUT_DIR_PATH}/${MOD_ID}.mod" "mod/${MOD_ID}"
-generate-mod-descriptor "${MOD_OUT_DIR_PATH}/descriptor.mod" "."
+generate-mod-descriptor "${MOD_DESCRIPTOR_PRIMARY_FILE_PATH}"
+generate-mod-descriptor "${MOD_DESCRIPTOR_SECONDARY_FILE_PATH}"
 ```
 
-**Key Difference:** Root descriptor has `path="mod/ui-flags"`, package descriptor has `path="."`.
+**Relationship:** Both descriptors are written by the same function, so both carry `path="mod/ui-flags"`; they differ only in location.
 
 ### Step 5: Category Discovery & Iteration
 
@@ -247,8 +249,8 @@ for FLAG_FILE in "${CATEGORY_DIR}"*; do
 
 **Filename Resolution:**
 ```bash
-SOURCE_FILE_NAME="${FLAG_FILE_NAME%.*}"  # Remove extension
-FLAG_OUTPUT_FILE_NAME=$(get-flag-file-name "${SOURCE_DIR_PATH}/names.txt" "${SOURCE_FILE_NAME}")
+FILE_NAME="${FILE_BASENAME%.*}"  # Remove extension
+FLAG_FILE_NAME=$(get-flag-file-name "${FILE_NAME}")
 ```
 
 **Output Paths:**
@@ -286,57 +288,56 @@ fi
 
 **Error Handling:** Unsupported format → warning, continue to next asset.
 
-### Step 8: Main Flag (128px) with Bevel
+### Step 8: Rasterisation and Map Export (per flag, in workers)
 
-**Pipeline:**
+Each registered flag is handled by a worker bounded by `FLAG_WORKER_COUNT`:
+
 ```
 SVG (build)
-  → svg-to-png (128px)
-  → PNG (build)
-  → gradient_bevel (rewrites the PNG in place)
-  → png_to_dds
-  → DDS (out/main)
+  → svg-to-png (128px main)   → PNG (build, awaiting bevel)
+  → svg-to-png (24px small)   → PNG (build, awaiting bevel)
+  → svg-to-png (256px map)    → PNG (build)
+  → png_to_dds (map)          → DDS (out/map)
 ```
 
-**GIMP Invocations:** 3 separate GIMP processes (one per script call).
+**GIMP Invocations:** None — the main and small PNGs are rasterised only; the map PNG needs no bevel,
+so its DDS is exported immediately.
 
-### Step 9: Map Flag (256px) without Bevel
+### Step 9: Batched Bevel (main + small)
 
-**Pipeline:**
+After every worker has finished, the unbeveled main and small PNGs are collected and beveled in shared
+GIMP sessions:
+
 ```
-SVG (build)
-  → svg-to-png (256px)
-  → PNG (build)
-  → png_to_dds
-  → DDS (out/map)
-```
-
-**GIMP Invocations:** 2 separate GIMP processes.
-
-**Key Difference:** No bevel applied — map flags use flat rendering.
-
-### Step 10: Small Flag (24px) with Bevel
-
-**Pipeline:**
-```
-SVG (build)
-  → svg-to-png (24px)
-  → PNG (build)
-  → gradient_bevel (rewrites the PNG in place)
-  → png_to_dds
-  → DDS (out/small)
+FOR each bevel round (up to VARIANT_ATTEMPT_COUNT):
+  collect every registered main/small PNG lacking a .beveled marker
+  IF none remain: BREAK
+  bevel-pngs round, chunked by FLAG_BEVEL_BATCH_SIZE (FLAG_GIMP_CONCURRENCY at once)
+  re-rasterise any PNG a killed session left unusable
 ```
 
-**GIMP Invocations:** 3 separate GIMP processes.
+**GIMP Invocations:** One session per chunk; a killed session leaves its unmarked images for the next round.
+
+### Step 10: Beveled DDS Export
+
+The beveled main and small PNGs are exported only after the rounds, so their textures carry the bevel:
+
+```
+build/<cat>/<name>.png       (beveled) → png_to_dds → out/<cat>/<name>.dds
+build/<cat>/small/<name>.png (beveled) → png_to_dds → out/<cat>/small/<name>.dds
+```
+
+**GIMP Invocations:** None — the export is plain Python.
 
 ### Step 11: Completion
 
 **End State:**
 - All categories processed
 - All assets processed (or skipped via incremental check)
+- Unbeveled flags (if any) reported with a diagnosed reason
+- Final line: `Produced <n> of <n> flag DDS files.`
 - Complete mod package at `out/ui-flags/`
 - Root descriptor at `out/ui-flags.mod`
-- Exit code 0
 
 ## Control Flow Summary
 
@@ -345,7 +346,7 @@ build.sh <version>
     │
     ├─► Validate version
     ├─► Validate source/
-    ├─► Detect tools (magick, rsvg-convert, potrace, gimp, python3)
+    ├─► Resolve tools (magick, rsvg-convert, potrace, python3)
     ├─► Stage static assets (backgrounds, colours, localisation, thumbnail)
     ├─► Generate descriptors
     ├─► FOR each category in source/flags/:
@@ -355,12 +356,13 @@ build.sh <version>
     │       │       ├─► Resolve output name (names.txt or default)
     │       │       ├─► Check incremental (skip if all 3 DDS exist)
     │       │       ├─► Convert source → SVG
-    │       │       ├─► SVG → 128px PNG → bevel → DDS (main)
-    │       │       ├─► SVG → 256px PNG → DDS (map, no bevel)
-    │       │       └─► SVG → 24px PNG → bevel → DDS (small)
+    │       │       ├─► [workers] Rasterise PNGs; export map DDS (no bevel)
+    │       │       └─► Register main/small PNG for the bevel rounds
     │       └─► Next asset
     └─► Next category
     │
+    ├─► FOR each bevel round: batch unbeveled main/small PNGs through GIMP
+    ├─► Export beveled main and small DDS
     └─► Done → out/ui-flags/ ready
 ```
 
@@ -368,28 +370,32 @@ build.sh <version>
 
 | Stage | Error Handling |
 |-------|----------------|
-| Argument validation | Exit 1 |
-| Source validation | Exit 1 |
-| Tool detection | Exit 1 |
-| Static staging | Continue (cp fails silently if source missing) |
-| Descriptor generation | Continue |
-| Category iteration | Continue on category error |
-| Asset processing | Continue on asset error (warning printed) |
-| Format conversion | Continue on conversion error |
-| GIMP operations | Continue on GIMP error (non-zero exit ignored) |
+| Argument validation | Exit 1 (`Please specify a version!`) |
+| Source validation | Exit 255 (`-1`) |
+| Tool detection | Exit 1 per missing start-up tool; GIMP fails only at the first bevel |
+| Static staging | `cp` reports errors; a missing thumbnail aborts the build |
+| Descriptor generation | Unconditional |
+| Category iteration | Skips empty and non-directory entries |
+| Asset processing | Continues on failure; the failing worker logs to its own file |
+| Format conversion | Unsupported extension → warning, continue |
+| Bevel rounds | A killed session leaves images unmarked; they are retried, then reported |
+| DDS export | Missing output → error exit 3 from the export helper |
 
-**Design Philosophy:** Fail fast for setup, continue for asset processing to maximise output.
+**Design Philosophy:** Fail fast for setup, continue for asset processing to maximise output, then
+report any bevels that remained unmarked.
 
 ## Performance Characteristics
 
 | Phase | Time (Typical) | Parallelism |
 |-------|----------------|-------------|
 | Setup (steps 1-4) | <1s | None |
-| Per asset (steps 7-10) | 1-4s | None (sequential) |
-| Full build (300+ assets) | 5-15 min | None |
-| Incremental (1 new asset) | <30s | None |
+| Rasterise + map export per asset | <1s | `FLAG_WORKER_COUNT` workers |
+| Batched bevels | ~1s per image plus one session start per batch | `FLAG_GIMP_CONCURRENCY` sessions |
+| Beveled DDS export | Milliseconds per flag | `FLAG_WORKER_COUNT` workers |
+| Full build (378 assets) | Dominated by the bevel session count | Bounded |
 
-**Bottleneck:** GIMP startup per script invocation (~0.5-1s each, 8 invocations per asset = 4-8s overhead per asset).
+**Bottleneck:** The GIMP session start, amortised over `FLAG_BEVEL_BATCH_SIZE` images per session.
+The rasterisation and DDS export use plain tools and are effectively free.
 
 ## Incremental Build Behaviour
 
@@ -411,7 +417,10 @@ build.sh <version>
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | Validation failure (argument, source, tools) |
-| >1 | Not used (script doesn't exit with other codes) |
+| 1 | Start-up validation failure (version argument, ImageMagick, potrace, Python 3, rsvg-convert) |
+| 2 | Invalid arguments passed to `execute-gimp-script-file` |
+| 3 | A conversion/export helper failed to produce its output |
+| 255 (`-1`) | `source/` directory missing |
 
-Individual asset failures don't affect exit code.
+Individual asset failures do not affect the exit code; the final line reports the produced flag DDS
+count against the expected count.
