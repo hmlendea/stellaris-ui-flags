@@ -494,28 +494,28 @@ the session memory grows enough to risk being killed.
 
 ### Steam Workshop Update Fails
 
-**Symptom:** GitHub Actions workflow `steam-workshop.yml` fails.
+**Symptom:** GitHub Actions workflow `steam-workshop-release.yml` fails.
 
 **Common Causes:**
-- GitHub Release asset missing (tag pushed without release)
+- Build failure on the runner (missing source or a tool failure)
 - Secrets expired or changed (`STEAM_USERNAME`, `STEAM_PASSWORD`, `STEAM_2FASEED`)
 - Steam Workshop item inaccessible
 
 **Fix:**
-1. Verify GitHub Release exists with tag and zip asset
+1. Inspect the workflow log for the failing step
 2. Check secrets in repository settings
 3. Re-run workflow
 
 ### Nexus Mods Update Fails
 
-**Symptom:** GitHub Actions workflow `nexus-mods.yml` fails.
+**Symptom:** GitHub Actions workflow `nexus-mods-release.yml` fails.
 
 **Common Causes:**
-- GitHub Release asset missing
-- Secrets invalid (`NEXUS_UPLOADER_USERNAME`, `NEXUS_UPLOADER_PASSWORD`)
+- Build failure on the runner (missing source or a tool failure)
+- Invalid secret (`NEXUSMODS_API_KEY`)
 
 **Fix:**
-1. Verify release asset exists
+1. Inspect the workflow log for the failing step
 2. Check secrets
 3. Re-run workflow
 

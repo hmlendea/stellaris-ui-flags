@@ -254,10 +254,10 @@ rm -rf build out
 
 ### Steps
 
-1. Create `.github/workflows/<platform>.yml` mirroring `steam-workshop.yml`:
-   - Trigger: tag push `v*.*.*`
-   - Download Release asset
-   - Upload via platform action or API
+1. Create `.github/workflows/<platform>-release.yml` mirroring `steam-workshop-release.yml`:
+   - Trigger: tag push `v*.*.*` or manual dispatch
+   - Install the build tools and run `build.sh`
+   - Upload via the platform action or API
 
 2. Add platform secrets to repository settings
 
@@ -270,7 +270,7 @@ rm -rf build out
 
 ### Invariants
 
-- INV-19: Release asset must exist before workflows run
+- INV-19: Release archive must be built from the tag
 - INV-20: version consistency across artefacts
 
 ---
@@ -334,8 +334,7 @@ For any release, regardless of change type:
 - [ ] Descriptors show correct version
 - [ ] In-game verification of changed content
 - [ ] No texture errors in game log
-- [ ] GitHub Release created with zip asset
-- [ ] Tag pushed (triggers Steam + Nexus workflows)
+- [ ] Both release workflows pass (they build, package, and publish from the tag)
 - [ ] Paradox Mods manual upload
 - [ ] Version consistent everywhere (INV-20)
 

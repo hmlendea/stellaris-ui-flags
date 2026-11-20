@@ -269,13 +269,12 @@ Secrets configured in repository settings:
 
 | Secret | Used By | Purpose |
 |--------|---------|---------|
-| `STEAM_USERNAME` | steam-workshop.yml | Steam account login |
-| `STEAM_PASSWORD` | steam-workshop.yml | Steam account password |
-| `STEAM_2FASEED` | steam-workshop.yml | Steam 2FA seed for TOTP |
-| `NEXUS_UPLOADER_USERNAME` | nexus-mods.yml | Nexus Mods account |
-| `NEXUS_UPLOADER_PASSWORD` | nexus-mods.yml | Nexus Mods password |
+| `STEAM_USERNAME` | steam-workshop-release.yml | Steam account login |
+| `STEAM_PASSWORD` | steam-workshop-release.yml | Steam account password |
+| `STEAM_2FASEED` | steam-workshop-release.yml | Steam 2FA seed for TOTP |
+| `NEXUSMODS_API_KEY` | nexus-mods-release.yml | Nexus Mods API key |
 
-No build-time configuration in workflows — they download pre-built release assets.
+No build-time configuration in workflows — both workflows run `./build.sh` with the version taken from the checkout tag.
 
 ## Configuration Validation
 

@@ -111,20 +111,30 @@ effect. No separate plug-in package is needed.
 
 | Workflow | Action | Version | Purpose |
 |----------|--------|---------|---------|
-| steam-workshop.yml | `actions/checkout` | v3 | Repository checkout |
-| steam-workshop.yml | `hmlendea/steam-workshop-update` | latest | Steam Workshop upload |
-| nexus-mods.yml | `actions/checkout` | v1 | Repository checkout |
-| nexus-mods.yml | `hmlendea/nexusmods-update` | latest | Nexus Mods upload |
+| steam-workshop-release.yml | `actions/checkout` | v7 | Repository checkout |
+| steam-workshop-release.yml | `hmlendea/steam-workshop-update` | latest | Steam Workshop upload |
+| nexus-mods-release.yml | `actions/checkout` | v7 | Repository checkout |
+| nexus-mods-release.yml | `Nexus-Mods/upload-action` | v1.0.0-beta.11 | Nexus Mods upload |
+
+### Release Build Tools
+
+Both release workflows install the toolchain on the runner before building:
+
+| Tool | Package | Purpose |
+|------|---------|---------|
+| GIMP | `gimp` | Python-Fu execution for the batched gradient bevel |
+| ImageMagick | `imagemagick` | PNG→BMP flattening, alpha derivation, pixel reads |
+| librsvg | `librsvg2-bin` | SVG→PNG rasterisation |
+| potrace | `potrace` | BMP→SVG vectorisation |
 
 ### Secrets
 
 | Secret | Workflow | Purpose |
 |--------|----------|---------|
-| `STEAM_USERNAME` | steam-workshop.yml | Steam account login |
-| `STEAM_PASSWORD` | steam-workshop.yml | Steam account password |
-| `STEAM_2FASEED` | steam-workshop.yml | Steam 2FA seed for TOTP |
-| `NEXUS_UPLOADER_USERNAME` | nexus-mods.yml | Nexus Mods account |
-| `NEXUS_UPLOADER_PASSWORD` | nexus-mods.yml | Nexus Mods password |
+| `STEAM_USERNAME` | steam-workshop-release.yml | Steam account login |
+| `STEAM_PASSWORD` | steam-workshop-release.yml | Steam account password |
+| `STEAM_2FASEED` | steam-workshop-release.yml | Steam 2FA seed for TOTP |
+| `NEXUSMODS_API_KEY` | nexus-mods-release.yml | Nexus Mods API key |
 
 ## Runtime Dependencies
 

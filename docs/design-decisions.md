@@ -242,18 +242,19 @@ images into one session.
 
 ## D13: Tag-Triggered CI Deployment
 
-**Decision:** Steam Workshop and Nexus Mods deployments trigger on `v*.*.*` tag push, downloading the GitHub Release asset.
+**Decision:** Steam Workshop and Nexus Mods deployments trigger on a `v*.*.*` tag push, install the build toolchain, build the mod from the checked-out tag, and publish the packaged result.
 
 **Rationale:**
 - Tag = release intent; clear trigger point
-- Release asset is the single distribution artefact — all platforms get identical content
-- No build in CI (tools not installed on runners) — maintainer builds locally
+- Each workflow builds from the same tag, so every platform receives identical content
+- Manual dispatch allows republishing an existing tag
+- The toolchain is installed on the runner, so the release no longer depends on the maintainer's local environment
 
 **Consequences:**
-- ✅ Identical artefact across platforms
+- ✅ Reproducible artefact built from the repository alone
 - ✅ Simple workflow logic
-- ⚠️ Release must exist before/with tag — otherwise workflows fail
-- ⚠️ Local build required (CI can't run build.sh)
+- ✅ Manual re-runs publish the requested tag
+- ⚠️ Workflow runtime includes the full build (GIMP bevels dominate)
 
 ---
 
@@ -303,6 +304,6 @@ images into one session.
 | D10 | Fail-fast/continue | Robustness over strictness |
 | D11 | System+Flatpak detection | Coverage over configurability |
 | D12 | Verbatim static copy | WYSIWYG over validation |
-| D13 | Tag-triggered CI | Artefact consistency over build automation |
+| D13 | Tag-triggered CI | Build automation over maintainer-built artefacts |
 | D14 | English-only | Maintenance cost over coverage |
 | D15 | GPL v3 | Copyleft over permissiveness |

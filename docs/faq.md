@@ -132,17 +132,16 @@ Add an entry to `source/colours.txt` with `flag`, `map`, and `ship` HSV values. 
 
 ### How do I release a new version?
 
-1. `./build.sh <version>`
-2. `cd out && zip -r ../ui-flags_<version>.zip ui-flags/`
-3. Create GitHub Release with tag `v<version>`, upload zip
-4. Tag push triggers Steam Workshop and Nexus Mods workflows
-5. Manually upload to Paradox Mods
+1. `git tag v<version> && git push origin v<version>`
+2. Both release workflows trigger and build the package from the tag
+3. They publish to Steam Workshop and Nexus Mods
+4. Manually upload the zip to Paradox Mods
 
 See [Build and Deployment](build-and-deployment.md#release-process).
 
 ### Why did the Steam Workshop workflow fail?
 
-Most common: GitHub Release asset missing. The workflows download the release zip — create the release (with asset) before or immediately after pushing the tag.
+Most common: the build failed on the runner (missing source or a tool failure) or the Steam credentials are invalid. Inspect the workflow log, fix the cause, and re-run the workflow.
 
 ### How do I roll back a release?
 
