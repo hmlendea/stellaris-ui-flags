@@ -1,4 +1,6 @@
-[![Donate](https://img.shields.io/badge/-%E2%99%A5%20Donate-%23ff69b4)](https://hmlendea.go.ro/funding) [![Latest Release](https://img.shields.io/github/v/release/hmlendea/stellaris-ui-flags)](https://github.com/hmlendea/stellaris-ui-flags/releases/latest) [![License](https://img.shields.io/github/license/hmlendea/stellaris-ui-flags)](https://github.com/hmlendea/stellaris-ui-flags/blob/master/LICENSE)
+[![Donate](https://img.shields.io/badge/-%E2%99%A5%20Donate-%23ff69b4)](https://hmlendea.go.ro/funding)
+[![Latest Release](https://img.shields.io/github/v/release/hmlendea/stellaris-ui-flags)](https://github.com/hmlendea/stellaris-ui-flags/releases/latest)
+[![License](https://img.shields.io/github/license/hmlendea/stellaris-ui-flags)](https://github.com/hmlendea/stellaris-ui-flags/blob/master/LICENSE)
 
 # Stellaris UI Flags
 
@@ -6,54 +8,66 @@ Mod for Stellaris that adds hundreds of new flag designs matching the vanilla fl
 
 ## 📑 Table of Contents
 
-- [Capabilities](#-capabilities)
-- [Usage](#-usage)
-- [Installation](#-installation)
-- [Architecture](#-architecture)
-- [Contributing](#-contributing)
-- [Code of Conduct](#-code-of-conduct)
-- [Privacy and Data](#-privacy-and-data)
-- [Security](#-security)
-- [Project Engagement](#-project-engagement)
-- [GitHub Actions](#-github-actions)
-- [Documentation](#-documentation)
-- [License](#-license)
+- [Capabilities](#capabilities)
+- [Use Cases](#use-cases)
+- [Usage](#usage)
+- [Installation](#installation)
+  - [Manual Installation](#manual-installation)
+- [Localisation](#localisation)
+- [Compatibility](#compatibility)
+- [Privacy and Data](#privacy-and-data)
+- [Development](#development)
+  - [Requirements](#requirements)
+  - [Setup](#setup)
+  - [Build](#build)
+- [GitHub Actions](#github-actions)
+- [Project Structure](#project-structure)
+  - [Directories](#directories)
+- [Architecture](#architecture)
+- [Documentation](#documentation)
+- [Troubleshooting](#troubleshooting)
+- [FAQ](#faq)
+- [Contributing](#contributing)
+- [Code of Conduct](#code-of-conduct)
+- [Related Projects](#related-projects)
+- [Security](#security)
+- [Support](#support)
+- [Project Engagement](#project-engagement)
+- [License](#license)
 
 ## ✨ Capabilities
 
-- Hundreds of new flag designs across multiple thematic categories (aquatic, blocky, corporate, domination, fire, human, mechanical, ornate, pirate, plantoid, pointy, spherical, toxoid, and media-inspired categories)
-- Flags authored in editable formats (SVG, PNG, BMP) and converted through a reproducible build pipeline
-- Three resolution variants per flag (128px main, 256px map, 24px small) with gradient bevel effect on main and small variants
-- Stellaris-compatible DDS output (uncompressed BGRA8) written directly by the build
-- Localisation support for English flag names
+- Hundreds of new flag designs organised by thematic category (aquatic, blocky, corporate, domination, fire, human, mechanical, ornate, pirate, plantoid, pointy, spherical, toxoid, zoological, and media-inspired categories)
+- Editable source assets (SVG, PNG, BMP) converted through a reproducible build pipeline
+- Three DDS resolution variants per flag: 128px main, 256px map, and 24px small
+- Gradient bevel effect applied to the main and small variants
+- Stellaris-compatible uncompressed DDS textures written directly by the build
+- English localisation of flag category names
 - Custom colour palette and background textures
-- Automated mod descriptor generation for Steam Workshop, Paradox Mods, and Nexus Mods
+- Automated Stellaris mod descriptor generation
+
+## 🎯 Use Cases
+
+- **Players:** Add hundreds of new flag designs to Stellaris that match the vanilla flag style.
+- **Modders and contributors:** Author new flag designs as editable SVG, PNG, or BMP assets and convert them through the build pipeline.
+- **Maintainers:** Build and package the mod for distribution to Steam Workshop, Paradox Mods, Nexus Mods, and GitHub Releases.
 
 ## 🚀 Usage
 
-Build the mod package locally:
+Build the mod package from the command line:
 
 ```bash
 ./build.sh 1.0.0
 ```
 
-The command requires a version argument (e.g., `1.0.0`). The build pipeline:
-1. Validates required tools (ImageMagick, librsvg, GIMP, potrace)
-2. Copies static assets (backgrounds, colours, localisation, thumbnail)
-3. Generates `.mod` descriptor files
-4. Processes each flag category: converts source formats to SVG, renders PNG at three sizes, batches the gradient bevels, exports DDS
-5. Outputs the complete mod package to `out/ui-flags/`
-
-Required tools:
-- ImageMagick (`magick`)
-- librsvg (`rsvg-convert`)
-- GIMP 3.0+
-- potrace
-- Python 3
+The command requires a version argument (for example `1.0.0`) and writes the built mod package to `out/ui-flags/`. The pipeline validates the required tools, copies the static assets, generates the mod descriptor, converts each flag to DDS at three resolutions with gradient bevels, and assembles the distributable package.
 
 ## 📦 Installation
 
-[![Obtain it from Steam Workshop](https://raw.githubusercontent.com/hmlendea/readme-assets/master/badges/stores/steam-workshop.png)](https://steamcommunity.com/sharedfiles/filedetails/?id=1914541325) [![Obtain it from Paradox Mods](https://raw.githubusercontent.com/hmlendea/readme-assets/master/badges/stores/paradox-mods.png)](https://mods.paradoxplaza.com/mods/25419/Any) [![Obtain it from Nexus Mods](https://raw.githubusercontent.com/hmlendea/readme-assets/master/badges/stores/nexus.png)](https://www.nexusmods.com/stellaris/mods/75) [![Obtain it from GitHub](https://raw.githubusercontent.com/hmlendea/readme-assets/master/badges/stores/github.png)](https://github.com/hmlendea/stellaris-ui-flags/releases)
+[![Obtain it from Nexus Mods](https://raw.githubusercontent.com/hmlendea/readme-assets/master/badges/stores/nexus.png)](https://nexusmods.com/stellaris/mods/75)
+[![Obtain it from Steam Workshop](https://raw.githubusercontent.com/hmlendea/readme-assets/master/badges/stores/steam-workshop.png)](https://steamcommunity.com/sharedfiles/filedetails/?id=1914541325)
+[![Obtain it from Paradox Mods](https://raw.githubusercontent.com/hmlendea/readme-assets/master/badges/stores/paradox-mods.png)](https://mods.paradoxplaza.com/mods/25419/Any)
+[![Obtain it from GitHub](https://raw.githubusercontent.com/hmlendea/readme-assets/master/badges/stores/github.png)](https://github.com/hmlendea/stellaris-ui-flags/releases)
 
 ### Manual Installation
 
@@ -64,53 +78,80 @@ Required tools:
    - Windows: `%USERPROFILE%\Documents\Paradox Interactive\Stellaris\mod\`
 3. Enable the mod in the Stellaris launcher
 
-## 🏗️ Architecture
+## 🌍 Localisation
 
-See the [architecture documentation](./ARCHITECTURE.md) for the system context, principal components, runtime flows, ownership boundaries, dependencies, constraints, and extension points.
+The mod provides English localisation for its flag category names.
 
-For implementation-level detail, see [docs/architecture.md](./docs/architecture.md).
+| Language | Locale | Status |
+|----------|--------|--------|
+| English | `en` | Complete |
 
-## 🤝 Contributing
+## 🧩 Compatibility
 
-You are welcome to submit any suggestion, feedback, or modification to this project.
-
-When doing so, please:
-- Submit focused pull requests that conform to the existing code style
-- Maintain your branch synchronised with `master`
-- Raise a new [issue](https://github.com/hmlendea/stellaris-ui-flags/issues) for problems or suggestions
-
-See the [contributing guidelines](./CONTRIBUTING.md) for details on how to report issues, suggest enhancements, and submit changes.
-
-## 📜 Code of Conduct
-
-See the [Code of Conduct](./CODE_OF_CONDUCT.md) for the standards of conduct expected in all project spaces.
+| Component | Supported Versions | Notes |
+|-----------|--------------------|-------|
+| Stellaris | `v4.5.*` | Declared by the generated mod descriptor (`supported_version`) |
 
 ## 🛡️ Privacy and Data
 
-Universum Infinitum: Flags does not collect personal data; it consists of local game assets.
+Stellaris UI Flags does not collect personal data; it consists of local game assets.
 
-For the detailed description of how the application handles privacy and personal data, see [PRIVACY.md](./PRIVACY.md).
+For the detailed description of how the application handles privacy and personal data, see the [Privacy Statement](./PRIVACY.md).
 
 The mod does not transmit, persist, or process personal data. Distribution platforms and Stellaris operate independently of the mod's data handling.
 
-## 🔒 Security
+## 🛠️ Development
 
-Stellaris UI Flags follows a coordinated disclosure policy for security vulnerabilities.
+### Requirements
 
-For information on reporting security vulnerabilities, see [SECURITY.md](./SECURITY.md).
+- [ImageMagick](https://imagemagick.org/) (`magick`)
+- [librsvg](https://gitlab.gnome.org/GNOME/librsvg) (`rsvg-convert`)
+- [GIMP](https://www.gimp.org/) 3.0 or later
+- [potrace](https://potrace.sourceforge.net/)
+- [Python 3](https://www.python.org/)
 
-## 💝 Project Engagement
+### Setup
 
-- Report issues or suggest features via [GitHub Issues](https://github.com/hmlendea/stellaris-ui-flags/issues)
-- Support the project: [![Donate](https://img.shields.io/badge/-%E2%99%A5%20Donate-%23ff69b4)](https://hmlendea.go.ro/funding)
-- Star the repository if you find it useful
+```bash
+git clone https://github.com/hmlendea/stellaris-ui-flags.git
+cd stellaris-ui-flags
+```
+
+No dependency installation is required; the build runs entirely from the repository scripts and the tools listed above.
+
+### Build
+
+```bash
+./build.sh 1.0.0
+```
 
 ## ⚙️ GitHub Actions
 
 | Workflow | Purpose | What it does |
 |----------|---------|--------------|
-| [Steam Workshop](https://github.com/hmlendea/stellaris-ui-flags/blob/master/.github/workflows/steam-workshop.yml) | Steam Workshop release | Downloads GitHub Release asset and uploads to Steam Workshop via hmlendea/steam-workshop-update |
-| [Nexus Mods](https://github.com/hmlendea/stellaris-ui-flags/blob/master/.github/workflows/nexus-mods.yml) | Nexus Mods release | Downloads GitHub Release asset and uploads to Nexus Mods via hmlendea/nexusmods-update |
+| [ Steam Workshop ](https://github.com/hmlendea/stellaris-ui-flags/blob/master/.github/workflows/steam-workshop.yml) | Steam Workshop release | Downloads the GitHub Release asset and uploads it to the Steam Workshop |
+| [ Nexus Mods ](https://github.com/hmlendea/stellaris-ui-flags/blob/master/.github/workflows/nexus-mods.yml) | Nexus Mods release | Downloads the GitHub Release asset and uploads it to Nexus Mods |
+
+## 🗂️ Project Structure
+
+The repository separates editable source assets from the generated mod package, with the build pipeline defined by a single build script.
+
+### Directories
+
+| Directory | Purpose |
+|-----------|---------|
+| `source/` | Editable source assets, colour palette, localisation, and conversion scripts |
+| `source/flags/` | Flag designs grouped by thematic category |
+| `source/backgrounds/` | Background textures used by the flags |
+| `source/scripts/` | GIMP Python scripts for image conversion and gradient bevels |
+| `docs/` | Repository documentation |
+| `out/` | Generated mod package (build output) |
+
+## 🏗️ Architecture
+
+Stellaris UI Flags is a pipeline-oriented asset repository that converts editable flag sources into Stellaris-compatible DDS textures and packages them into a distributable mod.
+
+See the [Architecture Documentation](./ARCHITECTURE.md) for the system context, principal components, runtime processes, ownership boundaries, dependencies, constraints, and extension points.
 
 ## 📚 Documentation
 
@@ -145,6 +186,61 @@ Comprehensive documentation is available in the [docs/](./docs/) directory:
 | [Data Model](./docs/data-model.md) | Domain entities and relationships |
 | [Ambiguities and Open Questions](./docs/ambiguities-and-open-questions.md) | Unresolved items and known gaps |
 
+## 🩺 Troubleshooting
+
+See [Troubleshooting Guide](./docs/troubleshooting.md) for diagnostic procedures and resolutions to recurring problems.
+
+## ❓ FAQ
+
+See the [FAQ](./docs/faq.md) for responses to frequently raised inquiries.
+
+## 🤝 Contributing
+
+You are welcome to submit any suggestion, feedback, or modification to this project.
+
+When doing so, please:
+- Maintain cross-platform compatibility
+- Submit focused pull requests that conform to the existing code style
+- Maintain your branch synchronised with `master`
+- Revise the documentation when functionality changes
+- Raise a new [issue](https://github.com/hmlendea/stellaris-ui-flags/issues) for problems or suggestions
+
+See the [Contributing Guidelines](./CONTRIBUTING.md) for details on how to report issues, suggest enhancements, and submit changes.
+
+## 📜 Code of Conduct
+
+See the [Code of Conduct](./CODE_OF_CONDUCT.md) for the standards of conduct expected in all project spaces.
+
+## 🔗 Related Projects
+
+- [Character Traits](https://github.com/hmlendea/stellaris-ui-character-traits): Mod for Stellaris that adds various new character traits.
+- [Deposit Blockers](https://github.com/hmlendea/stellaris-ui-deposit-blockers): Mod for Stellaris that adds various new deposit blockers.
+- [Galaxy Sizes](https://github.com/hmlendea/stellaris-ui-galaxy-sizes): Mod for Stellaris that adds more galaxy sizes to the game.
+- [Name Lists](https://github.com/hmlendea/stellaris-ui-name-lists): Mod for Stellaris that adds dozens of new and detailed name lists into the game.
+- [Planet Modifiers](https://github.com/hmlendea/stellaris-ui-planet-modifiers): Mod for Stellaris that adds various new planet modifiers.
+- [Species Names](https://github.com/hmlendea/stellaris-ui-species-names): Mod for Stellaris that adds hundreds of new species names into the game.
+- [Species Traits](https://github.com/hmlendea/stellaris-ui-species-traits): Mod for Stellaris that adds dozens of new species traits, as well as increasing the number of maximum selectable traits.
+- [Star Names](https://github.com/hmlendea/stellaris-ui-star-names): Mod for Stellaris that adds tens of thousands of new names for stars, nebulae, asteroids, and black holes.
+
+## 🔒 Security
+
+Stellaris UI Flags follows a coordinated disclosure policy for security vulnerabilities.
+
+For information on reporting security vulnerabilities, see the [Security Policy](./SECURITY.md).
+
+## 💬 Support
+
+For support, please [open an issue](https://github.com/hmlendea/stellaris-ui-flags/issues).
+
+## 💝 Project Engagement
+
+Discovered a problem with Stellaris UI Flags or have a suggestion for it? [Open an issue](https://github.com/hmlendea/stellaris-ui-flags/issues)!
+
+If you find this project useful, consider [funding it](https://hmlendea.go.ro/funding) or starring ⭐️ it on GitHub, or giving it a thumbs up and adding it as a favourite on the [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=1914541325)!
+
+[![Donate](https://raw.githubusercontent.com/hmlendea/readme-assets/master/donate_generic.png)](https://hmlendea.go.ro/funding)
+
 ## 📄 License
 
-This project is licensed under the GNU General Public License v3.0 — see [LICENSE](./LICENSE) for details.
+This project is being distributed under the `GNU General Public License v3.0`.
+See [LICENSE](./LICENSE) for additional information.
