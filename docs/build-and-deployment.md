@@ -126,30 +126,33 @@ out/
 
 ### Distribution Package Creation
 
-For distribution platforms, the `out/ui-flags/` directory is typically zipped:
+For distribution platforms, the `out/ui-flags/` directory is zipped:
 
 ```bash
 cd out
 zip -r ui-flags_<version>.zip ui-flags/
 ```
 
+The release workflows run the same step from `out/`, building `release.zip` directly from the tag.
+
 ### GitHub Releases
 
-Release assets are uploaded manually or via CI to GitHub Releases with naming convention:
+A GitHub Release is created with the tag, and the zip produced locally may be attached manually with the naming convention:
 - `ui-flags_<version>.zip` (e.g., `ui-flags_1.0.0.zip`)
 
 ### Steam Workshop Deployment
 
-**Workflow:** `.github/workflows/steam-workshop.yml`
+**Workflow:** `.github/workflows/steam-workshop-release.yml`
 
-**Trigger:** Push tag matching `v*.*.*`
+**Trigger:** Push tag matching `v*.*.*`, or manual dispatch with a `tag` input
 
 **Process:**
-1. Checkout repository
-2. Download release asset from GitHub Releases
-3. Unzip to `release/`
-4. Upload `release/ui-flags/` to Steam Workshop using `hmlendea/steam-workshop-update` action
-5. Changelog note includes link to GitHub release
+1. Checkout the requested tag
+2. Install the build tools
+3. Build the mod with `./build.sh <version>`
+4. Zip the package and extract it to `release/`
+5. Upload `release/ui-flags/` to Steam Workshop using `hmlendea/steam-workshop-update` action
+6. Changelog note includes link to GitHub release
 
 **Secrets Required:**
 - `STEAM_USERNAME`
@@ -162,28 +165,30 @@ Release assets are uploaded manually or via CI to GitHub Releases with naming co
 
 ### Nexus Mods Deployment
 
-**Workflow:** `.github/workflows/nexus-mods.yml`
+**Workflow:** `.github/workflows/nexus-mods-release.yml`
 
-**Trigger:** Push tag matching `v*.*.*`
+**Trigger:** Push tag matching `v*.*.*`, or manual dispatch with a `tag` input
 
 **Process:**
-1. Checkout repository
-2. Download release asset from GitHub Releases
-3. Upload `release.zip` to Nexus Mods using `hmlendea/nexusmods-update` action
+1. Checkout the requested tag
+2. Install the build tools
+3. Build the mod with `./build.sh <version>`
+4. Zip the package into `release.zip`
+5. Upload `release.zip` to Nexus Mods using the `Nexus-Mods/upload-action` action
 
 **Secrets Required:**
-- `NEXUS_UPLOADER_USERNAME`
-- `NEXUS_UPLOADER_PASSWORD`
+- `NEXUSMODS_API_KEY`
 
 **Configuration:**
 - Game ID: `stellaris`
 - Mod ID: `75`
+- File ID: `921613`
 
 ### Paradox Mods Deployment
 
 **Process:** Manual upload via Paradox Mods web interface
 
-**Artifact:** `ui-flags_<version>.zip` from GitHub Releases
+**Artifact:** `ui-flags_<version>.zip` built locally or downloaded from GitHub Releases
 
 **No automated workflow currently exists.**
 
@@ -216,17 +221,16 @@ cd stellaris-ui-flags
 
 **Runner:** `ubuntu-latest`
 
-**Pre-installed Tools:** The workflows assume tools are available. The `hmlendea/steam-workshop-update` and `hmlendea/nexusmods-update` actions handle their own dependencies.
+**Pre-installed Tools:** The workflows install the build toolchain on the runner before building; the `hmlendea/steam-workshop-update` and `Nexus-Mods/upload-action` actions handle their own dependencies.
 
 **Workflow Execution:**
-1. Triggered on version tag push (`v*.*.*`)
-2. Downloads release asset from GitHub Releases
-3. Uploads to respective platform
+1. Triggered on version tag push (`v*.*.*`) or manual dispatch
+2. Checks out the requested tag
+3. Installs the build tools and builds the mod
+4. Packages the built mod and uploads it to the respective platform
 
-**Limitations:**
-- No build step in CI (build is done locally by maintainer)
-- Release asset must be pre-uploaded to GitHub Releases
-- No automated testing in CI
+**Environment:**
+- `ubuntu-latest` runner with GIMP, ImageMagick, librsvg, and potrace installed by the workflow
 
 ## Release Process
 
@@ -256,11 +260,12 @@ cd stellaris-ui-flags
    - Click "Create a new release"
    - Tag: `v1.2.3`
    - Title: `Version 1.2.3`
-   - Upload `ui-flags_1.2.3.zip`
+   - Optionally upload `ui-flags_1.2.3.zip` for manual download
    - Publish release
 
 4. **Automated deployment:**
    - GitHub Actions workflows trigger on tag push
+   - Both workflows build the mod from the tag and upload it
    - Steam Workshop and Nexus Mods updated automatically
    - Paradox Mods updated manually
 

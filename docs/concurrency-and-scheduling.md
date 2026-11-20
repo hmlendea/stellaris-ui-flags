@@ -66,14 +66,14 @@ sessions never overlap the workers. Inside a round, sessions run concurrently up
 ```
 
 - No cron, no CI build schedule, no watch mode
-- CI workflows do **not** build — they download the pre-built release asset (D13)
+- CI workflows build the mod on the runner, then package and upload it (D13)
 
 ### CI Trigger Scheduling
 
 | Workflow | Trigger | Schedule |
 |----------|---------|----------|
-| steam-workshop.yml | Tag push `v*.*.*` | On release only |
-| nexus-mods.yml | Tag push `v*.*.*` | On release only |
+| steam-workshop-release.yml | Tag push `v*.*.*` or manual dispatch | On release only |
+| nexus-mods-release.yml | Tag push `v*.*.*` or manual dispatch | On release only |
 
 No timed/scheduled CI jobs exist.
 

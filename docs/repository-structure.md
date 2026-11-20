@@ -76,8 +76,8 @@ stellaris-ui-flags/
 │   ├── FUNDING.yml
 │   ├── cover.png
 │   └── workflows/
-│       ├── nexus-mods.yml
-│       └── steam-workshop.yml
+│       ├── nexus-mods-release.yml
+│       └── steam-workshop-release.yml
 └── docs/
     ├── INDEX.md
     ├── architecture.md
@@ -142,8 +142,8 @@ out/ui-flags/
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `nexus-mods.yml` | Push tag `v*.*.*` | Download release asset, upload to Nexus Mods |
-| `steam-workshop.yml` | Push tag `v*.*.*` | Download release asset, upload to Steam Workshop |
+| `nexus-mods-release.yml` | Push tag `v*.*.*` or manual dispatch | Build the mod, package it, upload to Nexus Mods |
+| `steam-workshop-release.yml` | Push tag `v*.*.*` or manual dispatch | Build the mod, package it, upload to Steam Workshop |
 
 ## File Naming Conventions
 

@@ -48,9 +48,9 @@ Contributors add new flags by placing source files in the appropriate category d
 
 The built mod package in `out/ui-flags/` is consumed by:
 
-- Steam Workshop (via GitHub Actions workflow)
-- Paradox Mods (manual or automated upload)
-- Nexus Mods (via GitHub Actions workflow)
+- Steam Workshop (built and uploaded by the `steam-workshop-release.yml` workflow)
+- Nexus Mods (built and uploaded by the `nexus-mods-release.yml` workflow)
+- Paradox Mods (manual upload)
 - Direct GitHub Releases download
 
 ## Principal Capabilities

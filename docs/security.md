@@ -24,11 +24,10 @@ The project is a content mod with a build pipeline — a low-risk security profi
 
 | Secret | Workflow | Purpose |
 |--------|----------|---------|
-| `STEAM_USERNAME` | steam-workshop.yml | Steam login |
-| `STEAM_PASSWORD` | steam-workshop.yml | Steam password |
-| `STEAM_2FASEED` | steam-workshop.yml | TOTP seed for 2FA |
-| `NEXUS_UPLOADER_USERNAME` | nexus-mods.yml | Nexus login |
-| `NEXUS_UPLOADER_PASSWORD` | nexus-mods.yml | Nexus password |
+| `STEAM_USERNAME` | steam-workshop-release.yml | Steam login |
+| `STEAM_PASSWORD` | steam-workshop-release.yml | Steam password |
+| `STEAM_2FASEED` | steam-workshop-release.yml | TOTP seed for 2FA |
+| `NEXUSMODS_API_KEY` | nexus-mods-release.yml | Nexus Mods API key |
 
 ### Protection Mechanisms
 
@@ -108,7 +107,7 @@ Stellaris parses these as data. There is no mod code, no DLLs, no scripts the ga
 ### Dependencies
 
 - **No package dependencies** (no npm, pip, NuGet, etc.)
-- **GitHub Actions:** `actions/checkout` (official), `hmlendea/steam-workshop-update`, `hmlendea/nexusmods-update` (third-party)
+- **GitHub Actions:** `actions/checkout` (official), `hmlendea/steam-workshop-update`, `Nexus-Mods/upload-action` (third-party)
 - **Third-party actions:** Pinned to latest — consider SHA-pinning for supply-chain hardening
 
 ### Licence

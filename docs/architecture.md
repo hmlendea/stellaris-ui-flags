@@ -179,10 +179,10 @@ flowchart TD
 
 | Platform | Integration Method | Artifact | Authentication |
 |----------|-------------------|----------|----------------|
-| Steam Workshop | GitHub Action (`steam-workshop.yml`) | `release/ui-flags/` directory | Steam credentials via secrets |
-| Nexus Mods | GitHub Action (`nexus-mods.yml`) | `release.zip` | Nexus credentials via secrets |
-| Paradox Mods | Manual upload | `release.zip` | Web UI |
-| GitHub Releases | Manual/automated | `release.zip` | GitHub token |
+| Steam Workshop | GitHub Action (`steam-workshop-release.yml`) | `release/ui-flags/` directory | Steam credentials via secrets |
+| Nexus Mods | GitHub Action (`nexus-mods-release.yml`) | `release.zip` | Nexus API key via secrets |
+| Paradox Mods | Manual upload | `ui-flags_<version>.zip` | Web UI |
+| GitHub Releases | Manual | `ui-flags_<version>.zip` | GitHub token |
 
 ## Dependency Direction and Rules
 
@@ -246,7 +246,7 @@ Source Assets → Build Pipeline → Output Package
 
 1. Tag release: `git tag v1.0.0 && git push origin v1.0.0`
 2. GitHub Actions workflows trigger automatically
-3. Workflows download release asset from GitHub Releases
+3. Workflows install the build tools, build the mod from the tag, and package it
 4. Upload to Steam Workshop and Nexus Mods
 5. Paradox Mods updated manually
 
@@ -255,7 +255,7 @@ Source Assets → Build Pipeline → Output Package
 | Environment | Purpose | Configuration |
 |-------------|---------|---------------|
 | Local development | Building and testing mod | Full toolchain required |
-| GitHub Actions | Automated releases | Ubuntu latest, tools pre-installed |
+| GitHub Actions | Automated releases | Ubuntu latest; the workflows install the toolchain |
 | Distribution platforms | Mod hosting | Platform-specific requirements |
 
 ## Compatibility Contracts

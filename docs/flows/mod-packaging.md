@@ -86,26 +86,22 @@ ASSET CONVERSION COMPLETE
     │
     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 6. DISTRIBUTION ARTEFACT CREATION (post-build, manual/CI)                   │
+│ 6. DISTRIBUTION ARTEFACT CREATION (in the release workflows)               │
 │                                                                             │
-│   LOCAL:                                                                    │
-│   ├── cd out && zip -r ../ui-flags_<version>.zip ui-flags/                 │
-│   └── Result: ui-flags_<version>.zip                                       │
-│                                                                             │
-│   GITHUB RELEASES:                                                          │
-│   ├── Upload ui-flags_<version>.zip to GitHub Release                      │
+│   GITHUB RELEASES (manual):                                                 │
 │   └── Tag: v<version>                                                       │
 │                                                                             │
 │   STEAM WORKSHOP (automated via CI):                                        │
-│   ├── Download release asset from GitHub                                    │
-│   ├── Unzip to release/                                                     │
+│   ├── Checkout tag, install the build tools, run build.sh                  │
+│   ├── Zip the package and extract it to release/                            │
 │   ├── Upload release/ui-flags/ via Steam Workshop API                      │
 │   └── AppID: 281990, ItemID: 1914541325                                    │
 │                                                                             │
 │   NEXUS MODS (automated via CI):                                            │
-│   ├── Download release asset from GitHub                                    │
+│   ├── Checkout tag, install the build tools, run build.sh                  │
+│   ├── Zip the package into release.zip                                      │
 │   ├── Upload release.zip via Nexus Mods API                                │
-│   └── Game: stellaris, ModID: 75                                           │
+│   └── Game: stellaris, ModID: 75, FileID: 921613                           │
 │                                                                             │
 │   PARADOX MODS (manual):                                                    │
 │   ├── Upload ui-flags_<version>.zip via Paradox Mods web UI                │
@@ -359,21 +355,21 @@ ui-flags_1.0.0.zip
 | Platform | Package Format | Upload Method |
 |----------|----------------|---------------|
 | Steam Workshop | Directory (`ui-flags/`) | API (CI) |
-| Nexus Mods | Zip (`ui-flags_<ver>.zip`) | API (CI) |
+| Nexus Mods | Zip (`release.zip`) | API (CI) |
 | Paradox Mods | Zip (`ui-flags_<ver>.zip`) | Manual web |
 | GitHub Releases | Zip (`ui-flags_<ver>.zip`) | Manual web |
 
 ## Steam Workshop Deployment (Automated)
 
-**Workflow:** `.github/workflows/steam-workshop.yml`
+**Workflow:** `.github/workflows/steam-workshop-release.yml`
 
-**Trigger:** Git tag push matching `v*.*.*`
+**Trigger:** Git tag push matching `v*.*.*`, or manual dispatch
 
 **Process:**
 ```yaml
-1. Checkout repository
-2. Download release asset (ui-flags_<version>.zip) from GitHub Releases
-3. Unzip to release/
+1. Checkout the requested tag
+2. Install the build tools and run build.sh
+3. Zip the package and extract it to release/
 4. Upload release/ui-flags/ to Steam Workshop
    - Action: hmlendea/steam-workshop-update
    - AppID: 281990
@@ -388,22 +384,23 @@ ui-flags_1.0.0.zip
 
 ## Nexus Mods Deployment (Automated)
 
-**Workflow:** `.github/workflows/nexus-mods.yml`
+**Workflow:** `.github/workflows/nexus-mods-release.yml`
 
-**Trigger:** Git tag push matching `v*.*.*`
+**Trigger:** Git tag push matching `v*.*.*`, or manual dispatch
 
 **Process:**
 ```yaml
-1. Checkout repository
-2. Download release asset (ui-flags_<version>.zip) from GitHub Releases
-2. Upload release.zip to Nexus Mods
-   - Action: hmlendea/nexusmods-update
+1. Checkout the requested tag
+2. Install the build tools and run build.sh
+3. Zip the package into release.zip
+4. Upload release.zip to Nexus Mods
+   - Action: Nexus-Mods/upload-action
    - Game: stellaris
    - ModID: 75
+   - FileID: 921613
 ```
 **Secrets Required:**
-- `NEXUS_UPLOADER_USERNAME`
-- `NEXUS_UPLOADER_PASSWORD`
+- `NEXUSMODS_API_KEY`
 
 ## Paradox Mods Deployment (Manual)
 
@@ -431,9 +428,9 @@ ui-flags_1.0.0.zip
 ### Consistency Requirements
 
 All version references must match:
-- Build argument = Git tag (without `v`) = GitHub Release tag = Distribution filename
+- Build argument = Git tag (without `v`) = Distribution filename
 
-**Example:** `./build.sh 1.2.3` → tag `v1.2.3` → release `v1.2.3` → file `ui-flags_1.2.3.zip`
+**Example:** `./build.sh 1.2.3` → tag `v1.2.3` → file `ui-flags_1.2.3.zip`
 
 ## Rollback Procedure
 

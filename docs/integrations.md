@@ -45,13 +45,13 @@ The project integrates with four external distribution platforms and three CI/CD
 | Item ID | 1914541325 |
 | Update method | Automated via GitHub Actions |
 
-### Workflow: `steam-workshop.yml`
+### Workflow: `steam-workshop-release.yml`
 
 | Property | Value |
 |----------|-------|
-| Trigger | Tag push matching `v*.*.*` |
+| Trigger | Tag push matching `v*.*.*`, or manual dispatch |
 | Action | `hmlendea/steam-workshop-update` |
-| Input | GitHub Release asset (zip) |
+| Input | Mod package built in the workflow |
 
 ### Secrets
 
@@ -64,20 +64,21 @@ The project integrates with four external distribution platforms and three CI/CD
 ### Process
 
 1. Maintainer tags release `v<version>`
-2. Workflow triggers, checks out repository
-3. Workflow downloads release asset (zip) from GitHub Release
-4. Action authenticates to Steam (username + password + generated 2FA code)
-5. Action uploads zip as new Workshop item version
-6. Workshop item updated; subscribers receive update
+2. Workflow triggers and checks out the tag
+3. Workflow installs the build tools and builds the mod with `./build.sh`
+4. Workflow packages the built mod and extracts it to `release/`
+5. Action authenticates to Steam (username + password + generated 2FA code)
+6. Action uploads the mod directory as a new Workshop item version
+7. Workshop item updated; subscribers receive update
 
 ### Failure Modes
 
 | Failure | Cause | Recovery |
 |---------|-------|----------|
-| Asset not found | Release created without zip, or tag before release | Create release with asset; re-run workflow |
+| Build failure | Missing source or tool failure on the runner | Inspect the workflow log; re-run after a fix |
 | Auth failure | Wrong/expired credentials | Update secrets |
 | 2FA failure | Invalid seed | Update `STEAM_2FASEED` |
-| Upload rejected | Zip structure invalid | Rebuild package, re-release |
+| Upload rejected | Package structure invalid | Rebuild package, re-release |
 
 ## Nexus Mods
 
@@ -87,30 +88,30 @@ The project integrates with four external distribution platforms and three CI/CD
 |----------|-------|
 | Game | stellaris |
 | Mod ID | 75 |
+| File ID | 921613 |
 | Update method | Automated via GitHub Actions |
 
-### Workflow: `nexus-mods.yml`
+### Workflow: `nexus-mods-release.yml`
 
 | Property | Value |
 |----------|-------|
-| Trigger | Tag push matching `v*.*.*` |
-| Action | `hmlendea/nexusmods-update` |
-| Input | GitHub Release asset (zip) |
+| Trigger | Tag push matching `v*.*.*`, or manual dispatch |
+| Action | `Nexus-Mods/upload-action` |
+| Input | Mod package built in the workflow |
 
 ### Secrets
 
 | Secret | Purpose |
 |--------|---------|
-| `NEXUS_UPLOADER_USERNAME` | Nexus Mods account username |
-| `NEXUS_UPLOADER_PASSWORD` | Nexus Mods account password (or API key) |
+| `NEXUSMODS_API_KEY` | Nexus Mods API key |
 
 ### Process
 
-Identical shape to Steam Workshop: tag → workflow → download release asset → authenticate → upload.
+Identical shape to Steam Workshop: tag → workflow → install tools → build → package → authenticate → upload.
 
 ### Failure Modes
 
-Same categories as Steam Workshop (asset missing, auth failure, upload rejection).
+Same categories as Steam Workshop (build failure, auth failure, upload rejection).
 
 ## Paradox Mods
 
@@ -134,24 +135,17 @@ Same categories as Steam Workshop (asset missing, auth failure, upload rejection
 
 ### Role
 
-GitHub Releases is the **artefact source of truth** — both automated workflows download the zip from the Release attached to the tag.
+GitHub Releases is the **public artefact archive** — maintainers can attach the zip produced by a release workflow for manual download.
 
 ### Process
 
 1. Maintainer creates Release on GitHub with tag `v<version>`
-2. Maintainer attaches zip artefact (built locally)
-3. Tag push triggers Steam/Nexus workflows
-4. Workflows download the attached zip
+2. Tag push triggers the Steam/Nexus workflows, which build and publish from that tag
+3. Maintainer may attach the locally built `ui-flags_<version>.zip` for manual download
 
-### Critical Ordering
+### Ordering
 
-The Release (with asset) must exist when workflows run. If the tag is pushed before the Release asset is uploaded, workflows fail with "asset not found".
-
-**Recommended sequence:**
-1. Build package locally
-2. Create GitHub Release with tag `v<version>` and attach zip
-3. Push tag (or push tag first, then immediately attach asset)
-4. Workflows trigger and download the asset
+No ordering constraint exists between the Release and the tag-triggered workflows, because each workflow builds its own archive from the tag.
 
 ## GitHub Actions
 
@@ -159,8 +153,8 @@ The Release (with asset) must exist when workflows run. If the tag is pushed bef
 
 | File | Purpose |
 |------|---------|
-| `.github/workflows/steam-workshop.yml` | Steam Workshop deployment |
-| `.github/workflows/nexus-mods.yml` | Nexus Mods deployment |
+| `.github/workflows/steam-workshop-release.yml` | Steam Workshop deployment |
+| `.github/workflows/nexus-mods-release.yml` | Nexus Mods deployment |
 
 ### Common Structure
 
@@ -171,11 +165,13 @@ on:
       - 'v*.*.*'
 
 jobs:
-  update:
+  release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: hmlendea/<action>@latest
+      - uses: actions/checkout@v7
+      - run: sudo apt-get install -y gimp imagemagick librsvg2-bin potrace
+      - run: ./build.sh "<version>"
+      - uses: <platform-action>@<version>
         with:
           # platform-specific inputs
         env:
@@ -184,12 +180,10 @@ jobs:
 
 ### What CI Does NOT Do
 
-- ❌ Build the mod (no GIMP/potrace/ImageMagick on runners)
 - ❌ Run tests (none exist)
-- ❌ Validate the package
-- ✅ Only download and upload the pre-built artefact
+- ✅ Install the toolchain, build the mod, package it, and upload it
 
-**Rationale (D13):** Build tools are heavy and platform-specific; the maintainer builds locally where tools are installed and verified.
+**Rationale (D13):** Each release workflow builds from the pushed tag, so the archive is reproducible from the repository alone.
 
 ## Local Distribution
 
@@ -218,26 +212,26 @@ ln -s "$(pwd)/out/ui-flags.mod" ~/.local/share/Paradox\ Interactive/Stellaris/mo
 
 | Requirement | Invariant | Enforcement |
 |-------------|-----------|-------------|
-| Same zip on all platforms | D13 (single artefact) | Workflows download same Release asset |
+| Same content on all platforms | D13 (single artefact source) | Both workflows build from the same tag |
 | Version matches tag | INV-20 | Manual procedure |
-| Release asset exists before workflows | INV-19 | Manual procedure |
+| Every workflow builds its archive | INV-19 | Workflow build step |
 | Secrets valid | — | Manual rotation |
 
 ## Integration Failure Recovery
 
 | Platform | Failure | Recovery |
 |----------|---------|----------|
-| Steam Workshop | Workflow failed | Fix cause (asset/credentials), re-run workflow or re-push tag |
+| Steam Workshop | Workflow failed | Fix cause (build/credentials), re-run workflow or re-push tag |
 | Nexus Mods | Workflow failed | Same as Steam |
 | Paradox Mods | Upload not done | Manual upload when available |
-| GitHub Release | Asset missing | Upload asset to existing release; re-run workflows |
+| GitHub Release | Asset missing | Upload asset to the release if a manual download copy is wanted |
 
 ## Adding a New Platform (Future)
 
 To add a distribution platform:
 
-1. Determine if an `hmlendea/*` action exists for it
-2. If yes: create workflow mirroring steam-workshop.yml structure, add secrets
+1. Determine if an action exists for it (for example a `Nexus-Mods/*` or `hmlendea/*` action)
+2. If yes: create a workflow mirroring the `steam-workshop-release.yml` structure, install the build tools, build with `./build.sh`, and add secrets
 3. If no: add to manual distribution list (like Paradox Mods)
 4. Update `build-and-deployment.md` and this document
 5. Ensure the platform receives the same Release zip artefact (consistency)

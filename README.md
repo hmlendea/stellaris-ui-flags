@@ -129,8 +129,8 @@ No dependency installation is required; the build runs entirely from the reposit
 
 | Workflow | Purpose | What it does |
 |----------|---------|--------------|
-| [ Steam Workshop ](https://github.com/hmlendea/stellaris-ui-flags/blob/master/.github/workflows/steam-workshop.yml) | Steam Workshop release | Downloads the GitHub Release asset and uploads it to the Steam Workshop |
-| [ Nexus Mods ](https://github.com/hmlendea/stellaris-ui-flags/blob/master/.github/workflows/nexus-mods.yml) | Nexus Mods release | Downloads the GitHub Release asset and uploads it to Nexus Mods |
+| [ steam-workshop-release.yml ](https://github.com/hmlendea/stellaris-ui-flags/blob/master/.github/workflows/steam-workshop-release.yml) | Release to Steam Workshop | Runs on a `v*.*.*` tag push or manual dispatch: checks out the tag, installs the build tools, builds the mod, zips and extracts the package, and uploads the mod directory to Workshop item `1914541325` with a changelog link |
+| [ nexus-mods-release.yml ](https://github.com/hmlendea/stellaris-ui-flags/blob/master/.github/workflows/nexus-mods-release.yml) | Release to Nexus Mods | Runs on a `v*.*.*` tag push or manual dispatch: checks out the tag, installs the build tools, builds the mod, zips the package, and uploads `ui-flags.zip` to Nexus Mods |
 
 ## 🗂️ Project Structure
 

@@ -155,10 +155,11 @@ difference from the sampled corner colour.
 
 ### Steam Workshop
 
-**Update Trigger:** Git tag push (`v*.*.*`)
+**Update Trigger:** Git tag push (`v*.*.*`) or manual dispatch
 
 **Behaviour:**
-- Downloads release asset from GitHub Releases
+- Checks out the requested tag
+- Installs the build tools and runs `build.sh`
 - Uploads to existing Workshop item (ID: 1914541325)
 - Changelog includes GitHub release URL
 - Previous version replaced
@@ -167,11 +168,12 @@ difference from the sampled corner colour.
 
 ### Nexus Mods
 
-**Update Trigger:** Git tag push (`v*.*.*`)
+**Update Trigger:** Git tag push (`v*.*.*`) or manual dispatch
 
 **Behaviour:**
-- Downloads release asset from GitHub Releases
-- Uploads as new file version to mod (ID: 75)
+- Checks out the requested tag
+- Installs the build tools and runs `build.sh`
+- Uploads as new file version to mod (ID: 921613)
 - Previous versions retained as "old versions"
 
 **Failure:** Workflow fails visibly; Nexus retains previous version.
@@ -182,9 +184,9 @@ difference from the sampled corner colour.
 
 ### GitHub Releases
 
-**Update:** Manual — maintainer creates release and uploads zip asset.
+**Update:** Manual — maintainer creates the release on GitHub.
 
-**Dependency:** Steam Workshop and Nexus Mods workflows **depend on** the GitHub Release existing. Tag push without a published release causes both workflows to fail.
+**Dependency:** None. Both release workflows build the archive themselves from the pushed tag.
 
 ## Edge Cases
 

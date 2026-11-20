@@ -275,12 +275,12 @@ The principal dependency rules are:
 
 | Concern | Current Design | Architectural Consequence |
 |---------|----------------|---------------------------|
-| Build invocation | Manual: `./build.sh <version>` | Version argument required; builds are run locally, not in CI |
-| Output artefact | Directory tree `out/ui-flags/` + `out/ui-flags.mod` | Maintainer zips and uploads to platforms |
+| Build invocation | Manual: `./build.sh <version>` and in release workflows | Version argument required; the release workflows build on the runner |
+| Output artefact | Directory tree `out/ui-flags/` + `out/ui-flags.mod` | The release workflows zip it for each platform; the maintainer can zip it locally |
 | Persistent state | None (build is stateless) | Incremental builds reuse `build/` intermediates |
 | Scaling | Bounded parallel workers plus batched GIMP sessions | Large flag counts increase the number of sessions, not the per-flag cost |
 | Recovery | Re-run `build.sh` with same version | Idempotent: existing output files skipped if present |
-| Operator responsibility | Provide version, ensure tools installed, upload artefacts | No automated publishing |
+| Operator responsibility | Provide version; ensure tools installed locally | Automated publishing to Steam Workshop and Nexus Mods |
 
 ## 🛡️ Compatibility Contracts
 
@@ -313,7 +313,7 @@ Execute the principal automated verification with:
 - **Intermediate retention:** `build/` directory grows with each build; no automatic cleanup.
 - **Version coupling:** `STELLARIS_VERSION` in `build.sh` must be updated manually when Stellaris releases a new major version.
 - **Format coverage:** Only BMP, PNG, and SVG source formats are supported; other formats require new conversion functions.
-- **No in-repository CI builds:** Release workflows download a pre-built GitHub Release asset; they do not build the mod.
+- **CI builds the release:** The release workflows install the toolchain, run `./build.sh` on the runner, and package the result from `out/`.
 
 ## 🔧 Extension Points
 

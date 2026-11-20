@@ -221,25 +221,25 @@ batch, and a killed session is retried over the remaining rounds.
 
 ## Distribution Invariants
 
-### INV-19: Release Asset Precedes Tag-Triggered Workflows
+### INV-19: Release Archive Built From the Tag
 
-**Invariant:** A GitHub Release with the zip asset exists when the `v*.*.*` tag is pushed (or is created immediately after).
+**Invariant:** Each release workflow checks out the requested tag and builds the mod archive from that checkout.
 
-**NOT enforced by:** Workflows — they fail if the asset is missing.
+**Enforced by:** Workflows — the archive is produced by the `Build the release archive` step from the checked-out content.
 
-**Violation Effect:** Steam Workshop and Nexus Mods workflows fail; platforms retain previous version.
+**Violation Effect:** A workflow failure leaves the platform on the previous version.
 
-**Maintenance Rule:** Create the release (with asset) as part of the tagging step.
+**Maintenance Rule:** Keep the tag, the build version argument, and the archive contents consistent.
 
 ---
 
 ### INV-20: Version Consistency Across Artefacts
 
-**Invariant:** Build version = Git tag (minus `v`) = GitHub Release tag = zip filename version.
+**Invariant:** Build version = Git tag (minus `v`) = platform-displayed version.
 
 **NOT enforced by:** Any automation.
 
-**Violation Effect:** Confusing version mismatch across platforms; workflows download wrong asset.
+**Violation Effect:** Confusing version mismatch across platforms.
 
 **Maintenance Rule:** Follow the release procedure exactly — one version string everywhere.
 
@@ -267,7 +267,7 @@ batch, and a killed session is retried over the remaining rounds.
 | INV-16 Bounded parallel workers | ✅ Structural | Worker and session limits |
 | INV-17 Batched GIMP sessions | ✅ Structural | Batching design |
 | INV-18 Skip needs all three | ✅ Structural | Existence check |
-| INV-19 Release before tag | ❌ Manual | Release procedure |
+| INV-19 Archive built from tag | ✅ Structural | Workflow build step |
 | INV-20 Version consistency | ❌ Manual | Release procedure |
 
 **Key Insight:** Structural invariants are safe — the pipeline design enforces them. Manual invariants (❌) rely on contributor discipline and are the most likely to break. When modifying the build, preserve all ✅ invariants; when contributing content, follow all ❌ maintenance rules.

@@ -120,15 +120,15 @@ only GIMP operations used are PNG load/export, Gaussian blur, and bump map.
 
 ## Distribution
 
-### A11: CI Build Absence
+### A11: CI Build Environment
 
-**Question:** Should CI build the mod?
+**Question:** Does the CI build environment match the maintainer's local one closely enough?
 
-**Context:** Workflows only download the Release asset (D13). Building in CI would require installing GIMP, potrace, ImageMagick on runners — feasible but adds workflow complexity.
+**Context:** The release workflows install GIMP, ImageMagick, librsvg, and potrace from the Ubuntu runner's repositories and then run `build.sh`. The runner's GIMP and ImageMagick versions track the Ubuntu image, so a version that changes the bevel or alpha output could alter the published textures.
 
-**Impact:** Release artefact depends on maintainer's local environment; reproducibility not guaranteed.
+**Impact:** A runner toolchain change could alter the published textures without a repository change.
 
-**Resolution Path:** If pursued: CI job installs tools, runs build, uploads artefact, then triggers platform workflows. Trade-off: CI time vs reproducibility.
+**Resolution Path:** If pursued: pin the runner image (`ubuntu-24.04` instead of `ubuntu-latest`) and verify a release's textures in game after a runner image update.
 
 ---
 
@@ -144,15 +144,15 @@ only GIMP operations used are PNG load/export, Gaussian blur, and bump map.
 
 ---
 
-### A13: Release Asset Naming Convention
+### A13: Manual GitHub Release Asset
 
-**Question:** Is there a canonical zip filename format?
+**Question:** Should the public GitHub Release carry a zip asset?
 
-**Context:** Workflows download "the release asset" — the exact filename pattern isn't enforced. Different names across releases could break workflow inputs.
+**Context:** Neither workflow consumes a GitHub Release asset any more; each builds the package from the tag itself. A maintainer may still attach `ui-flags_<version>.zip` to the Release for manual download.
 
-**Impact:** Workflow failure if asset name doesn't match the workflow's expected pattern.
+**Impact:** The public download artefact is optional and maintainer-produced, so it can lag the tag.
 
-**Resolution Path:** Document and enforce a naming convention (e.g., `ui-flags-<version>.zip`); verify workflow input patterns match.
+**Resolution Path:** Either drop the attached asset in favour of workflow artefacts, or keep attaching it as part of the tagging step and document the naming convention (`ui-flags_<version>.zip`).
 
 ---
 
