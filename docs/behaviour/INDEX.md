@@ -12,14 +12,16 @@ This document describes the observable behaviour of the mod and its build pipeli
 
 **Observable Sequence:**
 
-1. **Silent start** — no output until validation completes
-2. **Tool validation** — errors printed if tools missing, exit 1
+1. **Session banner** — the first line reports the chosen bevel batch size and GIMP concurrency
+2. **Tool validation** — errors printed if a start-up tool is missing, exit 1
 3. **Asset staging** — no output, files copied silently
-4. **Asset processing** — GIMP/potrace/ImageMagick may print their own output
-5. **Completion** — no explicit success message; script exits 0
+4. **Asset processing** — `magick`/`potrace`/`rsvg-convert` progress lines and their own output
+5. **Bevel rounds** — one `[INFO] Beveling '<path>'` line per image inside each GIMP session
+6. **Retry notice** — `Beveling <n> flags again on attempt <n>...` when a round was incomplete
+7. **Completion** — `Produced <n> of <n> flag DDS files.`; any unbeveled flags are reported before it
 
 **Expected Duration:**
-- Full build: 5–15 minutes (300+ assets)
+- Full build: several minutes, bounded by the number of GIMP bevel sessions (378 assets)
 - Incremental: <30 seconds (few new assets)
 
 ### Incremental Build Behaviour
@@ -42,19 +44,21 @@ This document describes the observable behaviour of the mod and its build pipeli
 
 | Condition | Behaviour |
 |-----------|-----------|
-| Missing version argument | Print usage, exit 1 |
-| Missing `source/` directory | Print "MISSING SOURCE DIRECTORY", exit 1 |
+| Missing version argument | Print `Please specify a version!`, exit 1 |
+| Missing `source/` directory | Print "MISSING SOURCE DIRECTORY", exit 255 (`-1`) |
 | Missing ImageMagick | Print error, exit 1 |
 | Missing potrace | Print error, exit 1 |
-| Missing GIMP | Print error, exit 1 |
+| Missing Python 3 or `rsvg-convert` | Print error, exit 1 |
+| Missing GIMP | Print error only when the first bevel session starts, exit 1 |
 
 **Asset Errors (continue):**
 
 | Condition | Behaviour |
 |-----------|-----------|
-| Unsupported file extension | Print "Unsupported format", skip asset |
+| Unsupported file extension | Print `[WARNING] Unsupported source format`, skip asset |
 | Conversion tool failure | Asset skipped, pipeline continues |
-| GIMP script error | Asset skipped (missing output), pipeline continues |
+| Bevel failure on one image | Warning logged, batch continues; the image is retried in the next round |
+| Session killed mid-batch | Images it never reached stay unmarked and are retried, then reported if still missing |
 
 **Design Philosophy:** Setup problems abort immediately; individual asset problems don't block the rest of the build.
 
@@ -63,14 +67,16 @@ This document describes the observable behaviour of the mod and its build pipeli
 **On Success:**
 - Complete mod package at `out/ui-flags/`
 - Root descriptor at `out/ui-flags.mod`
+- Final line: `Produced <n> of <n> flag DDS files.`
 - Exit code 0
 
 **On Partial Failure:**
 - Package contains successfully processed assets
 - Failed assets simply absent from output
-- Exit code still 0 (no failure signal)
+- Bevels that remained unmarked are listed with a diagnosed reason before the final count
+- Exit code reflects any fatal conversion/export error (see [Error Handling](error-handling.md))
 
-**Implication:** Always verify output completeness after build — the script does not report skipped assets.
+**Implication:** The final count and any unbeveled report should be checked after each build; a skipped asset is otherwise silent.
 
 ## Mod Behaviour In-Game
 
@@ -196,11 +202,11 @@ difference from the sampled corner colour.
 
 ### Very Large SVG
 
-**Behaviour:** Scaled to fit target size; no maximum dimension limit. Extremely complex SVGs may render slowly or fail GIMP import.
+**Behaviour:** Scaled to fit target size; no maximum dimension limit. Very complex SVGs may render or bevel slowly, or exhaust a GIMP session's memory.
 
 ### Corrupt Source File
 
-**Behaviour:** Conversion tool fails; asset skipped; pipeline continues. No specific error message beyond tool output.
+**Behaviour:** The relevant conversion tool fails; the asset produces no output; the pipeline continues. The failure usually appears only in that asset's worker log under `build/`.
 
 ### Missing names.txt
 
@@ -212,7 +218,7 @@ difference from the sampled corner colour.
 
 ### Missing Thumbnail
 
-**Behaviour:** `cp` fails; build continues; mod has no thumbnail. Descriptor references missing file — launcher shows default icon.
+**Behaviour:** the `cp` that stages `source/thumbnail.png` fails, and the build continues; the mod has no thumbnail. The descriptor carries no `picture` field, so the launcher falls back to its default icon.
 
 ## State Persistence
 

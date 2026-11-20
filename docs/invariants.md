@@ -18,11 +18,11 @@ Invariants are conditions that must always hold true for the system to function 
 
 ### INV-2: All Required Tools Available
 
-**Invariant:** ImageMagick, `rsvg-convert`, potrace, Python 3, and GIMP are all detectable at build start.
+**Invariant:** ImageMagick, `rsvg-convert`, potrace, and Python 3 are detectable at build start; GIMP is detectable when a bevel session first starts.
 
-**Enforced by:** Tool detection and validation (exit 1 per missing tool).
+**Enforced by:** Start-up tool detection and validation (exit 1 per missing tool), plus a lazy GIMP check inside `execute-gimp-script-file`.
 
-**Violation Effect:** Build aborts — even if a missing tool (such as GIMP) is only needed for the bevels, which a cached build would skip.
+**Violation Effect:** Build aborts at start-up if ImageMagick, potrace, Python 3, or `rsvg-convert` is missing. A missing GIMP aborts only once a bevel is actually required, so a fully cached build does not need it.
 
 ---
 
@@ -97,7 +97,7 @@ Invariants are conditions that must always hold true for the system to function 
 
 ### INV-9: Descriptor Files Generated Every Build
 
-**Invariant:** Both `out/ui-flags.mod` and `out/ui-flags/descriptor.mod` are regenerated on every build.
+**Invariant:** Both `out/ui-flags.mod` and `out/ui-flags/descriptor.mod` are regenerated on every build, and both carry `path="mod/ui-flags"`.
 
 **Enforced by:** Static staging stage runs unconditionally.
 
@@ -250,7 +250,7 @@ batch, and a killed session is retried over the remaining rounds.
 | Invariant | Enforced | Mechanism |
 |-----------|----------|-----------|
 | INV-1 Source dir | ✅ Build aborts | Validation |
-| INV-2 Tools | ✅ Build aborts | Validation |
+| INV-2 Tools | ✅ Build aborts | Start-up validation (GIMP lazy) |
 | INV-3 Version arg | ✅ Build aborts | Validation |
 | INV-4 SVG intermediate | ✅ Structural | Pipeline order |
 | INV-5 Three variants | ✅ Structural | Pipeline order |

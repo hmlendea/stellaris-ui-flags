@@ -16,20 +16,18 @@ There is **no logging framework**. The build produces:
 
 | Message Pattern | When |
 |-----------------|------|
-| Tool detection results | Setup — reports which tool path was found |
-| Category iteration | Once per category directory |
-| Per-asset processing | Once per flag asset |
-| Completion | End of build |
+| `Using a bevel batch size of <n> and <n> concurrent GIMP sessions.` | First line of the build |
+| `Processing <name> (<path>)...` | Once per flag asset |
+| `Converting <type> for '<path>'...` | Inside each conversion helper |
+| `Beveling <n> flags again on attempt <n>...` | Before each retry round after the first |
+| `Produced <n> of <n> flag DDS files.` | Final line of the build |
+| `[ERROR] <n> flags were not beveled after 8 attempts:` | Before the final count, if any bevels are missing |
 
 ### Message Format
 
-Messages are unstructured plain text — no timestamps, no levels, no categories.
-
-```
-Processing category: human
-Processing flag: ui_earth
-...
-```
+Messages are unstructured plain text — no timestamps, no levels (apart from `[ERROR]`, `[WARNING]`,
+and `[INFO]` prefixes on specific lines), and no categories. Semicolons concatenate some progress
+messages onto a single line.
 
 ### Verbosity
 
@@ -47,8 +45,8 @@ GIMP batch mode prints to stderr:
 |--------|---------|
 | `batch command experienced an execution error` | Python-Fu failure — check arguments and input file |
 | `batch command executed successfully` | Operation completed |
-| `[INFO] Beveling '<path>'` | The bevel started on that image (one line per image) |
-| `[WARNING] Failure while beveling '<path>': <reason>` | The bevel script raised an error on that image |
+| `[INFO] Beveling '<path>'` | The bevel started on that image (flushed before the work, one line per image) |
+| `[WARNING] Failure while beveling '<path>': <reason>` | The bevel script raised an error on that image (printed to stderr) |
 | Plug-in warnings | Non-fatal; usually ignorable |
 
 GIMP startup also prints version/warning noise to stderr on each invocation — this is normal and not an error indicator.
@@ -113,10 +111,8 @@ bash -x ./build.sh <version> 2>&1 | tee trace.log
 Run a single GIMP operation manually with full output:
 
 ```bash
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="/path/to/input.svg" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="/path/to/output.png" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
-    gimp -i --batch-interpreter=python-fu-eval \
+env GIMP_SCRIPT_IMAGE_PATH="/path/to/input.png" \
+    gimp --new-instance -i --batch-interpreter=python-fu-eval \
     -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/gradient_bevel.py').read())" --quit
 ```
 
@@ -144,7 +140,7 @@ Shows context before each GIMP failure — typically the asset being processed.
 ### Counting Processed Assets
 
 ```bash
-grep -c "Processing flag" build.log
+grep -c "^Processing " build.log
 ```
 
 Compare against source file count to detect silent skips.

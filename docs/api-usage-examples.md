@@ -17,19 +17,20 @@ get-flag-file-name "my-flag"
 # Output: ui_my-flag
 
 # With names.txt mapping
-echo "my-flag=custom_name" > source/names.txt
+# (the function reads FLAG_NAMES_FILE_PATH, so echo the mapping first)
+echo "my-flag=custom_name" >> source/names.txt
 get-flag-file-name "my-flag"
 # Output: custom_name
 ```
 
-### generate-mod-descriptor
+### `generate-mod-descriptor`
 
 ```bash
-# Root descriptor
-generate-mod-descriptor "out/ui-flags.mod" "mod/ui-flags"
+# Root descriptor (path is fixed to mod/ui-flags by the function)
+generate-mod-descriptor "out/ui-flags.mod"
 
-# Package descriptor
-generate-mod-descriptor "out/ui-flags/descriptor.mod" "."
+# Package descriptor (identical content)
+generate-mod-descriptor "out/ui-flags/descriptor.mod"
 ```
 
 ### Format Conversion Functions
@@ -48,11 +49,11 @@ png-to-svg "source/flags/human/flag.png" "build/human/flag.svg"
 # Main (128px)
 svg-to-png "build/human/flag.svg" "build/human/flag.png" 128
 
-# Map (256px)
-svg-to-png "build/human/flag.svg" "build/human/flag_map.png" 256
+# Map (256px) — written to the map/ subdirectory
+svg-to-png "build/human/flag.svg" "build/human/map/flag.png" 256
 
-# Small (24px)
-svg-to-png "build/human/flag.svg" "build/human/flag_small.png" 24
+# Small (24px) — written to the small/ subdirectory
+svg-to-png "build/human/flag.svg" "build/human/small/flag.png" 24
 ```
 
 ### Bevel Application
@@ -80,10 +81,10 @@ bevel-pngs "2" "${FLAG_BEVEL_PATHS[@]}"
 png-to-dds "build/human/flag.png" "out/ui-flags/flags/human/ui_flag.dds"
 
 # Map flag
-png-to-dds "build/human/flag_map.png" "out/ui-flags/flags/human/map/ui_flag.dds"
+png-to-dds "build/human/map/flag.png" "out/ui-flags/flags/human/map/ui_flag.dds"
 
 # Small flag
-png-to-dds "build/human/flag_small.png" "out/ui-flags/flags/human/small/ui_flag.dds"
+png-to-dds "build/human/small/flag.png" "out/ui-flags/flags/human/small/ui_flag.dds"
 ```
 
 ---
@@ -115,11 +116,12 @@ magick -size 128x128 xc:white /tmp/alpha.png -alpha off \
 # Apply the gradient bevel to a newline-separated batch, rewriting each PNG in place
 env GIMP_SCRIPT_IMAGE_PATHS="build/human/ui_flag.png
 build/human/small/ui_flag.png" \
-    gimp -i --batch-interpreter=python-fu-eval \
+    gimp --new-instance -i --batch-interpreter=python-fu-eval \
     -b "import sys; sys.path.insert(0, '${GIMP_DIRECTORY_PATH}'); exec(open('${GIMP_DIRECTORY_PATH}/bevel_batch.py').read())" --quit
 
 # Parameters:
 #   GIMP_SCRIPT_IMAGE_PATHS — newline-separated PNG paths, each rewritten in place
+# A .beveled marker is written beside each PNG only after its bevel has been saved.
 ```
 
 ### gradient_bevel.py
@@ -127,7 +129,7 @@ build/human/small/ui_flag.png" \
 ```bash
 # Apply gradient bevel to a single PNG, rewriting it in place
 env GIMP_SCRIPT_IMAGE_PATH="/path/to/input.png" \
-    gimp -i --batch-interpreter=python-fu-eval \
+    gimp --new-instance -i --batch-interpreter=python-fu-eval \
     -b "import sys; sys.path.insert(0, '${GIMP_DIRECTORY_PATH}'); exec(open('${GIMP_DIRECTORY_PATH}/gradient_bevel.py').read())" --quit
 
 # Parameters:
@@ -189,22 +191,22 @@ cp source/flags/human/earth.svg build/human/earth.svg
 svg-to-png "build/human/earth.svg" "build/human/earth.png" 128
 
 # 3. Render 256px PNG (map)
-svg-to-png "build/human/earth.svg" "build/human/earth_map.png" 256
+svg-to-png "build/human/earth.svg" "build/human/map/earth.png" 256
 
 # 4. Render 24px PNG (small)
-svg-to-png "build/human/earth.svg" "build/human/earth_small.png" 24
+svg-to-png "build/human/earth.svg" "build/human/small/earth.png" 24
 
 # 5. Apply the bevel to main and small in one GIMP session (in place)
-bevel-pngs "1" "build/human/earth.png" "build/human/earth_small.png"
+bevel-pngs "1" "build/human/earth.png" "build/human/small/earth.png"
 
 # 6. Export main, map and small DDS
 env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/human/earth.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="out/ui-flags/flags/human/ui_earth.dds" \
     python3 "${SOURCE_SCRIPTS_DIR_PATH}/png_to_dds.py"
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/human/earth_map.png" \
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/human/map/earth.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="out/ui-flags/flags/human/map/ui_earth.dds" \
     python3 "${SOURCE_SCRIPTS_DIR_PATH}/png_to_dds.py"
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/human/earth_small.png" \
+env GIMP_SCRIPT_INPUT_IMAGE_PATH="build/human/small/earth.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="out/ui-flags/flags/human/small/ui_earth.dds" \
     python3 "${SOURCE_SCRIPTS_DIR_PATH}/png_to_dds.py"
 ```
@@ -255,8 +257,8 @@ ls -la out/ui-flags/flags/human/small/ui_custom_name.dds
 # 1. Create directory
 mkdir source/flags/new_category
 
-# 2. Add localisation
-echo '    FLAG_CATEGORY_new_category:0 "New Category"' >> source/localisation.yml
+# 2. Add localisation (one leading space, matching the file's style)
+echo ' FLAG_CATEGORY_new_category:0 "New Category"' >> source/localisation.yml
 
 # 3. Add flags
 cp flag1.svg source/flags/new_category/
@@ -284,14 +286,10 @@ ls -la out/ui-flags/flags/backgrounds/my-background.dds
 ### Add a Colour
 
 ```bash
-# 1. Edit colours.txt (add to colors = { ... } block)
-cat >> source/colours.txt << 'EOF'
-    my_colour = {
-        hsv = { 0.5 0.8 0.9 }
-        use_as_border_color = yes
-        randomizable_combo = yes
-    }
-EOF
+# 1. Edit colours.txt (add one line inside the colors = { ... } block)
+#    The file uses one line per colour: name = { flag = ... map = ... ship = ... use_as_border_color = yes }
+#
+#    my_colour = { flag = hsv { 0.5 0.8 0.9 } map = hsv { 0.5 0.8 0.9 } ship = hsv { 0.5 0.8 0.9 } use_as_border_color = yes }
 
 # 2. Build
 ./build.sh 1.2.3
@@ -373,7 +371,7 @@ cat out/ui-flags/descriptor.mod
 ### Check Localisation
 
 ```bash
-grep FLAG_CATEGORY out/ui-flags/ui-flags_l_english.yml
+grep FLAG_CATEGORY out/ui-flags/localisation/ui-flags_l_english.yml
 ```
 
 ### Check Colours
@@ -400,7 +398,6 @@ MOD_DIR=~/.local/share/Paradox\ Interactive/Stellaris/mod
 ln -sf "$(pwd)/out/ui-flags" "$MOD_DIR/ui-flags"
 ln -sf "$(pwd)/out/ui-flags.mod" "$MOD_DIR/ui-flags.mod"
 ```
-
 ### Local Install (Copy)
 
 ```bash

@@ -228,27 +228,33 @@ while costing milliseconds instead of a multi-second GIMP start.
 
 ## Invocation Pattern
 
-All scripts are invoked via GIMP batch mode from `build.sh`, with parameters supplied as `GIMP_SCRIPT_*` environment variables:
+GIMP-based scripts are invoked via GIMP batch mode from `build.sh` through `execute-gimp-script-file`, with parameters supplied as `GIMP_SCRIPT_*` environment variables. The script directory is prepended to `sys.path` so the shared modules resolve, and the script file is executed with `exec`.
 
 ```bash
-# Pattern
-env GIMP_SCRIPT_<NAME>="<value>" ... "${GIMP_TOOL_PATH}" -i \
-    --batch-interpreter=python-fu-eval \
-    -b "exec(open('${SCRIPT_PATH}').read())" --quit
+# Pattern (as emitted by execute-gimp-script-file)
+local GIMP_BATCH_COMMAND="import sys; sys.path.insert(0, '${SOURCE_SCRIPTS_DIR_PATH}'); exec(open('${GIMP_SCRIPT_PATH}').read())"
 
-# Example
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="in.svg" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="out.png" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
-    "${GIMP_TOOL_PATH}" -i --batch-interpreter=python-fu-eval \
-    -b "exec(open('source/scripts/gradient_bevel.py').read())" --quit
+env "${GIMP_SCRIPT_ARGUMENTS[@]}" "${GIMP_BINARY}" --new-instance -i \
+    --batch-interpreter=python-fu-eval -b "${GIMP_BATCH_COMMAND}" --quit
+
+# Example: bevel a batch
+env GIMP_SCRIPT_IMAGE_PATHS="build/human/ui_flag.png
+build/human/small/ui_flag.png" \
+    gimp --new-instance -i --batch-interpreter=python-fu-eval \
+    -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/bevel_batch.py').read())" --quit
 ```
 
+Only `bevel_batch.py` and `gradient_bevel.py` are executed inside GIMP. `png_to_dds.py` is run by
+Python 3 directly, and `svg-to-png` is a `build.sh` function that uses `rsvg-convert` and ImageMagick.
+
 **Flags:**
+- `--new-instance` — Start an isolated instance, so a batch is never discarded by an instance still shutting down
 - `-i` — No interface (batch mode)
 - `--batch-interpreter=python-fu-eval` — Select the Python-Fu interpreter
 - `-b` — Batch command
 - `--quit` — Exit GIMP after commands
+
+**Concurrency:** At most `FLAG_GIMP_CONCURRENCY` sessions run at once, coordinated through lock files under `build/gimp-slots/`, because `--new-instance` means each invocation is a separate process that reserves its own tile cache.
 
 ## Dependencies
 
@@ -257,14 +263,13 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="in.svg" \
 - **Tested:** GIMP 3.2.8
 
 ### Required Plug-ins
-GIMP 3 bundles every required plug-in.
+GIMP 3 bundles every operation the bevel requires. SVG import is no longer needed, because the
+rasterisation runs through `rsvg-convert` rather than GIMP.
 
 | Plug-in | PDB Function | Purpose |
 |---------|--------------|---------|
-| SVG import | `file-svg-load` | Load SVG files |
 | PNG import | `file-png-load` | Load PNG files |
 | PNG export | `file-png-export` | Write PNG files |
-| Colour to Alpha | `gegl:color-to-alpha` | Remove solid backgrounds |
 | Gaussian Blur | `gegl:gaussian-blur` | Relief silhouette smoothing |
 | Bump Map | `gegl:bump-map` | Bevel embossing |
 | Python-Fu | `python-fu-eval` | Batch script interpreter |

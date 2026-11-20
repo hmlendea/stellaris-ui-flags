@@ -92,7 +92,7 @@ No timed/scheduled CI jobs exist.
 
 | Scenario | Assets | Approx. Time |
 |----------|--------|--------------|
-| Full rebuild | 300+ | Bounded by the number of bevel sessions |
+| Full rebuild | 378 | Bounded by the number of bevel sessions |
 | Incremental (few new) | 1–10 | Seconds |
 | Static-only change | 0 (all skip) | Seconds |
 
@@ -124,7 +124,7 @@ against per-session memory.
 | Concurrency safety | None across two builds (user responsibility) |
 | Scheduling | Manual invocation only |
 | CI builds | None (asset download instead) |
-| Build time (full) | 5–15 minutes |
-| Build time (incremental) | <30 seconds |
+| Build time (full) | Several minutes, bounded by the number of bevel sessions |
+| Build time (incremental) | Seconds when only new assets are added |
 | Bottleneck | GIMP process startup |
 | Parallelisation | Possible but not implemented |

@@ -18,11 +18,28 @@ This document records the key design decisions in the project, their rationale, 
 - ✅ Zero build-system dependencies
 - ✅ Entire pipeline visible in one file
 - ⚠️ Script grows large as features are added
-- ⚠️ No parallelism built in (sequential processing)
+- ⚠️ Parallelism is hand-rolled with background jobs (`FLAG_WORKER_COUNT` workers, batched GIMP sessions)
 
 **Alternatives Considered:**
 - Make: rejected — overkill, poor fit for file transformation pipelines
 - Python: rejected — adds runtime dependency, no benefit at this scale
+
+---
+
+## D1a: Parallel Rasterisation with Batched GIMP Bevels
+
+**Decision:** Rasterise and export in `FLAG_WORKER_COUNT` background workers, then apply the bevels in shared GIMP sessions of `FLAG_BEVEL_BATCH_SIZE` images, bounded to `FLAG_GIMP_CONCURRENCY` at once.
+
+**Rationale:**
+- Rasterisation and DDS export use `rsvg-convert`, ImageMagick, and Python — they scale freely
+- GIMP start-up dominates the bevel cost, so several images share one session
+- A session's memory grows with the images it has handled, so the batch is bounded and a killed session is retried
+
+**Consequences:**
+- ✅ Wall time bounded by the number of bevel sessions, not the number of flags
+- ✅ Rasterisation and export are effectively free
+- ⚠️ An oversized batch exhausts memory and leaves flags unbeveled until the retry rounds reach them
+- ⚠️ `FLAG_BEVEL_BATCH_SIZE` is derived from available memory at start-up unless overridden
 
 ---
 
@@ -34,7 +51,7 @@ This document records the key design decisions in the project, their rationale, 
 - Single rendering path for all sources (SVG → PNG at 3 sizes)
 - Vector format scales cleanly to 128px, 256px, 24px
 - One set of rendering logic to maintain
-- `rsvg-convert` SVG import handles the rasterisation
+- `rsvg-convert` handles the SVG rasterisation
 
 **Consequences:**
 - ✅ Uniform pipeline regardless of source format
@@ -202,8 +219,9 @@ images into one session.
 
 **Consequences:**
 - ✅ Works out-of-box on most Linux distros
+- ✅ GIMP is resolved lazily, only at the first bevel session, so a cached build needs no GIMP
 - ⚠️ Snap, Nix, custom paths not detected
-- ⚠️ Flatpak GIMP may lack DDS plug-in (separate install)
+- ⚠️ ImageMagick and potrace are checked only at their fixed `/usr/bin` paths
 
 ---
 
@@ -273,6 +291,7 @@ images into one session.
 | # | Decision | Key Trade-off |
 |---|----------|---------------|
 | D1 | Single bash script | Simplicity over scalability |
+| D1a | Parallel rasterisation, batched bevels | Session amortisation over memory safety |
 | D2 | SVG canonical intermediate | Uniform pipeline over raster fidelity |
 | D3 | Three fixed resolutions | Game compliance over flexibility |
 | D4 | Bevel main+small, not map | UI polish vs map clarity |

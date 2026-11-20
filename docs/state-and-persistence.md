@@ -28,14 +28,19 @@ The build is **stateless by design** — no database, no cache metadata, no conf
 - **Contents:**
   ```
   build/
+  ├── gimp-slots/               (lock files bounding concurrent GIMP sessions)
+  ├── bevel-<round>-<chunk>.log (GIMP session output)
+  ├── bevel-<round>-<chunk>.log.flags / .log.exit
+  ├── <category>-<flag>.log     (per-flag worker log)
   └── <category>/
-      ├── <source_name>.svg      (format conversion output)
-      ├── <source_name>.png     (128px render)
-      ├── <source_name>_map.png (256px render)
-      └── <source_name>_small.png (24px render)
+      ├── <name>.svg            (format conversion output)
+      ├── <name>.png            (128px render, beveled in place)
+      ├── <name>.png.beveled    (completion marker)
+      ├── map/<name>.png        (256px render, no bevel)
+      └── small/<name>.png      (24px render, beveled in place)
   ```
-- **State role:** Debugging aid; would support future optimisation (skip re-conversion)
-- **Note:** Intermediates are NOT used for incremental skipping — only `out/` DDS files are checked
+- **State role:** Debugging aid; the `.beveled` markers let a re-run rasterise only whatever a killed session left unmarked
+- **Note:** Intermediates are NOT used for the incremental *asset* skip — only `out/` DDS files are checked for that
 
 ### `out/` — Output State
 
@@ -62,13 +67,16 @@ The build is **stateless by design** — no database, no cache metadata, no conf
 
 ## Incremental Build State
 
-The **only** build state that affects behaviour is output file existence:
+The build state that affects behaviour is output file existence, plus the bevel completion markers:
 
 ```bash
 if [[ -f "$MAIN_DDS" && -f "$MAP_DDS" && -f "$SMALL_DDS" ]]; then
     continue  # skip asset
 fi
 ```
+
+The `.beveled` markers additionally gate re-rasterisation: a PNG lacking a marker is re-rendered
+before the next bevel round attempts it.
 
 ### State Transitions Per Asset
 
@@ -128,7 +136,8 @@ This resets all intermediate and output state. Required after any non-static cha
 
 ## Concurrency State
 
-**None.** No locks, no PID files, no mutexes.
+**None between builds.** No lock state persists, but within a build the GIMP sessions coordinate
+through lock files under `build/gimp-slots/` to bound concurrency to `FLAG_GIMP_CONCURRENCY`.
 
 - Two simultaneous builds on the same checkout **will corrupt state** (both write to `build/` and `out/`)
 - Sequential builds are safe
@@ -177,6 +186,6 @@ The stateless design (D7) trades reprocessing time for simplicity:
 - ✅ No state format to migrate
 - ✅ Trivially understandable behaviour
 - ⚠️ Modified sources require manual intervention
-- ⚠️ Full rebuilds take 5–15 minutes
+- ⚠️ Modified sources require deleting their outputs; a full rebuild also re-runs every bevel
 
 Any future state tracking (e.g., hash-based) must maintain the invariant that **static content always refreshes** and **skip decisions are conservative** (prefer reprocessing over skipping).

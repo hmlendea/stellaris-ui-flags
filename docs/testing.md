@@ -15,7 +15,7 @@ There is **no automated test suite**. Validation is manual, at three levels:
 | Content project | Output is data, not code — few unit-testable units |
 | Visual output | Correctness is "looks right in game" — hard to assert |
 | Tool dependence | Tests would need GIMP/potrace/ImageMagick installed — same cost as building |
-| Scale | Full build (5–15 min) is itself the integration test |
+| Scale | A full build, bounded by the number of GIMP bevel sessions, is itself the integration test |
 
 The build script's functions are the closest thing to units; they can be exercised individually (see below).
 
@@ -79,13 +79,13 @@ test -d out/ui-flags/flags/backgrounds && echo "backgrounds OK"
 cat out/ui-flags.mod
 ```
 
-Verify: correct `version`, `path="mod/ui-flags"`, `tags`, `picture`.
+Verify: correct `version`, `path="mod/ui-flags"`, `tags`. No `picture` field.
 
 ```bash
 cat out/ui-flags/descriptor.mod
 ```
 
-Verify: correct `version`, `path="."`.
+Verify: identical content to the root descriptor, also `path="mod/ui-flags"`.
 
 ### DDS Format Check
 
@@ -167,7 +167,7 @@ Verify `/tmp/raw.png` exists and opens correctly.
 
 ```bash
 env GIMP_SCRIPT_IMAGE_PATHS="/tmp/test.png" \
-    gimp -i --batch-interpreter=python-fu-eval \
+    gimp --new-instance -i --batch-interpreter=python-fu-eval \
     -b "import sys; sys.path.insert(0, 'source/scripts'); exec(open('source/scripts/bevel_batch.py').read())" --quit
 ```
 

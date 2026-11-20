@@ -12,17 +12,16 @@ This mod is a **content mod** — it adds flag assets, colours, and localisation
 
 ### `get-flag-file-name`
 
-Resolves output filename from source filename using the `names.txt` mapping.
+Resolves the output filename from a source filename using the global `names.txt` mapping.
 
 ```bash
-get-flag-file-name <names_file_path> <source_file_name>
+get-flag-file-name <source_file_name>
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `names_file_path` | string | Path to `names.txt` |
 | `source_file_name` | string | Source filename without extension |
 
 **Returns:** Output filename (without extension) via stdout.
@@ -31,9 +30,11 @@ get-flag-file-name <names_file_path> <source_file_name>
 - If `source_file_name` found in `names.txt`: returns mapped value
 - If not found: returns `"ui_" + source_file_name`
 
+The mapping file path is read from the global `FLAG_NAMES_FILE_PATH` variable (`source/names.txt`), so the function takes a single argument.
+
 **Example:**
 ```bash
-get-flag-file-name "source/names.txt" "eagle"
+get-flag-file-name "eagle"
 # Returns: "ui_domination_1" (if names.txt has eagle=ui_domination_1)
 # Returns: "ui_eagle" (if no entry)
 ```
@@ -45,7 +46,7 @@ get-flag-file-name "source/names.txt" "eagle"
 Generates a Stellaris mod descriptor file (`.mod`).
 
 ```bash
-generate-mod-descriptor <output_path> <path_value>
+generate-mod-descriptor <output_path>
 ```
 
 **Parameters:**
@@ -53,25 +54,26 @@ generate-mod-descriptor <output_path> <path_value>
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `output_path` | string | Where to write the descriptor file |
-| `path_value` | string | Value for `path` field in descriptor |
 
 **Side Effects:** Writes descriptor file to `output_path`.
 
 **Descriptor Content:**
 ```ini
+version="${MOD_VERSION}"
 name="${MOD_NAME}"
-path="${path_value}"
-supported_version="${STELLARIS_VERSION}"
+path="mod/${MOD_ID}"
 tags={
-    "Graphics"
+	"Graphics"
 }
-picture="thumbnail.png"
+supported_version="${STELLARIS_VERSION}"
 ```
+
+Both descriptors are written identically, so both carry `path="mod/ui-flags"`. There is no `picture` field.
 
 **Example:**
 ```bash
-generate-mod-descriptor "out/ui-flags.mod" "mod/ui-flags"
-generate-mod-descriptor "out/ui-flags/descriptor.mod" "."
+generate-mod-descriptor "out/ui-flags.mod"
+generate-mod-descriptor "out/ui-flags/descriptor.mod"
 ```
 
 ---
@@ -193,6 +195,20 @@ collect-unbeveled-pngs
 
 ---
 
+### `report-unbeveled-flags`
+
+Prints the path, source SVG, and diagnosed reason for every flag still unbeveled after the final
+round. Each reason is produced by `describe-bevel-failure`, which reads the session log, flag list,
+and exit code beside each `build/bevel-*.log` to attribute the failure to a session fate.
+
+```bash
+report-unbeveled-flags
+```
+
+**Tool:** None, reads `build/bevel-*.log*` files
+
+---
+
 ## GIMP Python-Fu Functions
 
 ### `apply_gradient_bevel` (gradient_bevel.py)
@@ -209,7 +225,7 @@ apply_gradient_bevel(image_path)
 |-----------|------|-------------|
 | `image_path` | string | Path to the PNG file, rewritten in place |
 
-**Behaviour:** Loads PNG, applies a white-to-grey radial gradient to the flag, bump maps it using a blurred silhouette as the height map, re-clips it to its transparency, and overlays a radial gold gradient clipped to the shape, then merges and saves the PNG. The algorithm reproduces the GIMP 2.10 bevel.
+**Behaviour:** Loads PNG, applies a white-to-grey radial gradient to the flag, bump maps it using a blurred silhouette as the height map, offsets/inverts/dims the blur layer, overlays a radial gold gradient clipped to the shape, then merges and saves the PNG. The flag is deliberately not re-clipped to the silhouette after the bump map, because the legacy bump map colours pixels outside it and clipping would thin the emblem edges. The algorithm reproduces the GIMP 2.10 bevel.
 
 **Key Constants:**
 ```python
@@ -217,7 +233,28 @@ BLUR_RADIUS = 2.5       # Gaussian blur radius used for the relief silhouette
 BUMP_AZIMUTH = 115.0    # Bump-map light direction
 BUMP_ELEVATION = 40.0   # Bump-map light elevation
 BUMP_DEPTH = 5          # Bump-map depth
+COMPLETION_MARKER_SUFFIX = '.beveled'  # Marker written only after a successful save
 ```
+
+---
+
+### `bevel_images` (bevel_batch.py)
+
+Applies the gradient bevel to every image of a batch inside one GIMP session.
+
+```python
+bevel_images(image_paths)
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `image_paths` | list | PNG paths, each rewritten in place |
+
+**Behaviour:** Writes a flushed `[INFO] Beveling '<path>'` line before each image (so a killed session still
+records the image in flight), calls `apply_gradient_bevel`, and writes the `.beveled` marker only
+after the bevel is saved. A failure on one image is reported as a warning and the batch continues.
 
 ---
 
@@ -264,25 +301,26 @@ and then ImageMagick for the alpha channel.
 ### Mod Descriptor Format
 
 ```ini
+version="<build_version>"
 name="<display_name>"
-path="<relative_path>"
+path="mod/<mod_id>"
 supported_version="<version_pattern>"
 tags={
     "<tag1>"
-    "<tag2>"
 }
-picture="<thumbnail_file>"
 ```
 
 **Fields:**
 
 | Field | Type | Required | Example |
 |-------|------|----------|---------|
+| `version` | string | Yes | `1.0.0` |
 | `name` | string | Yes | `Universum Infinitum: Flags` |
-| `path` | string | Yes | `mod/ui-flags` or `.` |
+| `path` | string | Yes | `mod/ui-flags` |
 | `supported_version` | string | Yes | `v4.5.*` |
-| `tags` | list | No | `{"Graphics"}` |
-| `picture` | string | No | `thumbnail.png` |
+| `tags` | list | Yes | `{"Graphics"}` |
+
+There is no `picture` field; both descriptors carry `path="mod/ui-flags"`.
 
 ### Colour Definition Format (`colors.txt`)
 
@@ -371,24 +409,24 @@ rm -rf build out
 ```bash
 GIMP_SCRIPTS_DIRECTORY_PATH="source/scripts"
 
-# Render SVG to 128px PNG
-env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.svg" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.png" \
-    GIMP_SCRIPT_OUTPUT_IMAGE_SIZE="128" \
-    gimp -i --batch-interpreter=python-fu-eval \
+# Apply the gradient bevel to a single PNG (rewritten in place)
+env GIMP_SCRIPT_IMAGE_PATH="input.png" \
+    gimp --new-instance -i --batch-interpreter=python-fu-eval \
     -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/gradient_bevel.py').read())" --quit
 
-# Apply bevel (in place, batched)
+# Apply the bevel to a newline-separated batch (in place, shared session)
 env GIMP_SCRIPT_IMAGE_PATHS="input_a.png
 input_b.png" \
-    gimp -i --batch-interpreter=python-fu-eval \
+    gimp --new-instance -i --batch-interpreter=python-fu-eval \
     -b "import sys; sys.path.insert(0, '${GIMP_SCRIPTS_DIRECTORY_PATH}'); exec(open('${GIMP_SCRIPTS_DIRECTORY_PATH}/bevel_batch.py').read())" --quit
 
-# Export to DDS
+# Export to DDS (plain Python, no GIMP)
 env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.png" \
     GIMP_SCRIPT_OUTPUT_IMAGE_PATH="output.dds" \
     python3 "${GIMP_SCRIPTS_DIRECTORY_PATH}/png_to_dds.py"
 ```
+
+**Note:** `gradient_bevel.py` takes a single `GIMP_SCRIPT_IMAGE_PATH`; SVG rasterisation is not a GIMP operation and is performed by the `svg-to-png` bash function through `rsvg-convert` and ImageMagick. GIMP sessions are started with `--new-instance` so a batch is never discarded by an instance that is still shutting down.
 
 ### Adding a New Flag
 
@@ -411,18 +449,24 @@ env GIMP_SCRIPT_INPUT_IMAGE_PATH="input.png" \
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | Validation failure (missing argument, source, or tools) |
+| 1 | Validation failure (missing version argument, setup tools, or usage error) |
+| 2 | Invalid arguments handed to `execute-gimp-script-file` |
+| 3 | A conversion helper (`png-to-bmp`, `svg-to-png`, `bmp-to-svg`, `png-to-dds`, `export-*`) failed to produce its output |
+| 255 (`-1`) | `source/` directory not found |
 
 ### Common Error Messages
 
 | Message | Cause |
 |---------|-------|
-| `Usage: ./build.sh <version>` | No version argument provided |
+| `Please specify a version!` | No version argument provided |
 | `MISSING SOURCE DIRECTORY` | `source/` not found (wrong working directory?) |
-| `ImageMagick is not installed` | `convert` not in PATH or Flatpak |
-| `potrace is not installed` | `potrace` not in PATH |
-| `GIMP is not installed` | GIMP not found (system or Flatpak) |
-| `Unsupported format: <file>` | Source file has unsupported extension |
+| `[ERROR] ImageMagick is not installed on this system` | `/usr/bin/convert` not present |
+| `[ERROR] potrace is not installed on this system` | `/usr/bin/potrace` not present |
+| `[ERROR] Python 3 is not installed on this system` | `python3` not found |
+| `[ERROR] rsvg-convert is not installed on this system` | `rsvg-convert` not found |
+| `[ERROR] GIMP is not installed on this system` | No GIMP binary found when a bevel session is started (checked lazily, not at start-up) |
+| `[WARNING] Unsupported source format for '<file>'` | Source file has unsupported extension |
+| `[ERROR] <n> flags were not beveled after 8 attempts:` | Bevels remained unmarked after every retry round |
 
 ## Related Documentation
 

@@ -17,14 +17,17 @@ There are no runtime dependencies — the output is a pure content mod consumed 
 | Property | Value |
 |----------|-------|
 | Minimum version | 6.0 |
-| Command used | `convert` |
-| Purpose | PNG → BMP conversion (intermediate step for raster sources) |
+| Commands used | `convert` (raster flattening) and `magick` (pixel reads, `svg-to-png` compositing) |
+| Purpose | PNG → BMP flattening, alpha derivation, DDS pixel extraction |
 | Install (Debian/Ubuntu) | `sudo apt install imagemagick` |
 | Install (Fedora) | `sudo dnf install ImageMagick` |
 | Install (Arch) | `sudo pacman -S imagemagick` |
 | Flatpak | N/A (system tool) |
 
-**Used by:** `png-to-svg`
+**Used by:** `png-to-bmp`, `bmp-to-svg` (via `png-to-svg`), `svg-to-png`, `png_to_dds.py`
+
+The start-up check tests `/usr/bin/convert`. The alphabet channel derivation in `svg-to-png` and the
+pixel extraction in `png_to_dds.py` use `magick`.
 
 ---
 
@@ -60,9 +63,9 @@ rectangle, so a transparent background would render black on black and the emble
 | Install (Fedora) | `sudo dnf install potrace` |
 | Flatpak | N/A (system tool) |
 
-**Used by:** `bmp-to-svg`, `png-to-svg`
+**Used by:** `bmp-to-svg`
 
-**Flags used:** `-s` (SVG output), `-o` (output file)
+**Flags used:** `--opaque`, `-s` (SVG output), `-o` (output file)
 
 ---
 
@@ -72,18 +75,21 @@ rectangle, so a transparent background would render black on black and the emble
 |----------|-------|
 | Minimum version | 3.0 |
 | Command used | `gimp` |
-| Purpose | Python-Fu execution: gradient bevel |
+| Purpose | Python-Fu execution: gradient bevel (batched) |
 | Install (Debian/Ubuntu) | `sudo apt install gimp` |
 | Flatpak ID | `org.gimp.GIMP` |
 
-**Used by:** `bevel-pngs`
+**Used by:** `bevel-pngs` via `execute-gimp-script-file`
 
-**Flags used:** `-i` (no interface), `--batch-interpreter=python-fu-eval`, `-b` (batch command), `--quit`
+**Flags used:** `--new-instance` (isolated session), `-i` (no interface), `--batch-interpreter=python-fu-eval`, `-b` (batch command), `--quit`
 
-**Detection paths (in order):**
-1. System PATH (`which gimp`)
+**Detection paths (in order, resolved lazily at the first bevel session):**
+1. `/usr/bin/gimp`
 2. `/var/lib/flatpak/exports/bin/org.gimp.GIMP`
-3. `~/.local/share/flatpak/exports/bin/org.gimp.GIMP`
+3. `${HOME}/.local/share/flatpak/exports/bin/org.gimp.GIMP`
+
+GIMP is **not** required at start-up; a build in which every flag is already processed never starts a
+session and therefore never needs GIMP installed.
 
 ## GIMP Plug-ins
 
@@ -96,7 +102,6 @@ effect. No separate plug-in package is needed.
 |---------|--------------|---------|
 | PNG import | `file-png-load` | Load PNG files |
 | PNG export | `file-png-export` | Write PNG files |
-| Colour to Alpha | `gegl:color-to-alpha` | Remove solid backgrounds |
 | Gaussian Blur | `gegl:gaussian-blur` | Bump map smoothing |
 | Bump Map | `gegl:bump-map` | Bevel embossing |
 
@@ -106,9 +111,9 @@ effect. No separate plug-in package is needed.
 
 | Workflow | Action | Version | Purpose |
 |----------|--------|---------|---------|
-| steam-workshop.yml | `actions/checkout` | v4 | Repository checkout |
+| steam-workshop.yml | `actions/checkout` | v3 | Repository checkout |
 | steam-workshop.yml | `hmlendea/steam-workshop-update` | latest | Steam Workshop upload |
-| nexus-mods.yml | `actions/checkout` | v4 | Repository checkout |
+| nexus-mods.yml | `actions/checkout` | v1 | Repository checkout |
 | nexus-mods.yml | `hmlendea/nexusmods-update` | latest | Nexus Mods upload |
 
 ### Secrets
@@ -135,25 +140,25 @@ Stellaris consumes these directly — no external libraries, frameworks, or code
 
 ```
 build.sh
-├── ImageMagick (magick)
-│   └── Used by: png-to-svg, svg-to-png, png-to-dds
+├── ImageMagick (convert, magick)
+│   └── Used by: png-to-bmp, png-to-svg, svg-to-png, png_to_dds.py
 ├── rsvg-convert
 │   └── Used by: svg-to-png
 ├── Python 3
 │   └── Used by: png-to-dds
 ├── potrace
-│   └── Used by: bmp-to-svg, png-to-svg
-└── GIMP
-    ├── PNG import (gimp-file-load)
-    │   └── Used by: gradient-bevel
+│   └── Used by: bmp-to-svg
+└── GIMP (lazy, only for bevel sessions)
+    ├── PNG import (file-png-load)
+    │   └── Used by: gradient_bevel
     ├── PNG export (file-png-export)
-    │   └── Used by: gradient-bevel
+    │   └── Used by: gradient_bevel
     ├── Gaussian Blur (gegl:gaussian-blur)
-    │   └── Used by: gradient-bevel
+    │   └── Used by: gradient_bevel
     └── Bump Map (gegl:bump-map)
-        └── Used by: gradient-bevel
+        └── Used by: gradient_bevel
 
-The SVG rasterisation and the DDS export no longer use GIMP, so each flag needs only the bevels.
+The SVG rasterisation and the DDS export do not use GIMP, so each flag needs only the bevels.
 ```
 
 ## Version Compatibility
@@ -163,12 +168,12 @@ The SVG rasterisation and the DDS export no longer use GIMP, so each flag needs 
 | GIMP | 3.0.x, 3.2.x | Primary target |
 | librsvg | 2.6x | `rsvg-convert` for SVG rasterisation |
 | Python | 3.x | Writes the DDS directly |
-| ImageMagick | 6.x, 7.x | `convert` deprecated in 7.x but still works |
+| ImageMagick | 6.x, 7.x | The build uses both `convert` (raster flattening) and `magick` (pixel reads and compositing) |
 | potrace | 1.x | Stable API |
 
 **GIMP 2 note:** GIMP 2.10 is end of life and unsupported. The scripts use the GIMP 3 Python-Fu API and the GEGL filter API; the previous GIMP 2.10 Script-fu scripts and the separate `gimp-dds` plug-in are no longer used.
 
-**ImageMagick 7 note:** `convert` is a legacy alias; `magick` is the new command. The build script uses `convert` — works with both via compatibility symlink.
+**ImageMagick note:** The build uses `convert` for the raster flattening step and `magick` for the SVG alpha derivation and the DDS pixel extraction. IM7 keeps `convert` as a legacy alias, so both commands work on IM6 and IM7.
 
 ## Installation Summary
 
@@ -194,6 +199,7 @@ flatpak install flathub org.gimp.GIMP
 ### Verification
 
 ```bash
+convert --version
 magick --version
 rsvg-convert --version
 potrace --version

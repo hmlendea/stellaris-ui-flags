@@ -19,33 +19,34 @@ These abort the build with a message and non-zero exit code.
 ### Missing Version Argument
 
 ```
-Usage: ./build.sh <version>
+Please specify a version!
 ```
 
-- **Check:** `$#` argument count / empty `$1`
+- **Check:** Empty `$1`
 - **Exit code:** 1
 - **When:** Before any work begins
 
 ### Missing Source Directory
 
 ```
-ERROR: source/ directory not found!
+MISSING SOURCE DIRECTORY
 ```
 
-- **Check:** `[ -d "source" ]`
-- **Exit code:** 1
+- **Check:** `[ -d "${SOURCE_DIR_PATH}" ]`
+- **Exit code:** 255 (`exit -1`)
 - **When:** Before any work begins
 
 ### Missing Tools
 
 ```
-ERROR: <tool> is not installed!
+[ERROR] <tool> is not installed on this system
 ```
 
-- **Check:** Tool detection returns empty for all three paths (system PATH, Flatpak system, Flatpak user)
+- **Check:** ImageMagick at `/usr/bin/convert`, potrace at `/usr/bin/potrace`, Python 3 and `rsvg-convert` at `/usr/bin` or via `command -v`
 - **Exit code:** 1
-- **When:** One check per tool, before any work begins
-- **Note:** All four tools are required even if the current sources don't need all of them
+- **When:** One check per tool, before any work begins, **except GIMP**
+- **Note:** GIMP is validated lazily, only when the first bevel session starts, so a fully cached
+  build never requires it
 
 ## Continue-On-Error (Assets)
 
@@ -146,16 +147,19 @@ convert: no decode delegate for this image format
 ```
 build.sh invocation
 │
-├── Argument validation ──── fail ──→ exit 1 (usage message)
-├── Source validation ────── fail ──→ exit 1 (error message)
-├── Tool detection (×4) ──── fail ──→ exit 1 (per-tool message)
+├── Argument validation ──── fail ──→ exit 1 (Please specify a version!)
+├── Source validation ────── fail ──→ exit 255 / -1 (MISSING SOURCE DIRECTORY)
+├── Tool detection (magick, potrace, python3, rsvg-convert) ── fail ──→ exit 1
 │
 └── Main loop (per asset)
     ├── Format conversion ── fail ──→ skip asset, continue
     ├── SVG → PNG ─────────── fail ──→ skip asset, continue
-    ├── Bevel ──────────────── fail ──→ skip asset, continue
-    ├── PNG → DDS ─────────── fail ──→ skip asset, continue
+    ├── PNG → DDS export ──── fail ──→ exit 3 from the export helper
     └── All succeed ───────────────→ asset complete
+│
+└── Bevel rounds
+    ├── Session killed ──────→ unmarked images retried next round
+    └── Still unbeveled ─────→ reported by report-unbeveled-flags
 ```
 
 ## Exit Codes
@@ -163,9 +167,13 @@ build.sh invocation
 | Code | Meaning |
 |------|---------|
 | 0 | Build completed (may include skipped assets) |
-| 1 | Setup failure (arguments, source, tools) |
+| 1 | Start-up failure (version argument, ImageMagick, potrace, Python 3, rsvg-convert) |
+| 2 | Invalid arguments passed to `execute-gimp-script-file` |
+| 3 | A conversion/export helper failed to produce its output |
+| 255 (`-1`) | `source/` directory missing |
 
-**Note:** Exit code 0 does not guarantee all assets processed — it only means setup succeeded and the loop completed.
+**Note:** Exit code 0 does not guarantee all assets processed — it only means setup succeeded and the
+loop completed. Bevels that remained unmarked are reported explicitly before the final count.
 
 ## Improving Error Handling (Future Work)
 

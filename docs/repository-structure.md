@@ -64,6 +64,7 @@ stellaris-ui-flags/
 │   ├── localisation.yml
 │   ├── names.txt
 │   ├── scripts/
+│   │   ├── bevel_batch.py
 │   │   ├── gimp_image_operations.py
 │   │   ├── gimp_procedures.py
 │   │   ├── gimp_script_arguments.py
@@ -111,12 +112,12 @@ stellaris-ui-flags/
 
 Single-file shell script containing:
 
-- Configuration constants (Mod ID, name, version, Stellaris version)
+- Configuration constants (Mod ID, name, version, Stellaris version, concurrency, attempt count)
 - Path definitions (source, build, output directories)
-- Tool detection (GIMP binaries - system + Flatpak)
-- Conversion functions (`bmp-to-svg`, `png-to-svg`, `svg-to-png`, `png-to-dds`, `bevel-pngs`)
-- Utility functions (`get-flag-file-name`, `generate-mod-descriptor`)
-- Main execution loop (category iteration → file iteration → conversion pipeline)
+- Tool detection (start-up tools plus a lazy GIMP lookup)
+- Conversion functions (`bmp-to-svg`, `png-to-svg`, `svg-to-png`, `png-to-dds`, `export-map-dds`, `export-beveled-dds`, `bevel-pngs`)
+- Utility functions (`get-flag-file-name`, `generate-mod-descriptor`, `collect-unbeveled-pngs`, `report-unbeveled-flags`)
+- Main execution loop (category iteration → asset registration → parallel workers → batched bevel rounds → exports)
 
 ### Output Package (`out/ui-flags/`)
 
@@ -146,9 +147,9 @@ out/ui-flags/
 
 ## File Naming Conventions
 
-- **Source flags**: Descriptive names with format extension (e.g., `mighty-spanner.svg`, `ui_mechanical_1.png`)
+- **Source flags**: Descriptive names with format extension (e.g., `mighty-spanner.svg`, `pointy_1.png`)
 - **Output flags**: `ui_<category>_<number>.dds` or mapped names from `names.txt`
-- **Categories**: Lowercase with hyphens (e.g., `ui_elder-scrolls`, `ui_starcraft`)
+- **Categories**: Lowercase with hyphens or underscores (e.g., `ui_elder-scrolls`, `ui_starcraft`, `ui_civ`)
 - **Scripts**: Snake case with `.py` extension (e.g., `gradient_bevel.py`, `png_to_dds.py`)
 - **Build directories**: Match category names exactly
 
@@ -156,5 +157,5 @@ out/ui-flags/
 
 - `build/` — Intermediate build artefacts
 - `out/` — Final build output
-- `*.zip` — Release archives
+- `__pycache__/` — Python bytecode cache from the scripts under `source/scripts/`
 - OS/editor files (`.DS_Store`, `*.swp`, etc.)

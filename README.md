@@ -104,9 +104,9 @@ The mod does not transmit, persist, or process personal data. Distribution platf
 
 ### Requirements
 
-- [ImageMagick](https://imagemagick.org/) (`magick`)
+- [ImageMagick](https://imagemagick.org/) (`convert`, `magick`)
 - [librsvg](https://gitlab.gnome.org/GNOME/librsvg) (`rsvg-convert`)
-- [GIMP](https://www.gimp.org/) 3.0 or later
+- [GIMP](https://www.gimp.org/) 3.0 or later (resolved lazily, only for the bevels)
 - [potrace](https://potrace.sourceforge.net/)
 - [Python 3](https://www.python.org/)
 
@@ -143,7 +143,7 @@ The repository separates editable source assets from the generated mod package, 
 | `source/` | Editable source assets, colour palette, localisation, and conversion scripts |
 | `source/flags/` | Flag designs grouped by thematic category |
 | `source/backgrounds/` | Background textures used by the flags |
-| `source/scripts/` | GIMP Python scripts for image conversion and gradient bevels |
+| `source/scripts/` | Python scripts for the DDS export and the batched gradient bevel |
 | `docs/` | Repository documentation |
 | `out/` | Generated mod package (build output) |
 
